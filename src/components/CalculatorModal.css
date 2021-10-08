@@ -1,0 +1,289 @@
+@font-face {
+    font-family: 'Play-Regular';
+    src: url('../font/Play-Regular.ttf');
+
+}
+
+
+
+.calcWindow {
+    position: absolute;
+    
+    font-family: 'Play-Regular';
+    
+	font-variant:normal;
+    top: 50%;
+    left:50%;
+    z-index: 9;
+    background-color: #f1f1f1;
+    display:none;
+    border: 1px solid #d3d3d3;
+    width:250px;
+    
+    --button_hue: 180;
+    --button_saturation:75%;
+    --button_lightness:55%;
+    
+}
+.calcWindowHeader {
+    font-family: 'Play-Regular';
+    cursor: move;
+    background-color: #2196F3;
+    padding: 10px;
+    z-index:10;
+    color: #fff;
+}
+
+.equationLineEdit {
+    font-family: 'Play-Regular';
+    background-color: #fff;
+    max-width:210px;
+    border: 1px solid #d3d3d3;
+    right:100%;
+    height:30px;
+    margin-top:5px;
+    margin-left:5px;
+    margin-right:5px;
+
+}
+
+.calcWindow.extended {
+    
+    width:450px;
+    
+}
+
+.calcWindow.graph {
+    width:800px;
+}
+
+
+.graphCanvas {
+    left:120px;
+    width:450px;
+   
+    top:15%;
+    left:42%;
+    height:300px;
+    
+    background-color: white;
+    position:absolute;
+    place-self:stretch;
+    border: 1px solid #d3d3d3;
+}
+
+
+.variablePanel {
+    font-family: 'Play-Regular';
+    font-size:small;
+    position: absolute;
+    display:none;
+    z-index: 10;
+    
+    margin-top:5px;
+    margin-left:5px;
+    margin-right:5px;
+    background-color: #f1f1f1;
+    
+    height:200px;
+    
+    width:100px;
+    border: 1px inset #d3d3d3;
+    
+}
+.varItem {
+    font-family: 'Play-Regular';
+    margin-left:3px;
+    margin-top:3px;
+    height:10px;
+    right:75%;
+    
+    
+
+}
+.calcWindowContents {
+    justify-items: center;
+}
+
+
+.calcSidePanel {
+    font-family: 'Play-Regular';
+    font-size:small;
+    position: absolute;
+    display:none;
+    z-index: 10;
+    padding: 10px;
+    background-color: #f1f1f1;
+    border: 1px solid #d3d3d3;
+}
+
+
+.calcButtonGrid {
+    font-family: 'Play-Regular';
+    display:relative;
+    margin-top:5px;
+    display: inline-grid;
+    margin-left:5px;
+    
+    grid-column-gap:5px;
+    grid-row-gap:5px;
+    justify-content: space-around;
+    
+    
+}
+
+
+.advancedButtonGroup {
+    font-family: 'Play-Regular';
+    margin-top:5px;
+    margin-left:5px;
+    margin-right:5px;
+    margin-bottom:5px;
+    display: none;
+    
+    
+    grid-template-columns: repeat(4,50px);
+    
+    align-items:stretch;
+    justify-items: stretch;
+    place-items:center;
+    grid-row-gap:3px;
+    grid-column-gap:3px;
+    
+    
+    
+   
+    
+}
+
+.standardButtonGroup {
+    font-family: 'Play-Regular';
+    margin-top:3px;
+    margin-left:3px;
+    margin-right:3px;
+    margin-bottom:3px;
+    display: inline-grid;
+
+    align-items:stretch;
+    justify-items: stretch;
+
+    grid-template-columns: repeat(4,50px);
+    
+    
+    place-content: space-evenly;
+    grid-row-gap:3px;
+    grid-column-gap:3px;
+   
+    
+    
+}
+
+.answerLine {
+    font-family: 'Play-Regular';
+    background-color: #fff;
+    width:100px;
+    height:30px;
+    
+    left:115px;
+    position:relative;
+    
+    border: 1px solid #d3d3d3;
+}
+
+.calcButton {
+    font-family: 'Play-Regular';
+    background-color: hsl(var(--button_hue),var(--button_saturation),var(--button_lightness));
+    color: hsl(var(--button_hue),calc(var(--button_saturation)*2),cal(var(--button_lightness)*3));
+    
+    padding-bottom: 1em;
+    padding-top: 1em;
+    padding-left: .5em;
+    padding-right: 1.9em;
+    
+    line-height: 1px;
+    
+    text-align:center;
+    
+    align-self: stretch;
+
+    
+    border-radius:25%;
+    width:15px;
+    height:15px;
+    
+    
+    
+    box-sizing: border-box;
+    
+    
+   
+
+}
+
+.calcButton:hover {
+    animation: buttonBrightnessChange 1 300ms;
+    animation-timing-function: linear;
+    animation-fill-mode:both;
+}
+
+@keyframes buttonBrightnessChange {
+	0% {
+        background-color: hsl(var(--button_hue),var(--button_saturation),20%);
+    }
+    25% {
+        background-color: hsl(var(--button_hue),var(--button_saturation),40%);
+    }
+    50% {
+        background-color: hsl(var(--button_hue),var(--button_saturation),60%);
+    }
+    100% {
+        background-color: hsl(var(--button_hue),var(--button_saturation),80%);
+    }
+}
+
+
+.optionDropdown {
+    font-size:small;
+}
+
+
+
+
+
+
+#equalsButton {
+    background-color: hsl(var(--button_hue),var(--button_saturation),var(--button_lightness));
+    
+}
+
+.exitButton {
+    
+    
+    background: white;
+    border-radius:15%;
+    width:40px;
+    height:30px;
+    float:right;
+   
+    
+    
+}
+.exitButton:hover {
+    animation: exitButtonAnimation 1 300ms forwards;
+   
+    
+}
+
+@keyframes exitButtonAnimation {
+    0% {}
+    100% {
+        background:red; 
+    }
+}
+
+
+
+
+
+
+

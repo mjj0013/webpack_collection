@@ -207,7 +207,7 @@ class CalculatorModal extends React.Component {
 
         this.current_function = {name:null, lastParenthesisIndex:0};
         
-
+        this.lastWindowPathName = '/home';
         this.variableList = [];
         this.updateVariableList = this.updateVariableList.bind(this);
 
@@ -218,6 +218,8 @@ class CalculatorModal extends React.Component {
             {key:2, text:'Show Extended Operations', value:2},
 
         ]
+
+        this.focusIn = this.focusIn.bind(this);
         
 
         //this.baseLevelTerms = [];
@@ -227,6 +229,16 @@ class CalculatorModal extends React.Component {
         this.canvasRef = React.createRef();
 
 
+    }
+
+    focusIn(e) {
+        //if(e.target)
+        var cw = document.getElementById('cwh');
+        // var cwh = document.getElementById('cwh');
+        // if(cw == document.activeElement) {
+
+        // }
+        cw.addEventListener("keydown", this.keyHandler);
     }
 
     startGraphing() {
@@ -934,6 +946,10 @@ class CalculatorModal extends React.Component {
     componentDidMount() {
         this.makeDraggable('cwh');
         this.context = this.canvasRef.current.getContext('2d');
+        let w = document.getElementById("cwh");
+        window.addEventListener("keydown", this.keyHandler);
+        
+        
 
         //window.setInterval(()=>{console.log(this.variableList)}, 5000);
         
@@ -942,12 +958,16 @@ class CalculatorModal extends React.Component {
         // this.baseLevelTerm = new Term([0]);
         // allTerms.push(this.baseLevelTerm);
         //this.currentTermObj = this.baseLevelTerm;
+        console.log("here");
         
-        window.addEventListener("keydown", this.keyHandler);
+        // if(window.location.pathname != this.lastWindowPathName) {
+        //     console.log("resetting event listener")
+        //     //try--> RESETTING EVENT listener
+        //     window.removeEventListener("keydown", this.keyHandler);
+        //     window.addEventListener("keydown", this.keyHandler);
+        //     this.lastWindowPathName = window.location.pathname;
+        // }
             
-                
-        
-        
     }
 
     
@@ -976,8 +996,6 @@ class CalculatorModal extends React.Component {
                     document.getElementById(item.name+"_input").addEventListener("change", (e)=>{item.value=e.target.value;})
                     document.getElementById(item.name+"_input").style.maxWidth="50px";
                     
-
-
                 }
             })
             //****************************************************************************** */
@@ -1057,30 +1075,30 @@ class CalculatorModal extends React.Component {
 
     
     dropDownItemClicked = (e, { value }) => {
-        console.log(e);
        switch(e.target.innerText) {
            case "Settings":
                 this.toggleSettings(e);
-                
                 break;
+
            case "Standard":
                 document.getElementById('cwh').lastChild.textContent = document.getElementById('cwh').lastChild.textContent.replace(this.currentCalcOption, "Standard");
              
                 this.currentCalcOption = "Standard";
                 this.showStandard();
                 break;
+
             case "Advanced":
                 document.getElementById('cwh').lastChild.textContent = document.getElementById('cwh').lastChild.textContent.replace(this.currentCalcOption, "Advanced");
                 
                 this.currentCalcOption = "Advanced";
                 this.showAdvanced();
                 break;
+
             case "Graphing":
                 document.getElementById('cwh').lastChild.textContent = document.getElementById('cwh').lastChild.textContent.replace(this.currentCalcOption, "Graphing");
                 this.currentCalcOption = "Graphing";
                 this.showGraph();
-                
-                console.log(document.getElementById('cwh').lastChild.textContent)
+    
                 break;
        }
 
@@ -1160,9 +1178,9 @@ class CalculatorModal extends React.Component {
         const { data } = this.state;
         
         return (
-            <div id ="cw" class="calcWindow">
+            <div id ="cw" class="calcWindow" tabindex="1" onFocus={this.focusIn}>
                     
-                    <div id="cwh" class="calcWindowHeader">
+                    <div id="cwh" class="calcWindowHeader" onFocus={this.focusIn}>
                         <Dropdown className="optionDropdown" options={calcOptions} icon={<Icon name="bars"/>} value={data} onChange={this.dropDownItemClicked}>
                             
                         </Dropdown>

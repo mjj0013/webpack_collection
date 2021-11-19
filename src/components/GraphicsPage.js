@@ -25,26 +25,88 @@ class GraphicsPage extends React.Component {
         
         this.moveColors = this.moveColors.bind(this);
         this.draw = this.draw.bind(this);
-        
+        this.moveCurves = this.moveCurves.bind(this);
+        this.clearWorld = this.clearWorld.bind(this);
+
         
         this.canvasRef = React.createRef();
+
+        this.redCurve = {
+            startDx:1, startDy:1, 
+            endDx:15, endDy:15, 
+            startX:100, startY:100, 
+            control1X:25, control1Y:75, 
+            control2X:50, control2Y:50, 
+            endX:10, endY:200
+        }
+        this.greenCurve = {startDx:0, startDy:0,
+            endDx:0, endDy:0,  startX:0, startY:0, control1X:0, control1Y:0, control2X:0, control2Y:0, endX:0, endY:0}
+        this.blueCurve = {
+            startDx:0, startDy:0,
+            endDx:0, endDy:0,  
+            startX:0, startY:0, 
+            control1X:0, control1Y:0, 
+            control2X:0, control2Y:0, 
+            endX:0, endY:0
+        }
+        
+
         
 
 
+    }
+    clearWorld = () => {
+        //this.canvasRef.current.getContext('2d').clearRect(0,0,this.canvasRef.current.width, this.canvasRef.current.height);
+        this.context.fillStyle = 'white'
+        this.context.fillRect(0,0,this.canvasRef.current.width,this.canvasRef.current.height);
+
+
+        //this.contextRef.current.fillRect(0,0,1000,1000);
     }
     
 
     componentDidMount() {
         this.context = this.canvasRef.current.getContext('2d');   // use { alpha: false } to optimize
         setInterval(() => {
-            
+            this.clearWorld();
             this.moveColors();
+            this.moveCurves();
+            
             this.draw();
+
         }, 1000/60);
         
         
         
         
+    }
+
+    moveCurves() {
+        
+        if((this.redCurve.startX > this.canvasRef.current.width) || (this.redCurve.startX < 0)) {
+            this.redCurve.startDx = -1*this.redCurve.startDx;
+             
+        }
+        
+
+        if((this.redCurve.startY > this.canvasRef.current.height) || (this.redCurve.startY < 0)) {
+            this.redCurve.startDy = -1*this.redCurve.startDy;
+        }
+
+        if((this.redCurve.endX > this.canvasRef.current.width) || (this.redCurve.endX < 0)) {
+            this.redCurve.endDx = -1*this.redCurve.endDx;
+        }
+        if((this.redCurve.endY > this.canvasRef.current.height) || (this.redCurve.endY < 0)) {
+            this.redCurve.endDy = -1*this.redCurve.endDy;
+        }
+
+
+        this.redCurve.startX += this.redCurve.startDx;
+        this.redCurve.startY += this.redCurve.startDy;
+        this.redCurve.endX += this.redCurve.endDx;
+
+        this.redCurve.endY += this.redCurve.endDy;
+
     }
     
     moveColors() {
@@ -106,47 +168,52 @@ class GraphicsPage extends React.Component {
 
     draw() {
         
-        const drawSelection = document.getElementById("drawSelect");
-        var baseRedVal = document.getElementById("redSlider");
-        var baseGreenVal = document.getElementById("greenSlider");
-        var baseBlueVal = document.getElementById("blueSlider");
-        if(drawSelection==null) return;
+        this.context = this.canvasRef.current.getContext('2d');
+        
+        // const drawSelection = document.getElementById("drawSelect");
+        // var baseRedVal = document.getElementById("redSlider");
+        // var baseGreenVal = document.getElementById("greenSlider");
+        // var baseBlueVal = document.getElementById("blueSlider");
+        this.context.beginPath();
+        this.context.strokeStyle = 'red';
+        this.context.moveTo(this.redCurve.startX, this.redCurve.startY);
+        this.context.bezierCurveTo(this.redCurve.control1X, 
+                                    this.redCurve.control1Y, 
+                                    this.redCurve.control2X, 
+                                    this.redCurve.control2Y,
+                                    this.redCurve.endX,
+                                    this.redCurve.endY);
+        
+        this.context.stroke();
 
-        if(drawSelection.value == "Box1") {
-            
 
-            this.context.fillRect(25,25,100,100);
-            this.context.clearRect(45,45,60,60);
-            this.context.strokeRect(50,50,50,50);
-            
-       }
-       if(drawSelection.value == "ColoredBox1") {
-            var grid_length = 50;
-            var color_gradient = (255/grid_length);
+    //    if(drawSelection.value == "ColoredBox1") {
+    //         var grid_length = 50;
+    //         var color_gradient = (255/grid_length);
 
-            //Background animation
-            for(var i = 0; i <grid_length; ++i) {
-                for(var j = 0; j <grid_length; ++j) {
+    //         //Background animation
+    //         for(var i = 0; i <grid_length; ++i) {
+    //             for(var j = 0; j <grid_length; ++j) {
                     
-                    this.context.fillStyle = 'rgb(' 
-                        + Math.floor(Math.abs(this.red%255-color_gradient*i)) +', ' 
-                        + Math.floor(Math.abs(this.green%255-color_gradient*j)) +', '
-                        + Math.floor(Math.abs(this.blue%255-color_gradient*j))         
-                        +')';
-                    this.context.fillRect(j*10,i*10,10,10);
-                }
-            }
+    //                 this.context.fillStyle = 'rgb(' 
+    //                     + Math.floor(Math.abs(this.red%255-color_gradient*i)) +', ' 
+    //                     + Math.floor(Math.abs(this.green%255-color_gradient*j)) +', '
+    //                     + Math.floor(Math.abs(this.blue%255-color_gradient*j))         
+    //                     +')';
+    //                 this.context.fillRect(j*10,i*10,10,10);
+    //             }
+    //         }
             
-            var radgrad2 = this.context.createRadialGradient(45, 45, 10, 50, 50, 30);
-            radgrad2.addColorStop(0, 'rgb('+baseRedVal.value+', '+baseGreenVal.value+', '+baseBlueVal.value+')');
-            radgrad2.addColorStop(0.75, '#FF0188');
-            radgrad2.addColorStop(1, 'rgba(255, 1, 136, 0)');
+    //         var radgrad2 = this.context.createRadialGradient(45, 45, 10, 50, 50, 30);
+    //         radgrad2.addColorStop(0, 'rgb('+baseRedVal.value+', '+baseGreenVal.value+', '+baseBlueVal.value+')');
+    //         radgrad2.addColorStop(0.75, '#FF0188');
+    //         radgrad2.addColorStop(1, 'rgba(255, 1, 136, 0)');
             
-            this.context.fillStyle = radgrad2;
-            this.context.fillRect(0, 0, 250, 150);
+    //         this.context.fillStyle = radgrad2;
+    //         this.context.fillRect(0, 0, 250, 150);
                 
 
-       }
+    //    }
         //window.requestAnimationFrame(draw);
     }
     

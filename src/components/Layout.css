@@ -1,29 +1,41 @@
 body {
-	--nav-width:200px;
-	margin: 0 0 0 var(--nav-width);
+	--nav-width:50px;
+	--navLink-height:50px;
+	--navLink-width:50px;
+	/* margin: 0 0 0 var(--nav-width); */
+	margin: var(--nav-width) 0 0 0;
 	font-family: 'Quicksand', sans-serif;
 	font-variant: small-caps;
 	font-size:18px;
-	background-color: #808080;
+	
 	--gradientColor:rgb(107, 76, 219);
 	
 	
 }
+.nav-body {
+	position:fixed;
+	top:0;
+	left:0;
+	height: var(--nav-width);
+}
 .nav-menu {
 	position:fixed;
-
 	top: 0;
 	left: 0;
-	width: var(--nav-width);
-	height: 100vh;
-	background-color:#222222;
-	
-	
-	
-
+	/* width: var(--nav-width);
+	height: 100vh; */
+	height: var(--navLink-height);
+	width: 100vw;
+	background-color:#2222229d;
+	z-index:4;
 }
+
+.homeLayout {
+	z-index: 5;
+}
+
 .nav-link {
-	
+	height: var(--navLink-height);
 	display: block;
 	padding: 12px 18px;
 	text-decoration: none;
@@ -45,13 +57,11 @@ body {
 	/*background: rgba(255,255,255,0.05);*/
 }
 
-.navBarButton {
+/* .navBarButton {
 	margin-right:5px;
-	
-	
-	
-
-}
+	display: inline-block;
+	width: fit-content;
+} */
 
 
 .pull-right {
@@ -68,19 +78,16 @@ a {
 	color: #009579;
 }
 
-
-
-
-
 .backgroundCanvas {
 	position:absolute;
-	z-index:4;
-	top:0%;
+	z-index:3;
+	top:0;
+	left:0;
 
-	margin-left:25px;
-	margin-right:25px;
-	
-	margin-top: 50px;
+	width:100vw;
+	height:100vh;
+
+	filter:brightness(.5);
 	
 }
 
@@ -156,45 +163,53 @@ a {
 }
 
 
-#gameControlPanel {
-	box-shadow:10px 5px 5px black; 
-	display: grid;
-	position: absolute;
-	top:50%;
-	width: 200px;
-	right:5%;
-	margin-right:25px;
-	outline-style: inset; 
-	
-	
-	
-	
-}
+
 
 #viewAndHeader {
 	margin-right:auto;
 	margin-left: 25px;
+	
+	/* width:1800px; */
+	overflow:hidden;
+	position:fixed;
+	
 }
+
+/* #gameCanvas {
+	display:block;
+	visibility:hidden;
+
+} */
+
+
+#gameSVG {
+	/* top:500px; */
+	
+	width:3000px;
+	height:2000px;
+	/* position:absolute; */
+	position:fixed;
+	/* top:0px;
+	left:0px; */
+
+}
+
 
 select {
 	width: 100px;
 }
 #addOrbButton {
-	width: 75px;
-	height: 75px;
-	border-radius:75%;
-	
+	width: 55px;
+	height: 55px;
+	border-radius:75%;	
 	box-shadow: 0 0 0 1pt grey;
 
-	
-
 	margin-bottom: 10px;
-	padding: 20px;
+	padding: 15px;
 	text-align: center;
 
 	z-index: 0;
 	background: radial-gradient(circle at 50%, rgba(20, 8, 230,1) 25%, rgba(74, 47, 197,1) 50% rgba(110, 110, 196,1) 80%, rgba(144, 184, 192,1) 100%);
-	
 }
 
 
@@ -226,7 +241,47 @@ select {
 }
 
 
+.gameCanvas {
+	--gameCanvasWidth: 800px;
+	--gameCanvasHeight: 600px;
+	width:var(--gameCanvasWidth);
+	height:var(--gameCanvasHeight);
+	display:flex;
+	position:absolute;
+	/* top:25vh;
+	left:25vw; */
+	
+	
+	
+}
 
+.gameCanvas:hover {
+	cursor:grab;
+
+}
+
+#gameControlPanel {
+	/* box-shadow:10px 5px 5px black;  */
+	display: grid;
+	position: absolute;
+	/* position: relative;
+	top:0px;
+	left:0px; */
+	top:50%;
+	width: 100px;
+	left:25%;
+	margin-right:25px;
+	/* outline-style: inset;  */
+	fill: rgba(18, 25, 32, 0.75);
+	
+}
+
+
+#viewAndPanel {
+	position:absolute;
+	
+	left:15vw;
+}
 
 
 

@@ -5,28 +5,29 @@ import { getRandomInt } from '../utility.js';
 
 import GameObject from './GameObject';
 class PhysicalObject extends GameObject {
-    constructor(parent, context, obj_type, x ,y,width, height, xVelocity, yVelocity ,mass,color=null) {
+    constructor(parent, context, obj_type, obj_id, x ,y,width, height, xVelocity, yVelocity ,mass,color=null) {
         super(parent,context, x ,y, xVelocity, yVelocity ,mass);
         this.parent = parent;
         this.radius = width;
         this.obj_type = obj_type;
-
+        this.obj_id = obj_id;
 
         this.trueX = x;       //true x and y are for the object's (x,y) point after rotation (in JS, the coordinates stay the same after rotation)
         this.trueY = y;
+
         this.trueEdges = [
             {x1:x,       y1:y,          x2:x+width,   y2:y,         label:'p1p2', length:width},
             {x1:x+width, y1:y,          x2:x+width,   y2:y+height,  label:'p2p3', length:height},
             {x1:x+width, y1:y+height,   x2:x,         y2:y+height,  label:'p3p4', length:width},
             {x1:x,       y1:y+height,   x2:x,         y2:y,         label:'p4p1', length:height}
         ];
+
         this.trueCorners = [
             {x:x, y:y, label:'p1'},
             {x:x+width, y:y, label:'p2'},
             {x:x+width, y:y+height, label:'p3'},
             {x:x, y:y+height, label:'p4'}
-
-        ]
+        ];
         
         this.hasShadowRect = false;
         this.drawShadowRect = false;
@@ -45,38 +46,27 @@ class PhysicalObject extends GameObject {
         else {this.hue=color;}
         
         this.movable = true;
-        
-
         this.shape = null;
 
-        this.movable = true;
         this.controllable = true;
 
         this.collisionIter = 0;
-        this.collisionIterSpeed =5;
+        this.collisionIterSpeed = 5;
         this.startCollisionIter = false;
         this.circle2circle = this.circle2circle.bind(this);
         this.circle2rectangle = this.circle2rectangle.bind(this);
         if(obj_type.includes("ellipse")) {this.shape = "ellipse";}
+        if(obj_type.includes("irregular")) {this.shape="irregular";}
         if(obj_type.includes("rectangle")) {this.shape = "rectangle";}
-        if(obj_type.includes("stationary")) {
-            //this.movable = false;
-        }
+        if(obj_type.includes("stationary")) { this.movable = false; }
 
-
-        if(obj_type.includes("user") ){
-            
+        if(obj_type.includes("user")){
             this.movable = true;
             this.controllable = true;
         }
-
         
     }
     circle2rectangle(circle,rectangle, isCollisionTest=false) {
-        var testX = rectangle.x;
-        var testY = rectangle.y;
-       
-        var collided = false;
         if(circle.parent.physicalObjects[circle.parent.controlledObjectIndex]==circle) {
             //^ line above is just a wrapper to test for current controlled ball location
 
@@ -107,11 +97,7 @@ class PhysicalObject extends GameObject {
             for(var i=0; i < 4; ++i) {
                 if(rectangle.trueEdges[i].label.includes(closestCorner.corner.label)) {
                     let edge = rectangle.trueEdges[i];
-                    //var oppEdge = edge[(i+2)%4];
-                    
-                    // var dist = Math.sqrt((edge.x2-edge.x1)*(edge.x2-edge.x1) + 
-                    //                 (edge.y2-edge.y1)*(edge.y2-edge.y1) );
-                    
+
                     if((circle.x > edge.x1) && (circle.x < edge.x2)) {
                         if((circle.y > edge.y1) && (circle.y < edge.y2)) {
                             console.log("collided with edge: "+edge.label);
@@ -137,9 +123,7 @@ class PhysicalObject extends GameObject {
             // var normX = (collidingEdge.x2-collidingEdge.x1);
             // var normY = -1*(collidingEdge.y2-collidingEdge.y1);
             let vCollisionNorm = {x: vCollision.x / dist, y: vCollision.y/dist};
-            
-            
-           
+
             
             let vRelativeVelocity = {x: circle.xVelocity-rectangle.xVelocity, y: circle.yVelocity-rectangle.yVelocity};
             let speed = (vRelativeVelocity.x * vCollisionNorm.x) + (vRelativeVelocity.y * vCollisionNorm.y);    //equal to the dot product
@@ -153,53 +137,7 @@ class PhysicalObject extends GameObject {
                 circle.xVelocity -= (vCollisionNorm.x);
                 circle.yVelocity -= (vCollisionNorm.y);
             }
-          
-
-                    //compare traits of two edges associated with closest point
-                    //for rectangles, 2 associated edges' angles will always have a 90 difference
-                    //maybe find if normal vector of edge and circle's velocity vector intersect
-
-                
-                
-            
-             
-                
-            
-        // if((circle.x > rectangle.x+rectangle.width) && (circle.x - (rectangle.x+rectangle.width) < circle.radius)) {        //right
-        //     if((circle.y + circle.radius > rectangle.y) && (circle.y-circle.radius < rectangle.y+rectangle.height)) {
-        //         console.log("RIGHT SIDE");
-        //         circle.xVelocity = -1*circle.xVelocity
-        //     }
-        // }
-        // else if((circle.x < rectangle.x) && ((rectangle.x-circle.x) < circle.radius)) {        //left
-        //     if((circle.y + circle.radius > rectangle.y) && (circle.y-circle.radius < rectangle.y+rectangle.height)) {
-        //         console.log("LEFT SIDE");
-        //         circle.xVelocity = -1*circle.xVelocity
-        //     }
-        // }
-        // else if((circle.y < rectangle.y) && ((rectangle.y-circle.y) < circle.radius)) {        //top
-        //     if((circle.x + circle.radius > rectangle.x) && (circle.x-circle.radius < rectangle.x+rectangle.width)) {
-        //         console.log("TOP SIDE");
-        //         circle.yVelocity = -1*circle.yVelocity
-        //     }
-        // }
-        // else if((circle.y > rectangle.y+rectangle.height) && ((circle.y - (rectangle.y+rectangle.height)) < circle.radius)) {        //bottom
-        //     if((circle.x + circle.radius > rectangle.x) && (circle.x-circle.radius < rectangle.x+rectangle.width)) {
-        //         console.log("BOTTOM SIDE");
-        //         circle.yVelocity = -1*circle.yVelocity
-        //     }
-        // }
-
-
-
-
         }   // <-- remove bracket after testing
-        
-
-        
-
-        
-
 
     }
     circle2circle(circle1,circle2,isCollisionTest=false) {
@@ -242,80 +180,9 @@ class PhysicalObject extends GameObject {
     }
     
     draw() {
-        if(this.shape == "rectangle") {
-            //on rotation about center point
-            
-            if(this.rotating) {
-                this.parent.contextRef.current.save();
-                this.parent.contextRef.current.translate(this.x+this.width/2, this.y+this.height/2);
-                this.parent.contextRef.current.rotate(this.angularVelocity*(Math.PI/180));
-                
-                this.parent.contextRef.current.translate(-this.x-this.width/2, -this.y-this.height/2);
-                
-            }
-            
-            this.parent.contextRef.current.font = '24px serif';
-            
-            this.parent.contextRef.current.textBaseline= 'top';
-            this.parent.contextRef.current.textAlign = "center"
-            this.parent.contextRef.current.strokeText('<^>',this.x+this.width/2, this.y+this.height/2);
-            
-            this.parent.contextRef.current.beginPath();
-            this.parent.contextRef.current.moveTo(this.trueEdges[0].x1, this.trueEdges[0].y1)   //p1
-            this.parent.contextRef.current.lineTo(this.trueEdges[0].x2, this.trueEdges[0].y2)   //p2
-            this.parent.contextRef.current.lineTo(this.trueEdges[1].x1, this.trueEdges[1].y1)   //p2
-            this.parent.contextRef.current.lineTo(this.trueEdges[1].x2, this.trueEdges[1].y2)   //p3
-            this.parent.contextRef.current.lineTo(this.trueEdges[2].x1, this.trueEdges[2].y1)   //p3
-            this.parent.contextRef.current.lineTo(this.trueEdges[2].x2, this.trueEdges[2].y2)   //p4
-            this.parent.contextRef.current.lineTo(this.trueEdges[3].x1, this.trueEdges[3].y1)   //p4
-            this.parent.contextRef.current.lineTo(this.trueEdges[3].x2, this.trueEdges[3].y2)   //p1
-
-           
-            
-            this.parent.contextRef.current.fillStyle = 'hsl('+(this.hue)+',50%,50%)';
-            this.parent.contextRef.current.stroke();
-            
-            //this.parent.contextRef.current.fill();
-            //this.parent.contextRef.current.fillRect(this.x, this.y, this.width, this.height);
-            
-
-            if(this.rotating) {this.parent.contextRef.current.restore();}
-
+        if(this.shape == "ellipse") { 
+            document.getElementById(this.obj_id).setAttribute('fill',`hsl(${this.hue}, 30%, 25%)`)
         }
-        else if(this.shape == "ellipse") {
-            this.parent.contextRef.current.beginPath();
-
-            this.parent.contextRef.current.arc(this.x, this.y, this.width, 0, 2 * Math.PI);
-           
-            var theta = Math.atan((this.parent.yLightSource-this.y)/(this.parent.xLightSource-this.x));
-            
-            
-
-            var gradient = this.parent.contextRef.current.createRadialGradient(this.x,this.y,this.radius,  
-                (this.radius)*Math.cos(theta),
-                (this.radius)*Math.sin(theta),
-                (this.radius)
-                );
-
-            var num_stops = 10;
-            var d_offset = this.radius/this.parent.rLightSource;
-            for(var i=1; i < num_stops+1; ++i) {
-                var percent = Math.min(d_offset*i/num_stops, 1.0);
-                gradient.addColorStop(percent, 
-                    'hsl('
-                        +(this.hue)+','
-                        +this.parent.backgroundSaturation*(1.0-percent)+'%,'
-                        +(this.parent.backgroundLightness*(percent))+'%)'
-                    
-                    )
-            }
-            
-            this.parent.contextRef.current.fillStyle = gradient;
-            this.parent.contextRef.current.fill();
-            this.parent.contextRef.current.stroke();
-
-        }
-        
     }
 
     update() {
@@ -442,6 +309,11 @@ class PhysicalObject extends GameObject {
         // if(new_angularVelocity !=undefined) this.angularVelocity = Math.min(new_angularVelocity, 0);
         // if(this.angularVelocity == 0) this.rotating=false;
 
+
+        var circleElement = document.getElementById(this.obj_id);
+        circleElement.setAttribute("cx", this.x);
+        circleElement.setAttribute("cy",this.y);
+        
        
         this.xVelocity = new_xVelocity;
         this.yVelocity = new_yVelocity;

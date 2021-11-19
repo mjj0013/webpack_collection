@@ -1,8 +1,4 @@
-
-
 import Layout from '../Layout';
-
-
 class GameObject {
     constructor(parent, context, x, y, xVelocity, yVelocity ,mass) {
        
@@ -22,7 +18,6 @@ class GameObject {
         this.collidable=false;
         
     }
-
  
 };
 export default GameObject;

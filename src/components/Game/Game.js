@@ -1,7 +1,7 @@
 import React, {useRef} from 'react';
 
 import {Table, Header, Container, Divider, Icon, ItemContent } from 'semantic-ui-react';
-
+import 'material-icons/iconfont/material-icons.css';
 import Layout from '../Layout';
 import "regenerator-runtime/runtime";
 
@@ -49,8 +49,8 @@ class Game extends React.Component {
       
 
         this.dragStart = null;
-   
         
+        this.orbsHidden = false;
 
         this.numOfBackgroundShades = 5;
         this.changeGravityDirection = this.changeGravityDirection.bind(this);
@@ -177,8 +177,9 @@ class Game extends React.Component {
     }
 
     dragMouseDown(e) {
+        console.log("ejriejf");
         e = e || window.event;
-        //console.log("clicked", e.offsetX, e.offsetY)
+        console.log("clicked", e.offsetX, e.offsetY)
        
 
         
@@ -276,7 +277,7 @@ class Game extends React.Component {
         this.lastZoom.x = e.offsetX;
         this.lastZoom.y = e.offsetY;
         let delta = e.wheelDelta/1000;
-       
+        console.log("delta",delta);
         if(delta) this.updateZoom(delta);
 
         this.zoomHasHappened = 1;
@@ -364,11 +365,13 @@ class Game extends React.Component {
     }
     componentDidMount = () => {
         this.M = new Mesh(this);
-        
+       
+        this.svgRef.current.addEventListener("mousedown",this.dragMouseDown,false);
         this.svgRef.current.addEventListener("wheel",this.captureZoomEvent,false);
         this.svgRef.current.addEventListener("DOMMouseScroll", this.captureZoomEvent,false);
         this.svgRef.current.addEventListener("contextmenu", e => e.preventDefault());           //prevent context menu on right click, only for gameSVG 
-        this.svgRef.current.onmousedown = this.dragMouseDown;
+        
+        
 
         setInterval(
             () => {
@@ -741,17 +744,44 @@ class Game extends React.Component {
         return result;
     }
     adjustBallsVisibility(e) {
-        if(e.target.textContent.substr(0,4)=="Hide") {
-            e.target.textContent = "Show orbs";
+        
+        if(!this.orbsHidden) {
+            
+            // <Icon id="unhideIcon" name='unhide' />
+
+            // var I = document.createElement("Icon");
+            // I.setAttribute("name","unhide");
+            document.getElementById("visibilityIcon").innerHTML = "visibility_off"
+            console.log(document.getElementById("visibilityIcon").innerHTML)
+            //e.target.insertAdjacentHTML('beforeend', `<Icon id="unhideIcon" name='unhide' style={{pointerEvents:'none'}} />` );
+
             document.getElementById("circleGroup").setAttribute("visibility","hidden");
+            this.orbsHidden =true;
         }
         else {
-            e.target.textContent = "Hide orbs";
+            
+            //<Icon id="hideIcon" name='hide' />
+
+            // var I = document.createElement("Icon");
+            // I.setAttribute("name","hide");
+            
+            document.getElementById("visibilityIcon").innerHTML = "visibility"
+            
+
             document.getElementById("circleGroup").setAttribute("visibility","visible");
+            this.orbsHidden = false;
         }
-        console.log(e.target.textContent);
+        //console.log(e.target.textContent);
     }
     toggleAnimateVertices(e) {
+
+        if(!this.M.animateMesh) {
+            document.getElementById("animateMeshButton").innerHTML = "pause";
+        }
+        else {
+            document.getElementById("animateMeshButton").innerHTML = "play_arrow";
+        }
+
         this.M.animateMesh = !this.M.animateMesh;
     }
     //<feTurbulence in="light" type="turbulence" baseFrequency="0.05" numOctaves="2" result="turbulence"/>
@@ -759,11 +789,8 @@ class Game extends React.Component {
         //width={this.canvasWidth} height={this.canvasHeight}
         return (
             <Layout title="Game Page" description="A description about the game">
-                <Container>
-                    <Header as="h3">Another header</Header>
-                </Container>
                 <div id="viewAndPanel" width={this.canvasWidth} height={this.canvasHeight}>
-                    <svg id="gameSVG"  ref={this.svgRef}  width={this.canvasWidth} height={this.canvasHeight} xmlns="http://www.w3.org/2000/svg"> 
+                    <svg id="gameSVG" viewBox="0 0 800 600" ref={this.svgRef}   width={800} height={600} xmlns="http://www.w3.org/2000/svg"> 
                         
 
                         <rect id="gameSVGBackground" ref={this.svgRef} width="100%" height="100%" fill='grey' /*style={{filter:'url(#filter)'}}*//>
@@ -779,28 +806,36 @@ class Game extends React.Component {
                             <Icon name='add' />
                         </button> 
                         
-                        <Divider />
+                        
                         <div>
-                            <button id="ballsVisibilityButton" onClick = {this.adjustBallsVisibility}>Hide orbs</button>
+                            <button id="ballsVisibilityButton" onClick = {(e) =>this.adjustBallsVisibility(e)}>
+                            <span id="visibilityIcon" class="material-icons-outlined" style={{pointerEvents:'none'}}>
+                                visibility
+                            </span>
+                            </button>
                         </div>
+
                         <div>
-                            <label for="animateVertices">Mesh:</label>
-                            <button id="animateVerticesButton" onClick = {this.toggleAnimateVertices}>Toggle Animation</button>
-                        </div>
-                        <div>
-                            <label for="gravityDirection">Tilt</label>
+                            
                             <select name="gravityDirection" id="gravityDirection" style={{width:75}} onChange={this.changeGravityDirection}>
-                                <option value="None">None</option>
-                                <option value="Up">Up</option>
-                                <option value="Down">Down</option>
-                                <option value="Left">Left</option>
-                                <option value="Right">Right</option>
+                                <option value="None">&#x2716;</option>
+                                <option value="Up">&#x2191;</option>
+                                <option value="Down">&#x2193;</option>
+                                <option value="Left">&#x2190;</option>
+                                <option value="Right">&#x2192;</option>
                             </select>
                         </div>
+                        
                         <div>
-                            <label for="hueRange">Hue</label>
-                            <input type="range" min="0" max="360" id="hueRange" onInput={this.changeHue} style={{width:75}}></input>
+                            
+                            <button id="animateVerticesButton" onClick = {this.toggleAnimateVertices}>
+                                <span id="animateMeshButton" class="material-icons-outlined" style={{pointerEvents:'none'}}>
+                                    play_arrow
+                                </span>
+                            </button>
                         </div>
+                        
+                        
                     </Container>      
                 </div>
             </Layout>

@@ -283,7 +283,6 @@ class PhysicalObject extends GameObject {
         if(this.x-this.width + new_xVelocity<=0) {                     //left
             if(this.parent.xGlobalForce ==0.0) {new_xVelocity = -1*new_xVelocity;}
             else {new_xVelocity = 0.0;}
-           
         }
         if(this.x + new_xVelocity >= this.parent.canvasWidth-this.width) {    //right
             if(this.parent.xGlobalForce ==0.0) {new_xVelocity = -1*new_xVelocity;}

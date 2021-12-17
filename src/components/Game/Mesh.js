@@ -386,7 +386,7 @@ export class Mesh {
         if(this.cyclesDFS.length==0) return result;
         
         var existingPolygons = this.cyclesDFS.map(x=>x.toString());
-        var newPolygonVersions = []
+        var newPolygonVersions = [];
         var tempArray = Array.from(newPolygon)
         for(var i =0; i < newPolygon.length; ++i) {
             tempArray=tempArray.slice(1).concat(tempArray[0]);
@@ -426,7 +426,6 @@ export class Mesh {
                     if(i==j || i+1==j || j+1==i) continue;
                     if(this.edgeExists(polygon[i],polygon[j])==false) {result=false; break;}
 
-
                 }
                 if(result) {
                     if(this.edgeExists(polygon[i],polygon[i+1])==false) {result=false;}
@@ -437,46 +436,6 @@ export class Mesh {
                 }
             }
         }
-        
-        // var sortedX = polygon.map(a=>this.pts[a].x).sort();
-        // var sortedY = polygon.map(a=>this.pts[a].y).sort();
-        
-        // let minPtX = sortedX[0];
-        // let maxPtX = sortedX[sortedX.length-1];
-        // let minPtY = sortedY[0];
-        // let maxPtY = sortedY[sortedY.length-1];
-
-        // var polygonPts = [];
-        // for(let p=0; p<polygon.length; ++p) { polygonPts.push(this.pts[polygon[p]]) }       //x,y coordinates of new polygon
-
-
-        // for(let p=0; p < this.pts.length;++p) {
-        //     let pt = this.pts[p];
-        //     if((pt.x > minPtX && pt.x <maxPtX) && (pt.y > minPtY && pt.y < maxPtY)) {
-        //         let testResults = [];
-        //         for(let v=0; v < polygonPts.length; ++v) {
-        //             if(v==polygonPts.length-1) {
-        //                 let slope1 = ((polygonPts[v].y - polygonPts[0].y)/(polygonPts[v].x - polygonPts[0].x));
-        //                 let test = pt.y > slope1*pt.x + polygonPts[v].y;
-        //                 testResults.push(test);
-        //             }
-        //             else {
-        //                 let slope1 = ((polygonPts[v].y - polygonPts[v+1].y)/(polygonPts[v].x - polygonPts[v+1].x));
-        //                 let test = pt.y > slope1*pt.x + polygonPts[v].y;
-        //                 testResults.push(test);
-        //             }
-        //             if(testResults.length>=3) {
-        //                 if(testResults[v-2] != testResults[v]) {
-        //                     result = false;
-        //                     break;
-        //                 }
-        //             }  
-        //         }
-        //         console.log('testResults',testResults);
-                
-        //     }
-        //     if(result==false) break;
-        // }
 
         // ****put code here that tests if other vertices are inside the polygon****
 
@@ -485,13 +444,10 @@ export class Mesh {
         //if valid, increments each edge's "polygon membership" variable 
         if(result && incrementUsageCounts) {
             for(let i =0; i < polygon.length; ++i) {
-                if(i==polygon.length-1) {
-                    
-                    ++this.getEdge(polygon[i],polygon[0]).polygonUsageCount;  
-                }
-                else {
-                    ++this.getEdge(polygon[i],polygon[i+1]).polygonUsageCount;  
-                }
+                if(i==polygon.length-1) ++this.getEdge(polygon[i],polygon[0]).polygonUsageCount;  
+                
+                else ++this.getEdge(polygon[i],polygon[i+1]).polygonUsageCount;  
+                
             }
         }
         
@@ -499,9 +455,8 @@ export class Mesh {
     }
     
 
-    DFS(index,path, goal,goalType='path', excludeEdges=null) {
+    DFS(index, path, goal, goalType='path', excludeEdges=null) {
         var subPath = Array.from(path);    
-        //var subPath = path;
         if(subPath.length==0) {       //root vertex
             this.visitedDFS[index] = 1;
             for(let i=0; i < this.ptData[index].connections.length;++i) {    //immediate connections of root vertex
@@ -512,13 +467,12 @@ export class Mesh {
                     this.visitedDFS[nextPt] = 1;
                    
                     if(this.ptData[subPath[0]].mappedPaths[goal]==undefined)  this.ptData[subPath[0]].mappedPaths[goal] = subPath;
-                    else {
-                        if(this.ptData[subPath[0]].mappedPaths[goal].length > subPath.length) this.ptData[subPath[0]].mappedPaths[goal] = subPath;
+                    else if(this.ptData[subPath[0]].mappedPaths[goal].length > subPath.length) {
+                        this.ptData[subPath[0]].mappedPaths[goal] = subPath;
                     }
+                    
                     break;
                 }
-                
-                
                 else {
                     this.visitedDFS[this.ptData[index].connections[i]] = 1;
                     this.DFS(nextPt,  subPath.concat(index,nextPt), goal, goalType  );
@@ -541,8 +495,6 @@ export class Mesh {
                     }
                     break;
                 }
-                
-
                 else {
                     
                     this.visitedDFS[nextPt] = 1;
@@ -558,7 +510,7 @@ export class Mesh {
                 if(subPath[subPath.length-2] == nextPt) continue;
                 if(nextPt == goal && goalType=='path') {
                     this.visitedDFS[nextPt] = 1;
-                    console.log("triangle");
+                    
 
                     if(!this.polygonExists(subPath)) {
                         if(this.polygonIsValid(subPath,true)) {
@@ -573,7 +525,6 @@ export class Mesh {
                     else {
                         if(this.ptData[subPath[0]].mappedPaths[goal].length > subPath.length) this.ptData[subPath[0]].mappedPaths[goal] = subPath;
                     }
-                    
                 }
                 else {
                     this.visitedDFS[nextPt] = 1;
@@ -596,7 +547,6 @@ export class Mesh {
                                 this.cyclesDFS.push(loop); 
                             }
                         }
-                  
                     }
                     else {
                         this.visitedDFS[nextPt] = 1;
@@ -622,8 +572,6 @@ export class Mesh {
         return;
 
     }
-
-
     depthFirstSearch() {
         //this.pathsToOrigin = Array(this.ptData.length).fill({shortestPath:[]});
         
@@ -637,13 +585,6 @@ export class Mesh {
         this.DFS(0,[], 0, 'path');
        
         console.log('cycles',this.cyclesDFS);
-
-        // for(let i=0; i < this.ptData.length; ++i) {
-        //     for(let j=0; j < this.ptData.length;++j) {
-        //         if(i==j) continue;
-        //         this.mapShortestPaths(i,j);
-        //     }
-        // }
         
         for(let c1=0; c1 < this.cyclesDFS.length; ++c1) {
             for(let c2=0; c2 < this.cyclesDFS.length; ++c2) {

@@ -3,82 +3,52 @@ import { List, Pagination, Header, Container, Divider, Icon } from 'semantic-ui-
 
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
+import { documentElement } from 'min-document';
 
 
-
-// export function imageReader(canvas, addr=null, filterInfo=null) {
-//     //from https://www.youtube.com/watch?v=-AR-6X_98rM&ab_channel=KyleRobinsonYoung
-
-//     //filterInfo will be object:    ex: {type:"gauss", kernelLength:5, sig:1}
-//     var kernelObj = null;
-//     if(filterInfo) {
-//         let filterLength = filterInfo.kernelLength ? filterInfo.kernelLength : 5;
-//         let filterSig = filterInfo.sig ? filterInfo.sig : 5;
-//         if(filterInfo.type == "gauss") {
-//             kernelObj = gaussianFilter(filterLength, filterSig);
-//         }
-//     }
-
-
-//     var input = addr;
-//     if(addr==null) {
-//         input = document.querySelector('input[type="file"]');
-//         console.log("input",input);
-//     }
-    
-//     const file = document.querySelector('input[type=file]').files[0];
-//     const reader = new FileReader();
-//     var context = canvas.getContext("2d");
-
-//     reader.addEventListener("load", function () {
-//         const img = new Image();
-//         img.onload = function() {
-//             // /var canvas=document.createElement("canvas");
-//             console.log("ieiewoqijfidsf");
-            
-//             context.drawImage(img,0,0);
-
-//             var imageData = context.getImageData(0,0,canvas.width,canvas.height);
-//             var data = imageData.data;
-
-//             if(filterInfo) {
-//                 for(var imgX=kernelObj.kernelRadius; imgX < data.length; imgX+=4) {       //increment by 4 because its RGBA values
-//                     for(var imgY=kernelObj.kernelRadius; imgY < data.length; imgY+=4) {       //increment by 4 because its RGBA values
-//                         // let value = kernelObj.kernel[kX+kernelObj.kernelRadius][kY+kernelObj.kernelRadius];
-//                         let R = 0;
-//                         let G = 0;
-//                         let B = 0;
-//                         for(var kX=-kernelObj.kernelRadius; kX < kernelObj.kernelRadius; ++kX) {       //increment by 4 because its RGBA values
-//                             for(var kY=-kernelObj.kernelRadius; kY < kernelObj.kernelRadius; ++kY) {       //increment by 4 because its RGBA values
-//                                 let value = kernelObj.kernel[kX+kernelObj.kernelRadius][kY+kernelObj.kernelRadius];
-
-//                                 console.log(data[imgX-kX])
-//                                 //console.log("imageData[imgX-kX][imgY-kY]", data[imgX-kX][imgY-kY]);
-//                                 R += data[imgX-kX][imgY-kY][0]*value;
-//                                 G += data[imgX-kX][imgY-kY][1]*value;
-//                                 B += data[imgX-kX][imgY-kY][2]*value;
-//                             }
-//                         }
-//                         imageData.data[imgX][imgY][0] = R;
-//                         imageData.data[imgX][imgY][1] = G;
-//                         imageData.data[imgX][imgY][2] = B;
-//                     }
-//                 }
-//             }
-//             context.putImageData(imageData);
-//             console.log(imageData);
-//         }
-//         img.src = reader.result;
+function imageReader(imgId) {
+    var mappedEdges = [];   
+    /*
+    will contain objects of form 
+    {
+        pts:[{x:x, y:y}, ...],
+        id:"",
         
-//       }, false);
+    }
+    */
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext('2d');
+    var img = document.getElementById(imgId);
+    canvas.width = img.width;
+    canvas.height = img.height;
+    context.drawImage(img, 0, 0 );
+    var data = context.getImageData(0, 0, img.width, img.height);
     
-//     if (file) {
-//         reader.readAsDataURL(file);
-//     }
+    //looks at each pixel at (x,y)
+    for(var imgX=0; imgX < data.length; imgX+=4) {       //increment by 4 because its RGBA values
+        for(var imgY=0; imgY < data.length; imgY+=4) {       //increment by 4 because its RGBA values
+            
 
-    
-    
-// }
+            //try: moving the window below throughout image and calculating the density of white pixels in the window
+                //if the density is >= a specific value, then add a point there to put in a path.
+            //looking at neighboring pixels of pixel at (x,y)
+            for(var kX=-kernelObj.kernelRadius; kX < kernelObj.kernelRadius; ++kX) {       //increment by 4 because its RGBA values
+                for(var kY=-kernelObj.kernelRadius; kY < kernelObj.kernelRadius; ++kY) {       //increment by 4 because its RGBA values
+                    let value = kernelObj.kernel[kX+kernelObj.kernelRadius][kY+kernelObj.kernelRadius];
+
+                    // data[imgX][imgY][0] = R;
+                    // data[imgX][imgY][1] = G;
+                    // data[imgX][imgY][2] = B;
+                    // data[imgX][imgY][3] = A;
+                    
+                    data[imgX-kX][imgY-kY][0]*value;
+                    data[imgX-kX][imgY-kY][1]*value;
+                    data[imgX-kX][imgY-kY][2]*value;
+                }
+            }
+        }
+    }   
+}
 
 class FileManipPage extends React.Component {
     constructor(props) {
@@ -110,18 +80,20 @@ class FileManipPage extends React.Component {
         
     }
     loadImage(e) {
-		var newImg = document.createElementNS("http://www.w3.org/2000/svg", 'image');
-		newImg.setAttribute("filter","url(#edgeFilter)");
+        var testImgElement = document.getElementById("testImg");
+        testImgElement.setAttribute("filter","url(#edgeFilter)")
+        
 
-		const reader = new FileReader();
-		//const file = document.querySelector('input[type=file]').files[0];
+        const reader = new FileReader();
         const file = document.getElementById("imgFile").files[0];
-		reader.addEventListener("load", function () {
-			newImg.setAttribute("href",reader.result);
-		}, false);
+	
+        reader.onload = function() {
+            testImgElement.src = reader.result;
+        }
 		if(file) reader.readAsDataURL(file)
-		
-		document.getElementById("mainSVG").append(newImg);
+
+        imageReader("testImg");       
+
 	}
    
     render() {
@@ -153,17 +125,52 @@ class FileManipPage extends React.Component {
                     <label htmlFor="imgFile">Choose image file: </label>
                     <input type="file" id="imgFile" onChange={this.loadImage}></input>
                 </Container>
-                <svg id="mainSVG" width="600" height="600" viewBox="0 0 1000 1000"> 
-					<filter id="edgeFilter">
-						<feGaussianBlur result="blur" in="SourceGraphic" stdDeviation="1" />
-						<feBlend in="SourceGraphic" in2="blur" mode="difference" />
+                
+                <svg id="mainSVG" style={{display:"none"}} width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"> 
+					<filter id="edgeFilter" color-interpolation-filters="sRGB">
+                    
+                        <feComponentTransfer result="colorTransfer1">
+                                <feFuncR type="gamma" amplitude="25" exponent="5">
+                                    <animate attributeName="exponent" attributeType="XML" from={5} to={25} dur="4s" start="0s" repeatCount="indefinite" />
+                                </feFuncR>
+                                <feFuncG type="gamma" amplitude="25" exponent="5">
+                                    <animate attributeName="exponent" attributeType="XML" from={5} to={25} dur="4s" start="0s" repeatCount="indefinite"/>
+                                </feFuncG>
+                                <feFuncB type="gamma" amplitude="25" exponent="5">
+                                    <animate attributeName="exponent" attributeType="XML" from={5} to={25} dur="4s" start="0s" repeatCount="indefinite"/>
+                                </feFuncB>
+                                <feFuncA type="gamma" amplitude="25" exponent="5"/>
+                        </feComponentTransfer>
+                        <feComponentTransfer in="colorTransfer1" result="colorTransfer2">
+                                <feFuncR type="discrete" tableValues="0 254 255" />
+                                <feFuncG type="discrete" tableValues="0 254 255" />
+                                <feFuncB type="discrete" tableValues="0 254 255"  />
+                                <feFuncA type="discrete" tableValues=".9 1" />
+
+                        </feComponentTransfer>
+                        <feColorMatrix in="colorTransfer2" result="blackandwhite" type="matrix" 
+                        values="0.3333 0.3333 0.3333 0 0
+                                0.3333 0.3333 0.3333 0 0
+                                0.3333 0.3333 0.3333 0 0
+                                0       0       0    1 0" />
+
+                        
+                        <feGaussianBlur result="blur" in="blackandwhite" stdDeviation="1"></feGaussianBlur>
+                        <feBlend in="blackandwhite" in2="blur" result="edges" mode="difference" />
+
+                        <feGaussianBlur result="blur2" in="edges" stdDeviation="1"></feGaussianBlur>
+                       
 					</filter>
 				</svg>
+                <img id="testImg" width={1000} height={1000} style={{top:window.screen.clientHeight,position:"absolute",display:"block", border:"1px solid black", filter:"url(#edgeFilter)"}} />
                 
+                {/* <iframe style={{filter:"url(#edgeFilter)"}} width="560" height="315" src="https://www.youtube.com/embed/k9wRPOeUhls" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe> */}
+                
+                
+                 
             </Layout>
+            
       );
-
-
     }
 }
 export default FileManipPage;

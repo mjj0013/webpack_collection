@@ -156,7 +156,7 @@ class FileManipPage extends React.Component {
         var filterInfo = [
             // {type:"gammaTransfer", applyTo:"RGB", exponent:.2, amplitude:10, offset:0},
             // {type:"edgeDetect"},
-            // {type:"gammaTransfer", applyTo:"RGB", exponent:.2, amplitude:25, offset:0},
+            // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:1/5, offset:5},
             {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.2,.9,1.0]},
             {type:"edgeDetect"},
             {type:"blackWhiteTransfer"}

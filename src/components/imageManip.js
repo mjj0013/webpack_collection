@@ -289,8 +289,6 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
             console.log("after", imageData); 
         }
         img.src = reader.result;
-        
-        
       }, false);
     
     if (file) {

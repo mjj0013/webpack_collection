@@ -4,7 +4,7 @@ import { List, Pagination, Header, Container, Divider, Icon } from 'semantic-ui-
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
 import { documentElement } from 'min-document';
-import {imageReader} from './imageManip.js'
+import {imageReader, morphErosion} from './imageManip.js'
 // var globalImageData;
 
 
@@ -106,7 +106,7 @@ function traceEdges() {
         var C = document.createElementNS("http://www.w3.org/2000/svg","circle");
         C.setAttribute("cx", mappedEdges[i].x);
         C.setAttribute("cy", mappedEdges[i].y);
-        C.setAttribute("r", .75);
+        C.setAttribute("r", .25);
         C.setAttribute("fill","black");
         resultSVG.appendChild(C);
     }
@@ -167,9 +167,11 @@ class FileManipPage extends React.Component {
         //     traceEdges();
         // })
         imageReader(canvas,null, filterInfo);
-        setTimeout(traceEdges,5000);
+        
+        setTimeout(()=> morphErosion(canvas),3000);
        
-       
+        
+        setTimeout(traceEdges,6000)
         
         
         

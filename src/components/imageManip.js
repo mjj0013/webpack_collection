@@ -10,7 +10,6 @@ function gaussianBlurComponent(kernelLength=5,sig=1) {
     //set minimum standard deviation as a baseline
     sig = Math.max((kernelRadius / 2), 1)      
 
-
     let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));
     
     let upperExp = sig*sig*2;
@@ -29,8 +28,53 @@ function gaussianBlurComponent(kernelLength=5,sig=1) {
         }
     }
     let kernelObj = {kernel:kernel, kernelRadius:kernelRadius, sig:sig}
-
     return kernelObj;
+}
+
+
+
+//represents a cluster of white pixels as a single pixel (if all pixels in the frame are white, they're all white except for the middle )
+export function morphErosion(canvas) {
+    var context = canvas.getContext("2d");
+    var imageData = context.getImageData(0,0,canvas.width,canvas.height);
+
+    var data = imageData.data;
+    var imageWidth = imageData.width;
+    var imageHeight= imageData.height;
+    var kernelRadius = 1;
+    for(var imgY=kernelRadius; imgY < imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
+        for(var imgX=kernelRadius; imgX < imageWidth; imgX+=1) {
+
+            var allWhite = true;
+            for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
+                for(var kX=-kernelRadius; kX < kernelRadius; ++kX) { 
+                    if(!(data[4*((imgX-kX) + (imgY-kY)*imageWidth)] >=200 && data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 1] >=200 &&    data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 2] >=200)) {
+                        allWhite = false;
+                        break;
+                    }
+                }
+                if(!allWhite) break;
+            }
+            if(allWhite) {
+                console.log("all white");
+                for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
+                    for(var kX=-kernelRadius; kX < kernelRadius; ++kX) { 
+                        data[4*((imgX-kX) + (imgY-kY)*imageWidth)] = 0;
+                        data[4*((imgX-kX) + (imgY-kY)*imageWidth)+1] = 0;
+                        data[4*((imgX-kX) + (imgY-kY)*imageWidth)+2] = 0;
+                        data[4*((imgX-kX) + (imgY-kY)*imageWidth)+3] = 0;
+                    }
+                }
+                data[4*((imgX) + (imgY)*imageWidth)] = 255;
+                data[4*((imgX) + (imgY)*imageWidth)+1] = 255;
+                data[4*((imgX) + (imgY)*imageWidth)+2] = 255;
+                // data[4*((imgX) + (imgY)*imageWidth)+3] = 0;
+            }
+        }
+    }
+
+    context.putImageData(imageData, 0,0);
+    console.log("done applying morphological erosion");
 }
 
 function edgeDetectComponent(kernelLength=5, middleValue=8) {
@@ -52,7 +96,6 @@ function edgeDetectComponent(kernelLength=5, middleValue=8) {
 
 // export function transferComponent()
 function colorBlackWhiteTransferComponent(inRGBA) {
-    
     let m = [
         [0.333,  0.333,  0.333,  0, 0],
         [0.3333, 0.3333, 0.3333, 0, 0],
@@ -109,16 +152,13 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
         const img = new Image();
         img.onload = function() {
             context.drawImage(img,0,0);
-
             var imageData = context.getImageData(0,0,canvas.width,canvas.height);
-            console.log("before", imageData);
             var data = imageData.data;
             var imageWidth = imageData.width;
             var imageHeight= imageData.height;
             
             if(filterInfo) {
                 filterInfo.forEach(component => {
-                    console.log("component", component)
                     let componentLength = component.kernelLength ? component.kernelLength : 5;
                     let filterSig = component.sig ? component.sig : 5;
                     if(component.type == "gaussBlur") {
@@ -202,23 +242,15 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
                                 
                                 if(component.applyTo.includes("R")) {
                                     R = colorDiscreteTransferComponent(R, component.tableValues);
-                                    // R = Math.max(0,R);
-                                    // R = Math.min(255,R);
                                 }
                                 if(component.applyTo.includes("G")) {
                                     G = colorDiscreteTransferComponent(G,component.tableValues);
-                                    // G = Math.max(0,G);
-                                    // G = Math.min(255,G);
                                 }
                                 if(component.applyTo.includes("B")) {
                                     B = colorDiscreteTransferComponent(B, component.tableValues);
-                                    // B = Math.max(0,B);
-                                    // B = Math.min(255,B);
                                 }
                                 if(component.applyTo.includes("A")) {
                                     A = colorDiscreteTransferComponent(B, component.tableValues, true);
-                                    // B = Math.max(0,B);
-                                    // B = Math.min(255,B);
                                 }
                                 data[4*(imgY*imageWidth + imgX)] = R;
                                 data[4*(imgY*imageWidth + imgX) + 1] = G;
@@ -235,7 +267,6 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
                                
                                 for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
                                     for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
-                                        
                                         let value = component.kernel[kY+kernelRadius][kX+kernelRadius];
 
                                         R += data[4*((imgX-kX) + (imgY-kY)*imageWidth)]*value;
@@ -246,23 +277,16 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
                                         // B += data[imgX-kX][imgY-kY][2]*value;
                                     }
                                 }
-                               
-                                // imagedata.data[imgX][imgY][0] = R;
-                                // imagedata.data[imgX][imgY][1] = G;
-                                // imagedata.data[imgX][imgY][2] = B;
                                 data[4*(imgX + imgY*imageWidth)] = R;
                                 data[4*(imgX + imgY*imageWidth) + 1] = G;
                                 data[4*(imgX + imgY*imageWidth) + 2] = B;
                             }
                         }
                     }
-                    console.log("done with component: ", component)
                 })
             }
-           
             context.putImageData(imageData, 0,0);
-            console.log("after", imageData);
-            
+            console.log("after", imageData); 
         }
         img.src = reader.result;
         

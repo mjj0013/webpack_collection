@@ -156,10 +156,14 @@ class FileManipPage extends React.Component {
         var filterInfo = [
             // {type:"gammaTransfer", applyTo:"RGB", exponent:.2, amplitude:10, offset:0},
             // {type:"edgeDetect"},
-            // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:1/5, offset:5},
-            {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.2,.9,1.0]},
+            // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
+            
+            {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
+            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.8,.9,1.0]},
             {type:"edgeDetect"},
-            {type:"blackWhiteTransfer"}
+            {type:"blackWhiteTransfer"},
+            {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
+            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]}
         
         ]
 
@@ -171,7 +175,7 @@ class FileManipPage extends React.Component {
         setTimeout(()=> morphErosion(canvas),3000);
        
         
-        setTimeout(traceEdges,6000)
+        // setTimeout(traceEdges,6000)
         
         
         
@@ -253,9 +257,14 @@ class FileManipPage extends React.Component {
                         
 
                         <feConvolveMatrix result="edges" in="blackandwhite"
-                                    kernelMatrix="-1 -1 -1
-                                                  -1 8 -1
-                                                  -1 -1 -1"
+                                    // kernelMatrix="-1 -1 -1
+                                    //               -1 8 -1
+                                    //               -1 -1 -1"
+                                    kernelMatrix="-1 -1 -1 -1 -1
+                                                  -1 7 7 7 -1
+                                                  -1 7 8 7 -1
+                                                  -1 7 7 7 -1
+                                                  -1 -1 -1 -1 -1"
                                     preserveAlpha="true"
                                     bias=".1"
                         />

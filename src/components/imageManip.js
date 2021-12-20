@@ -41,7 +41,7 @@ export function morphErosion(canvas) {
     var data = imageData.data;
     var imageWidth = imageData.width;
     var imageHeight= imageData.height;
-    var kernelRadius = 1;
+    var kernelRadius = 3;
     for(var imgY=kernelRadius; imgY < imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
         for(var imgX=kernelRadius; imgX < imageWidth; imgX+=1) {
 
@@ -78,6 +78,8 @@ export function morphErosion(canvas) {
 }
 
 function edgeDetectComponent(kernelLength=5, middleValue=8) {
+
+    
     let kernel = new Array(kernelLength).fill(-1).map(() => new Array(kernelLength).fill(-1));
     let kernelRadius;
     if(kernelLength%2==0) {     //is even
@@ -86,6 +88,7 @@ function edgeDetectComponent(kernelLength=5, middleValue=8) {
     else {
         let middleIdx = Math.floor(kernelLength/2);
         kernel[middleIdx][middleIdx] = middleValue;
+        
         kernelRadius = Math.floor(kernelLength/2);
     }
     let kernelObj = {kernel:kernel, kernelRadius:kernelRadius, sig:null}
@@ -286,7 +289,7 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
                 })
             }
             context.putImageData(imageData, 0,0);
-            console.log("after", imageData); 
+            
         }
         img.src = reader.result;
       }, false);

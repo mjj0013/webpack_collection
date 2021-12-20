@@ -4,29 +4,29 @@ import { List, Pagination, Header, Container, Divider, Icon } from 'semantic-ui-
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
 import { documentElement } from 'min-document';
-import {imageReader, morphErosion} from './imageManip.js'
+import {imageReader, morphErosion, simpleGrayscaleConvert} from './imageManip.js'
 // var globalImageData;
 
 
-function pick(event) {
-    var x = event.layerX;
-    var y = event.layerY;
+// function pick(event) {
+//     var x = event.layerX;
+//     var y = event.layerY;
     
-    var context = event.target.getContext("2d");
+//     var context = event.target.getContext("2d");
    
-    var pixel = context.getImageData(x, y, 1, 1);
-    var data = pixel.data;
-    var rData = data[0]
-    var gData = data[1]
-    var bData = data[2]
-    var aData = data[3]
+//     var pixel = context.getImageData(x, y, 1, 1);
+//     var data = pixel.data;
+//     var rData = data[0]
+//     var gData = data[1]
+//     var bData = data[2]
+//     var aData = data[3]
   
-      const rgba = `rgba(${rData}, ${gData}, ${bData}, ${aData / 255})`;
-      document.getElementById("hovered-color").style.background = rgba;
-      document.getElementById("hovered-color").textContent = rgba;
+//       const rgba = `rgba(${rData}, ${gData}, ${bData}, ${aData / 255})`;
+//       document.getElementById("hovered-color").style.background = rgba;
+//       document.getElementById("hovered-color").textContent = rgba;
   
-      return rgba;
-  }
+//       return rgba;
+//   }
 
 
 function traceEdges() {
@@ -44,7 +44,7 @@ function traceEdges() {
     */
 
     var canvas = document.getElementById("testCanvas");
-    var imageData = canvas.getContext("2d").getImageData(0,0, 500, 500);
+    var imageData = canvas.getContext("2d").getImageData(0,0, 1000, 500);
     console.log("imageData",imageData)
 
     // var imageData = context.getImageData(50, 50, img.width, img.height);
@@ -53,7 +53,7 @@ function traceEdges() {
 
     var data = imageData.data
    
-    let frameRadius = 4;    
+    let frameRadius = 2;    
     //looks at each pixel at (x,y)
    
 
@@ -65,27 +65,13 @@ function traceEdges() {
     for(let imgY=frameRadius; imgY < imageHeight; imgY+=1) {       
         for(let imgX=frameRadius; imgX < imageWidth; imgX+=1) {       
       
-            // if(data[imageHeight*imgX + imgY] != null) console.log(data[imageHeight*imgX + imgY])
-
-            
             for(let kY=-frameRadius; kY < frameRadius; kY+=1) {       //increment by 4 because its RGBA values
                 for(let kX=-frameRadius; kX < frameRadius; kX+=1) {       //increment by 4 because its RGBA values
-                    // [kX+kernelObj.kernelRadius][kY+kernelObj.kernelRadius];
-                    // var avg = data[4*((imgX-kX) + (imgY-kY)*imageWidth)] + data[4*((imgX-kX) + (imgY-kY)*imageWidth)+1] + data[4*((imgX-kX) + (imgY-kY)*imageWidth) +2] /3;
-                    
-                    
-                    if(data[4*((imgX-kX) + (imgY-kY)*imageWidth)]>=245 && data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 1]>=245 && data[4*((imgX-kX) + (imgY-kY)*imageWidth)+2]>=245) {
+                    // if(4*((imgX-kX) + (imgY-kY)*imageWidth) >= imageData.length) continue; 
+                    if(data[4*((imgX-kX) + (imgY-kY)*imageWidth)]>=225 && data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 1]>=225 && data[4*((imgX-kX) + (imgY-kY)*imageWidth)+2]>=225) {
                         ++whiteDensityInKernel;
                         
-                        // if(Math.abs(avg - data[4*((imgX-kX) + (imgY-kY)*imageWidth)]) < 5)  {
-                            
-                        // }
                     }
-                        
-                    
-                  
-                  
-
                 }
             }
             
@@ -101,15 +87,21 @@ function traceEdges() {
     console.log("done scanning");
     console.log("mappedEdges.length", mappedEdges.length)
     console.log("highestDensity",highestDensity)
+    
     var resultSVG = document.getElementById("resultSVG");
     for(let i =0; i < mappedEdges.length; ++i) {
         var C = document.createElementNS("http://www.w3.org/2000/svg","circle");
         C.setAttribute("cx", mappedEdges[i].x);
         C.setAttribute("cy", mappedEdges[i].y);
-        C.setAttribute("r", .25);
+        C.setAttribute("r", ".5px");
         C.setAttribute("fill","black");
         resultSVG.appendChild(C);
     }
+
+    morphErosion(canvas);
+    return new Promise((resolve,reject)=> {
+
+    })
 
 }
 
@@ -139,62 +131,41 @@ class FileManipPage extends React.Component {
     }
 
     componentDidMount() {
-        document.getElementById("testCanvas").addEventListener("mousemove", (e)=>{
-            pick(e)
-        })
+
+
+        // document.getElementById("testCanvas").addEventListener("mousemove", (e)=>{
+        //     pick(e)
+        // })
     }
 
     numOfPagesChanged(e) {
         this.setState({num: e.target.value});  
     }
 
-    loadImage(e) {
+    async loadImage(e) {
         var canvas = document.getElementById('testCanvas');
-        // var filterInfo = [
-        //     {type:"gammaTransfer", applyTo:"RGB", exponent:.2, amplitude:10, offset:0}
-        // ]
         var filterInfo = [
-            // {type:"gammaTransfer", applyTo:"RGB", exponent:.2, amplitude:10, offset:0},
-            // {type:"edgeDetect"},
             // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
-            
             {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.8,.9,1.0]},
-            {type:"edgeDetect"},
+
+            {type:"edgeDetect", kernelLength:7,middleValue:20, fillValue:-1, cornerValue:-1},
             {type:"blackWhiteTransfer"},
             {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
-            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]}
-        
         ]
 
-        // imageReader(canvas,null, filterInfo).then(function() {
-        //     traceEdges();
-        // })
-        imageReader(canvas,null, filterInfo);
-        
-        setTimeout(()=> morphErosion(canvas),3000);
-       
-        
-        // setTimeout(traceEdges,6000)
-        
-        
-        
-       
 
-        // reader.onload = function() {
-        //     testImgElement.src = reader.result;
-        //     context.drawImage(testImgElement, 0, 0);
+        await imageReader(document.getElementById("luminGrayscale"),null, null)
+        //[{type:"grayScale", subType:"luminosity"}]
 
-        //     var imageData = context.getImageData(0,0,testImgElement.width,testImgElement.height);
-        //     // imageReader(imageData);
-                
-            
-        // }
-		// if(file) reader.readAsDataURL(file)
+        // await imageReader(document.getElementById("averageGrayscale"),null, [{type:"grayScale", subType:"average"}])
         
-        // document.getElementById("canvasContainer").appendChild(canvas);
-        
+        return await imageReader(canvas,null, filterInfo);
 	}
+
+    
+
+
     
 //     <Container id="textFileLoader" style={{display:"block", top:"20%", position:"absolute"}}>
 //     <label htmlFor="numOfPages" value='1'>Number of Pages: </label>
@@ -218,12 +189,12 @@ class FileManipPage extends React.Component {
     render() {
         return (
             <Layout title="File Loading Page" description="Description about file">
-                <div id="hovered-color" style={{width:100,height:100}}>
-                </div>
+                
 
                 <Container id="imageFileLoader" style={{top:"40%", position:"absolute"}}>
                     <label htmlFor="imgFile">Choose image file: </label>
                     <input type="file" id="imgFile" onChange={this.loadImage}></input>
+                    <button onClick={traceEdges}>Trace Edges</button>
                 </Container>
                 
                 <svg id="mainSVG" style={{display:"none"}} width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"> 
@@ -253,18 +224,10 @@ class FileManipPage extends React.Component {
                                 0.3333 0.3333 0.3333 0 0
                                 0.3333 0.3333 0.3333 0 0
                                 0       0       0    1 0" />
-
-                        
-
                         <feConvolveMatrix result="edges" in="blackandwhite"
-                                    // kernelMatrix="-1 -1 -1
-                                    //               -1 8 -1
-                                    //               -1 -1 -1"
-                                    kernelMatrix="-1 -1 -1 -1 -1
-                                                  -1 7 7 7 -1
-                                                  -1 7 8 7 -1
-                                                  -1 7 7 7 -1
-                                                  -1 -1 -1 -1 -1"
+                                    kernelMatrix="-1 -1 -1
+                                                  -1 8 -1
+                                                  -1 -1 -1"
                                     preserveAlpha="true"
                                     bias=".1"
                         />
@@ -281,8 +244,12 @@ class FileManipPage extends React.Component {
                 {/* <iframe style={{filter:"url(#edgeFilter)"}} width="560" height="315" src="https://www.youtube.com/embed/k9wRPOeUhls" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe> */}
                 
                 
-                <canvas id="testCanvas" width={500} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
-                <svg id="resultSVG" width={500} height={500} style={{right:"150px",top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
+                <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
+                
+                <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"120vh",position:"absolute",display:"block", border:"1px solid black"}} />
+
+                <canvas id="luminGrayscale" width={1000} height={500} style={{left:"150px", top:"180vh",position:"absolute",display:"block", border:"1px solid black"}} />
+                <canvas id="averageGrayscale" width={1000} height={500} style={{left:"150px", top:"240vh",position:"absolute",display:"block", border:"1px solid black"}} />
             </Layout>
             
       );

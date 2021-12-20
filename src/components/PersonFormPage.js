@@ -3,8 +3,6 @@ import React from 'react';
 
 import { Button, Checkbox, Form } from 'semantic-ui-react';
 
-
-
 function BasicForm() {
 	return (
 	<Layout>

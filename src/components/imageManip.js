@@ -34,9 +34,9 @@ function gaussianBlurComponent(kernelLength=5,sig=1) {
 
 
 //represents a cluster of white pixels as a single pixel (if all pixels in the frame are white, they're all white except for the middle )
-export function morphErosion(canvas) {
-    var context = canvas.getContext("2d");
-    var imageData = context.getImageData(0,0,canvas.width,canvas.height);
+export function morphErosion(imageData) {
+    // var context = canvas.getContext("2d");
+    // var imageData = context.getImageData(0,0,canvas.width,canvas.height);
 
     var data = imageData.data;
     var imageWidth = imageData.width;
@@ -48,7 +48,11 @@ export function morphErosion(canvas) {
             var allWhite = true;
             for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
                 for(var kX=-kernelRadius; kX < kernelRadius; ++kX) { 
-                    if(!(data[4*((imgX-kX) + (imgY-kY)*imageWidth)] >=200 && data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 1] >=200 &&    data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 2] >=200)) {
+                    
+                    // if(4*((imgX-kX) + (imgY-kY)*imageWidth)+2 > data.length) continue;
+                    if(!(data[4*((imgX-kX) + (imgY-kY)*imageWidth)] >=225 
+                        && data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 1] >=225 
+                        && data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 2] >=225)) {
                         allWhite = false;
                         break;
                     }
@@ -56,8 +60,7 @@ export function morphErosion(canvas) {
                 if(!allWhite) break;
             }
             if(allWhite) {
-                console.log("all white");
-                for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
+                for(var kY=-kernelRadius; kY < kernelRadius; ++kY) { 
                     for(var kX=-kernelRadius; kX < kernelRadius; ++kX) { 
                         data[4*((imgX-kX) + (imgY-kY)*imageWidth)] = 0;
                         data[4*((imgX-kX) + (imgY-kY)*imageWidth)+1] = 0;
@@ -72,22 +75,30 @@ export function morphErosion(canvas) {
             }
         }
     }
-
-    context.putImageData(imageData, 0,0);
     console.log("done applying morphological erosion");
+    return imageData;
+    
+    
 }
 
-function edgeDetectComponent(kernelLength=5, middleValue=8) {
-
-    
-    let kernel = new Array(kernelLength).fill(-1).map(() => new Array(kernelLength).fill(-1));
+function edgeDetectComponent(kernelLength=5, middleValue=8, fillValue=-1, cornerValue=-1) {
+    let kernel = new Array(kernelLength).fill(fillValue).map(() => new Array(kernelLength).fill(fillValue));
     let kernelRadius;
     if(kernelLength%2==0) {     //is even
-
+        console.log("ERROR: Kernel length must be odd")
+        return -1;
     }
     else {
         let middleIdx = Math.floor(kernelLength/2);
+        
         kernel[middleIdx][middleIdx] = middleValue;
+
+
+        kernel[0][0] = cornerValue
+        kernel[0][kernelLength-1] = cornerValue
+        kernel[kernelLength-1][0] = cornerValue
+        kernel[kernelLength-1][kernelLength-1] = cornerValue
+        
         
         kernelRadius = Math.floor(kernelLength/2);
     }
@@ -131,15 +142,58 @@ function colorDiscreteTransferComponent(inColor, ranges, isAlpha=false) {
     else return closestColor;
 }
 
+function simpleGrayscaleConvert(pixel, type="luminosity")  {
+    
+    if(type=="luminosity") {
+        var value = pixel[0]*.27 + pixel[1]*.72 +  pixel[2]*.07;
+        pixel[0] = value;
+        pixel[1] = value;
+        pixel[2] = value;
+    }
+
+    else if(type=="average") {
+        var value = (pixel[0] + pixel[1] + pixel[2])/3;
+        pixel[0] = value;
+        pixel[1] = value;
+        pixel[2] = value;
+        
+    }
+
+    else if(type=="lightness") {
+        var value = (Math.max(pixel[0], pixel[1], pixel[2]) + Math.min(pixel[0], pixel[1], pixel[2]))/2;
+        pixel[0] = value;
+        pixel[1] = value;
+        pixel[2] = value;
+        
+    }
+    return pixel;
+}
+
+
+function diffOfGauss(x,y,sigma) {
+    let sigSquared = sigma*sigma;
+    let kSquared = k*k;
+    let exp1 = -.5*(x*x + y*y)/sigSquared;
+    let A = 1/(2*Math.PI*sigSquared)
+
+    let exp2 = -.5*(x*x + y*y)/(sigSquared*kSquared);
+    
+    let B = 1/(2*Math.PI*sigSquared*kSquared)
+
+    let equation2 = A*Math.exp(exp1) - B*Math.exp(exp2);
+
+    let equation1 = imageData.data //at x,y
+}
+
+
+
 export function imageReader(canvas, addr=null, filterInfo=null) {
     //from https://www.youtube.com/watch?v=-AR-6X_98rM&ab_channel=KyleRobinsonYoung
-
 
     // [{type:"gaussBlur", kernelLength:5, sig:1}]
     
     //filterInfo will be a list of component-objects of form-> {type:"gauss", kernelLength:5, sig:1}
     //components will be applied in order
-
 
     var input = addr;
     if(addr==null) {
@@ -162,7 +216,7 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
             
             if(filterInfo) {
                 filterInfo.forEach(component => {
-                    let componentLength = component.kernelLength ? component.kernelLength : 5;
+                    let componentLength = component.kernelLength ? component.kernelLength : 2;
                     let filterSig = component.sig ? component.sig : 5;
                     if(component.type == "gaussBlur") {
                         var temp = gaussianBlurComponent(componentLength, filterSig);
@@ -173,26 +227,27 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
                     }
                     if(component.type == "edgeDetect") {
                         
-                        var temp = edgeDetectComponent(componentLength, 10);
+                        var temp = edgeDetectComponent(componentLength, component.middleValue,component.fillValue, component.cornerValue);
                         component.kernel = temp.kernel;
                         component.kernelRadius = temp.kernelRadius;
                     }
-                    if(component.type=="gammaTransfer") {
+                    if(["gammaTransfer", "discreteTransfer", "blackWhiteTransfer", "grayScale"].includes(component.type)) {
                         component.kernelRadius = 0;
                     }
-                    if(component.type=="discreteTransfer") {
-                        component.kernelRadius = 0;
-                    }
-
-                    if(component.type=="blackWhiteTransfer") {
-                        component.kernelRadius = 0;
-                    }
-
-                    
+             
                     var kernelRadius = component.kernelRadius;
                     for(var imgY=kernelRadius; imgY < imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
                         for(var imgX=kernelRadius; imgX < imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
-                            if(component.type=="blackWhiteTransfer") {
+
+                            if(component.type=="grayScale") {
+                                let pixel = [data[4*(imgY*imageWidth + imgX)],data[4*(imgY*imageWidth + imgX)+1],data[4*(imgY*imageWidth + imgX)+2],data[4*(imgY*imageWidth + imgX)+3]]
+                                var newRGBA = simpleGrayscaleConvert(pixel,component.subType);
+                                data[4*(imgY*imageWidth + imgX)] = newRGBA[0];
+                                data[4*(imgY*imageWidth + imgX) + 1] = newRGBA[1]
+                                data[4*(imgY*imageWidth + imgX) + 2] = newRGBA[2]
+                                data[4*(imgY*imageWidth + imgX) + 3] = newRGBA[3]
+                            }
+                            else if(component.type=="blackWhiteTransfer") {
                                 let R = data[4*(imgY*imageWidth + imgX)];
                                 let G = data[4*(imgY*imageWidth + imgX) +1];
                                 let B = data[4*(imgY*imageWidth + imgX) +2];
@@ -213,23 +268,15 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
                                 
                                 if(component.applyTo.includes("R")) {
                                     R = colorGammaTransferComponent(R, component.amplitude, component.exponent, component.offset);
-                                    // R = Math.max(0,R);
-                                    // R = Math.min(255,R);
                                 }
                                 if(component.applyTo.includes("G")) {
                                     G = colorGammaTransferComponent(G, component.amplitude, component.exponent, component.offset);
-                                    // G = Math.max(0,G);
-                                    // G = Math.min(255,G);
                                 }
                                 if(component.applyTo.includes("B")) {
                                     B = colorGammaTransferComponent(B, component.amplitude, component.exponent, component.offset);
-                                    // B = Math.max(0,B);
-                                    // B = Math.min(255,B);
                                 }
                                 if(component.applyTo.includes("A")) {
                                     A = colorGammaTransferComponent(A, component.amplitude, component.exponent, component.offset, true);
-                                    // B = Math.max(0,B);
-                                    // B = Math.min(255,B);
                                 }
                                 data[4*(imgY*imageWidth + imgX)] = R;
                                 data[4*(imgY*imageWidth + imgX) + 1] = G;
@@ -288,8 +335,17 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
                     }
                 })
             }
+            
+            imageData = morphErosion(imageData);
+            console.log("imageData", imageData);
+            
             context.putImageData(imageData, 0,0);
             
+            return new Promise((resolve,reject)=> {
+                resolve();
+                console.log("done with filtering image");
+                
+            });
         }
         img.src = reader.result;
       }, false);
@@ -298,9 +354,16 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
         reader.readAsDataURL(file);
 
     }
+    else {
+        return new Promise((resolve,reject)=> {
+            console.log("Problem with filtering image");
+            reject();
+            
+            
+        });
+    }
     
     
-    return 0;
     
     
 }

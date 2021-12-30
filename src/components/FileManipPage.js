@@ -4,7 +4,7 @@ import { List, Pagination, Header, Container, Divider, Icon } from 'semantic-ui-
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
 import { documentElement } from 'min-document';
-import {imageReader, morphErosion, simpleGrayscaleConvert} from './imageManip.js'
+import {imageReader, morphErosion, simpleGrayscaleConvert, approximateEdgeBounds} from './imageManip.js'
 // var globalImageData;
 
 
@@ -28,6 +28,33 @@ import {imageReader, morphErosion, simpleGrayscaleConvert} from './imageManip.js
 //       return rgba;
 //   }
 
+
+function drawBounds(curveData) {
+    console.log("curveData",curveData)
+    var resultSVG = document.getElementById("resultSVG");
+    for(let curve=0; curve < curveData.length; ++curve) {
+        var yValues = curveData[curve].yValues;
+        var xValues = curveData[curve].xValues;
+        
+        xValues.sort((a,b)=>a-b);
+        //
+        var d = `M${xValues[0]},${xValues[0]} `
+        var curveFunc = (x) => curveData[curve].coeffs.data[0] + x*curveData[curve].coeffs.data[1] + x*x*curveData[curve].coeffs.data[2] + x*x*x*curveData[curve].coeffs.data[3]
+        for(let X=xValues[0]; X < xValues[xValues.length-1]; ++X) {
+            let y = curveFunc(X)
+            
+            d+=`L${X},${y} `
+
+        }
+        var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+        path.setAttribute("d",d);
+        path.setAttribute("stroke","black");
+        path.setAttribute("fill","none");
+        resultSVG.append(path);
+
+
+    }
+}
 
 function traceEdges() {
     
@@ -74,12 +101,8 @@ function traceEdges() {
                     }
                 }
             }
+            if(whiteDensityInKernel>=5)    mappedEdges.push({x:imgX, y:imgY});
             
-            // if(whiteDensityInKernel >0) console.log("whiteDensityInKernel",whiteDensityInKernel)
-            if(whiteDensityInKernel>=5) {
-                
-                mappedEdges.push({x:imgX, y:imgY});
-            }
             if(whiteDensityInKernel > highestDensity) highestDensity = whiteDensityInKernel;
             whiteDensityInKernel = 0;
         }
@@ -130,14 +153,6 @@ class FileManipPage extends React.Component {
         reader.readAsText(e.target.files[0]);
     }
 
-    componentDidMount() {
-
-
-        // document.getElementById("testCanvas").addEventListener("mousemove", (e)=>{
-        //     pick(e)
-        // })
-    }
-
     numOfPagesChanged(e) {
         this.setState({num: e.target.value});  
     }
@@ -146,27 +161,49 @@ class FileManipPage extends React.Component {
         var canvas = document.getElementById('testCanvas');
         var filterInfo = [
             // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
-            {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
-            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.8,.9,1.0]},
+            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
+            {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.5,.9,1.0]},
 
             {type:"edgeDetect", kernelLength:7,middleValue:20, fillValue:-1, cornerValue:-1},
             {type:"blackWhiteTransfer"},
             {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
         ]
 
-
-        await imageReader(document.getElementById("luminGrayscale"),null, null)
+        //await imageReader(document.getElementById("luminGrayscale"),null, null)
         //[{type:"grayScale", subType:"luminosity"}]
 
         // await imageReader(document.getElementById("averageGrayscale"),null, [{type:"grayScale", subType:"average"}])
+        await imageReader(canvas,null, filterInfo);
+        // var result;
         
-        return await imageReader(canvas,null, filterInfo);
+
+
+        // var read = imageReader(canvas,null, filterInfo);
+        setTimeout(()=> {
+            var asyncFunc= approximateEdgeBounds(canvas);
+            asyncFunc.then(function(result) {
+                console.log("result",result)
+                drawBounds(result);
+
+
+            });
+
+
+        }, 1000);
+        
+        // imageReader(canvas,null,filterInfo).then(function(result) {
+        //     console.log("result",result)
+        //     var a = approximateEdgeBounds(canvas)
+        //     console.log(a);
+        // })
+        
+        
+        
+        
+        
+        return;
 	}
 
-    
-
-
-    
 //     <Container id="textFileLoader" style={{display:"block", top:"20%", position:"absolute"}}>
 //     <label htmlFor="numOfPages" value='1'>Number of Pages: </label>
 //     <select id="numOfPages" onChange={this.numOfPagesChanged}>
@@ -246,11 +283,12 @@ class FileManipPage extends React.Component {
                 
                 <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
                 
-                <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"120vh",position:"absolute",display:"block", border:"1px solid black"}} />
+                <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"150vh",position:"absolute",display:"block", border:"1px solid black"}} />
 
-                <canvas id="luminGrayscale" width={1000} height={500} style={{left:"150px", top:"180vh",position:"absolute",display:"block", border:"1px solid black"}} />
+                {/* <canvas id="luminGrayscale" width={1000} height={500} style={{left:"150px", top:"180vh",position:"absolute",display:"block", border:"1px solid black"}} />
                 <canvas id="averageGrayscale" width={1000} height={500} style={{left:"150px", top:"240vh",position:"absolute",display:"block", border:"1px solid black"}} />
-            </Layout>
+            */}
+            </Layout> 
             
       );
     }

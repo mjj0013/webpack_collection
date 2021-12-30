@@ -1,3 +1,5 @@
+import { Matrix, solve } from 'ml-matrix';
+
 function gaussianBlurComponent(kernelLength=5,sig=1) {
     if(kernelLength%2!=1) {
         console.log("ERROR: kernelLength must be odd");
@@ -31,7 +33,15 @@ function gaussianBlurComponent(kernelLength=5,sig=1) {
     return kernelObj;
 }
 
+function leastMeanSquaresEstim(xMatrix, yColVector) {
+    var X = new Matrix(xMatrix);
+    var Y = Matrix.columnVector(yColVector);
+    var b = solve(X,Y,true);
+    console.log("solved least mean squaresEstim");
+    return b;
 
+
+}
 
 //represents a cluster of white pixels as a single pixel (if all pixels in the frame are white, they're all white except for the middle )
 export function morphErosion(imageData) {
@@ -62,6 +72,11 @@ export function morphErosion(imageData) {
             if(allWhite) {
                 for(var kY=-kernelRadius; kY < kernelRadius; ++kY) { 
                     for(var kX=-kernelRadius; kX < kernelRadius; ++kX) { 
+                        if(kY==-kernelRadius && kX==-kernelRadius) continue;
+                        if(kY==-kernelRadius && kX==kernelRadius-1) continue;
+                        if(kY==kernelRadius-1 && kX==-kernelRadius) continue;
+                        if(kY==kernelRadius-1 && kX==kernelRadius-1) continue;
+                       
                         data[4*((imgX-kX) + (imgY-kY)*imageWidth)] = 0;
                         data[4*((imgX-kX) + (imgY-kY)*imageWidth)+1] = 0;
                         data[4*((imgX-kX) + (imgY-kY)*imageWidth)+2] = 0;
@@ -92,8 +107,6 @@ function edgeDetectComponent(kernelLength=5, middleValue=8, fillValue=-1, corner
         let middleIdx = Math.floor(kernelLength/2);
         
         kernel[middleIdx][middleIdx] = middleValue;
-
-
         kernel[0][0] = cornerValue
         kernel[0][kernelLength-1] = cornerValue
         kernel[kernelLength-1][0] = cornerValue
@@ -185,7 +198,82 @@ function diffOfGauss(x,y,sigma) {
     let equation1 = imageData.data //at x,y
 }
 
+function getTranpose(array) {
+    return array[0].map((_, colIndex) => array.map(row => row[colIndex]));
+}
 
+function getImagePartition(array,imageWidth, startX, startY, partitionW,partitionH) {
+    
+    var partition = []
+    console.log(array)
+    for(let j=0; j < partitionH; ++j) {
+        console.log(4*((startY+j)*(imageWidth)), 4*((startY+j)*(imageWidth+startX+partitionW)));
+        partition.concat(partition,array.slice(4*((startY+j)*(imageWidth)), 4*((startY+j)*(imageWidth))+4*partitionW+1))
+    }
+    return partition;
+}
+export function approximateEdgeBounds(canvas) {
+    var context = canvas.getContext("2d");
+    var fullImageData = context.getImageData(0,0,canvas.width,canvas.height);
+    // var fullData = fullImageData.data;
+    var imageWidth = fullImageData.width;
+    var imageHeight= fullImageData.height;
+    var orderOfEq = 4;
+
+
+    var mappedCurves = []
+
+    var windowLength  = 50;
+    var scale = imageHeight*imageWidth/(windowLength*windowLength)
+
+    for(var imgY=0; imgY < imageHeight; imgY+=windowLength) {       //increment by 4 because its RGBA values
+        for(var imgX=0; imgX < imageWidth; imgX+=windowLength) { 
+            var imageData = context.getImageData(imgX,imgY,windowLength,windowLength);
+            var data = imageData.data;
+            var dataPts = [];
+            var xMatrix = [];
+            var yValues = [];
+            
+            for(let imgY2=0; imgY2 < windowLength;++imgY2) {
+                for(let imgX2=0; imgX2 < windowLength;++imgX2) {
+                    let R = data[4*(imgY2*windowLength + imgX2)]
+                    let G = data[4*(imgY2*windowLength + imgX2) + 1]
+                    let B = data[4*(imgY2*windowLength + imgX2) + 2]
+                    let avg = (R + G + B)/3;
+                    if(avg >= 250) {
+                        dataPts.push({x:imgX2, y:imgY2})
+                    }
+                }    
+            }
+
+            if(dataPts.length >orderOfEq) {
+                for(let a=0; a < dataPts.length; ++a) {
+                    xMatrix.push(Array(orderOfEq).fill(dataPts[a].x))
+                    //xMatrix.push([dataPts[a].x, dataPts[a].x, dataPts[a].x, dataPts[a].x])
+                    yValues.push(dataPts[a].y)
+                }
+                //do order-3 equations
+    
+                console.log("xMatrix", xMatrix, "yValues", yValues)
+                var coeffs = leastMeanSquaresEstim(xMatrix,yValues);
+                console.log("coeffs", coeffs.data)
+                var X = [];
+                var Y = [];
+
+                // coeffs = coeffs.mul(scale);
+                for(let p=0; p < dataPts.length;++p) {
+                    X.push(dataPts[p].x+imgX);
+                    Y.push(dataPts[p].y+imgY);
+                }
+                mappedCurves.push({xValues:X, yValues:Y, coeffs:coeffs})
+            }
+            console.log(`done with window at ${imgX}, ${imgY}  `)
+            
+        }
+    } 
+    // return new Promise((resolve,reject)=> { resolve(mappedCurves); });     
+    return new Promise((resolve,reject)=> { resolve(mappedCurves); });     
+}
 
 export function imageReader(canvas, addr=null, filterInfo=null) {
     //from https://www.youtube.com/watch?v=-AR-6X_98rM&ab_channel=KyleRobinsonYoung
@@ -204,7 +292,7 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
     const file = document.querySelector('input[type=file]').files[0];
     const reader = new FileReader();
     var context = canvas.getContext("2d");
-
+    
     reader.addEventListener("load", function () {
         const img = new Image();
         img.onload = function() {
@@ -234,6 +322,7 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
                     if(["gammaTransfer", "discreteTransfer", "blackWhiteTransfer", "grayScale"].includes(component.type)) {
                         component.kernelRadius = 0;
                     }
+                    
              
                     var kernelRadius = component.kernelRadius;
                     for(var imgY=kernelRadius; imgY < imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
@@ -309,12 +398,12 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
                                 
                             }
                             
-
+                            
                             else if(component.type=="gaussBlur" || component.type=="edgeDetect") {
                                 let R = 0;
                                 let G = 0;
                                 let B = 0;
-                               
+                                
                                 for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
                                     for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
                                         let value = component.kernel[kY+kernelRadius][kX+kernelRadius];
@@ -340,26 +429,22 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
             console.log("imageData", imageData);
             
             context.putImageData(imageData, 0,0);
+
+
             
-            return new Promise((resolve,reject)=> {
-                resolve();
-                console.log("done with filtering image");
-                
-            });
+           
+            return new Promise((resolve,reject)=> { resolve("asdfadsf"); });
         }
         img.src = reader.result;
       }, false);
     
-    if (file) {
-        reader.readAsDataURL(file);
+    if (file) reader.readAsDataURL(file);
 
-    }
+    
     else {
         return new Promise((resolve,reject)=> {
             console.log("Problem with filtering image");
-            reject();
-            
-            
+            reject(); 
         });
     }
     

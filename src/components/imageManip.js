@@ -35,7 +35,9 @@ function gaussianBlurComponent(kernelLength=5,sig=1) {
 
 function leastMeanSquaresEstim(xMatrix, yColVector) {
     var X = new Matrix(xMatrix);
+    
     var Y = Matrix.columnVector(yColVector);
+    
     var b = solve(X,Y,true);
     console.log("solved least mean squaresEstim");
     return b;
@@ -60,9 +62,9 @@ export function morphErosion(imageData) {
                 for(var kX=-kernelRadius; kX < kernelRadius; ++kX) { 
                     
                     // if(4*((imgX-kX) + (imgY-kY)*imageWidth)+2 > data.length) continue;
-                    if(!(data[4*((imgX-kX) + (imgY-kY)*imageWidth)] >=225 
-                        && data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 1] >=225 
-                        && data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 2] >=225)) {
+                    if(!(data[4*((imgX-kX) + (imgY-kY)*imageWidth)] >=245 
+                        && data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 1] >=245 
+                        && data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 2] >=245)) {
                         allWhite = false;
                         break;
                     }
@@ -223,7 +225,7 @@ export function approximateEdgeBounds(canvas) {
 
     var mappedCurves = []
 
-    var windowLength  = 50;
+    var windowLength  = 250;
     var scale = imageHeight*imageWidth/(windowLength*windowLength)
 
     for(var imgY=0; imgY < imageHeight; imgY+=windowLength) {       //increment by 4 because its RGBA values
@@ -236,12 +238,13 @@ export function approximateEdgeBounds(canvas) {
             
             for(let imgY2=0; imgY2 < windowLength;++imgY2) {
                 for(let imgX2=0; imgX2 < windowLength;++imgX2) {
-                    let R = data[4*(imgY2*windowLength + imgX2)]
-                    let G = data[4*(imgY2*windowLength + imgX2) + 1]
-                    let B = data[4*(imgY2*windowLength + imgX2) + 2]
+                    let R = data[4*((imgY2)*windowLength + imgX2)]
+                    let G = data[4*((imgY2)*windowLength + imgX2) + 1]
+                    let B = data[4*((imgY2)*windowLength + imgX2) + 2]
                     let avg = (R + G + B)/3;
-                    if(avg >= 250) {
-                        dataPts.push({x:imgX2, y:imgY2})
+                    if(avg >= 255) {
+                        dataPts.push({x:imgX2+imgX, y:imgY2+imgY})
+
                     }
                 }    
             }
@@ -262,10 +265,13 @@ export function approximateEdgeBounds(canvas) {
 
                 // coeffs = coeffs.mul(scale);
                 for(let p=0; p < dataPts.length;++p) {
-                    X.push(dataPts[p].x+imgX);
-                    Y.push(dataPts[p].y+imgY);
+
+                    X.push(dataPts[p].x);
+                    Y.push(dataPts[p].y);
+                    // X.push(dataPts[p].x+imgX);
+                    // Y.push(dataPts[p].y+imgY);
                 }
-                mappedCurves.push({xValues:X, yValues:Y, coeffs:coeffs})
+                mappedCurves.push({xValues:X, yValues:Y, coeffs:coeffs, dataPts:dataPts})
             }
             console.log(`done with window at ${imgX}, ${imgY}  `)
             
@@ -273,6 +279,113 @@ export function approximateEdgeBounds(canvas) {
     } 
     // return new Promise((resolve,reject)=> { resolve(mappedCurves); });     
     return new Promise((resolve,reject)=> { resolve(mappedCurves); });     
+}
+
+
+
+
+export function detectCorners(canvas) {
+    var context = canvas.getContext("2d");
+    var imageData = context.getImageData(0,0,canvas.width,canvas.height);
+    var data = imageData.data;
+    var imageWidth = imageData.width;
+    var imageHeight= imageData.height;
+    var orderOfEq = 4;
+
+    //var gradientVectors = Array(imageHeight).fill(Array(imageWidth).fill({Dx:0,Dy:0}))
+    var gradientVectors = Array(imageData.length).fill({x:0,y:0});
+
+    //https://mccormickml.com/2013/05/07/gradient-vectors/
+    //https://www.youtube.com/watch?v=Z_HwkG90Yvw&ab_channel=FirstPrinciplesofComputerVision
+
+    //calculating gradients of every pixel
+    for(var imgY=1; imgY < imageHeight-1; imgY+=1) {       //increment by 4 because its RGBA values
+        for(var imgX=1; imgX < imageWidth-1; imgX+=1) { 
+            var leftR = data[4*((imgX-1) + (imgY)*imageWidth)];
+            var leftG = data[4*((imgX-1) + (imgY)*imageWidth)+1];
+            var leftB = data[4*((imgX-1) + (imgY)*imageWidth)+2];
+            var leftVal = (leftR + leftG + leftB)/3;
+
+            var rightR = data[4*((imgX+1) + (imgY)*imageWidth)];
+            var rightG = data[4*((imgX+1) + (imgY)*imageWidth)+1];
+            var rightB = data[4*((imgX+1) + (imgY)*imageWidth)+2];
+            var rightVal = (rightR + rightG + rightB)/3;
+
+            var topR = data[4*((imgX) + (imgY-1)*imageWidth)];
+            var topG = data[4*((imgX) + (imgY-1)*imageWidth)+1];
+            var topB = data[4*((imgX) + (imgY-1)*imageWidth)+2];
+            var topVal = (topR + topG + topB)/3;
+
+            var bottomR = data[4*((imgX) + (imgY+1)*imageWidth)];
+            var bottomG = data[4*((imgX) + (imgY+1)*imageWidth)+1];
+            var bottomB = data[4*((imgX) + (imgY+1)*imageWidth)+2];
+            var bottomVal = (bottomR + bottomG + bottomB)/3;
+
+            var xGradient = leftVal - rightVal;
+            var yGradient = topVal - bottomVal;
+
+            // gradientVectors[imgY][imgX].Dx = xGradient;
+            // gradientVectors[imgY][imgX].Dy = yGradient;
+                    
+            gradientVectors[imageWidth*imgY + imgX].Dx = xGradient;
+            gradientVectors[imageWidth*imgY + imgX].Dy = yGradient;
+        }
+    }
+    console.log("gradientVectors",gradientVectors)
+    var detectedCorners = [];
+    var lambdaJudgement = 64;       //this variable is supposed to determine what defines a small or large lambda
+    var kernelRadius = 50;
+    for(var imgY=kernelRadius; imgY < imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
+        for(var imgX=kernelRadius; imgX < imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
+
+
+
+
+            //2nd moments a,b,c
+            var a = 0;
+            var b = 0;
+            var c = 0;
+
+            for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
+                for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
+
+                    // a+=gradientVectors[imgY-kY][imgX-kX].Dx*gradientVectors[imgY-kY][imgX-kX].Dx      //x^2
+                    // b+=gradientVectors[imgY-kY][imgX-kX].Dx*gradientVectors[imgY-kY][imgX-kX].Dy      //x*y
+                    // c+=gradientVectors[imgY-kY][imgX-kX].Dy*gradientVectors[imgY-kY][imgX-kX].Dy      //y^2
+                    a+=gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dx*gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dx      //x^2
+                    b+=gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dx*gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dy      //x*y
+                    c+=gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dy*gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dy      //y^2
+                    
+                }
+            }
+
+             //computing ellipse axes lengths: lambda1, lambda2
+            var lambda1 = (1/2)*(a+c+Math.sqrt((b*b) + (a-c)^2));        //Emax
+            var lambda2= (1/2)*(a+c-Math.sqrt((b*b) + (a-c)^2));         //Emin
+
+            //if both are small relative to lambdaJudgement
+            if(lambda1 < lambdaJudgement && lambda2 < lambdaJudgement) {
+                //flat region
+            }
+            if(lambda1 > lambdaJudgement && lambda2 < lambdaJudgement) {
+                //edge region
+            }
+            if(lambda1 > lambdaJudgement && lambda2 > lambdaJudgement) {
+                //corner region
+                for(let C=0; C < detectedCorners.length; ++C) {
+                    if(detectedCorners[C].x == imgX && detectedCorners[C].y == imgY) {}
+                    else {
+                        detectedCorners.push({x:imgX, y:imgY});
+                    }
+                }
+                
+            }
+
+        }
+    }
+    console.log("detectedCorners",detectedCorners);
+    return detectedCorners;
+    
 }
 
 export function imageReader(canvas, addr=null, filterInfo=null) {
@@ -407,13 +520,9 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
                                 for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
                                     for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
                                         let value = component.kernel[kY+kernelRadius][kX+kernelRadius];
-
                                         R += data[4*((imgX-kX) + (imgY-kY)*imageWidth)]*value;
                                         G += data[4*((imgX-kX) + (imgY-kY)*imageWidth)+1]*value;
                                         B += data[4*((imgX-kX) + (imgY-kY)*imageWidth)+2]*value;
-                                        // R += data[imgX-kX][imgY-kY][0]*value;
-                                        // G += data[imgX-kX][imgY-kY][1]*value;
-                                        // B += data[imgX-kX][imgY-kY][2]*value;
                                     }
                                 }
                                 data[4*(imgX + imgY*imageWidth)] = R;
@@ -430,7 +539,7 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
             
             context.putImageData(imageData, 0,0);
 
-
+            detectCorners(canvas);
             
            
             return new Promise((resolve,reject)=> { resolve("asdfadsf"); });

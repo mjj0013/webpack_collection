@@ -106,9 +106,9 @@ function edgeDetectComponent(kernelLength=5, middleValue=8, fillValue=-1, corner
         return -1;
     }
     else {
-        let middleIdx = Math.floor(kernelLength/2);
+        let middleIgradientX = Math.floor(kernelLength/2);
         
-        kernel[middleIdx][middleIdx] = middleValue;
+        kernel[middleIgradientX][middleIgradientX] = middleValue;
         kernel[0][0] = cornerValue
         kernel[0][kernelLength-1] = cornerValue
         kernel[kernelLength-1][0] = cornerValue
@@ -287,103 +287,163 @@ export function approximateEdgeBounds(canvas) {
 export function detectCorners(canvas) {
     var context = canvas.getContext("2d");
     var imageData = context.getImageData(0,0,canvas.width,canvas.height);
+    
     var data = imageData.data;
     var imageWidth = imageData.width;
     var imageHeight= imageData.height;
-    var orderOfEq = 4;
+    var kernelRadius = 25;
+    var uniqueLambdas = [];
+    var pixelData = Array(imageHeight).fill(Array(imageWidth).fill({gradientX:0, gradientY:0, mag:0}))
+    //var pixelData = Array(data.length).fill({gradientX:0,gradientY:0});
+    
+    
 
-    //var gradientVectors = Array(imageHeight).fill(Array(imageWidth).fill({Dx:0,Dy:0}))
-    var gradientVectors = Array(imageData.length).fill({x:0,y:0});
-
-    //https://mccormickml.com/2013/05/07/gradient-vectors/
-    //https://www.youtube.com/watch?v=Z_HwkG90Yvw&ab_channel=FirstPrinciplesofComputerVision
+    //   https://mccormickml.com/2013/05/07/gradient-vectors/
+    //   https://www.youtube.com/watch?v=Z_HwkG90Yvw&ab_channel=FirstPrinciplesofComputerVision
 
     //calculating gradients of every pixel
-    for(var imgY=1; imgY < imageHeight-1; imgY+=1) {       //increment by 4 because its RGBA values
-        for(var imgX=1; imgX < imageWidth-1; imgX+=1) { 
-            var leftR = data[4*((imgX-1) + (imgY)*imageWidth)];
-            var leftG = data[4*((imgX-1) + (imgY)*imageWidth)+1];
-            var leftB = data[4*((imgX-1) + (imgY)*imageWidth)+2];
-            var leftVal = (leftR + leftG + leftB)/3;
+    for(let imgY=1; imgY < imageHeight-1; imgY+=1) {       //increment by 4 because its RGBA values
+        for(let imgX=1; imgX < imageWidth-1; imgX+=1) { 
+            let thisR = data[4*((imgX) + (imgY)*imageWidth)];
+            let thisG = data[4*((imgX) + (imgY)*imageWidth)+1];
+            let thisB = data[4*((imgX) + (imgY)*imageWidth)+2];
+            let thisVal = (thisR + thisG + thisB)/3;
 
-            var rightR = data[4*((imgX+1) + (imgY)*imageWidth)];
-            var rightG = data[4*((imgX+1) + (imgY)*imageWidth)+1];
-            var rightB = data[4*((imgX+1) + (imgY)*imageWidth)+2];
-            var rightVal = (rightR + rightG + rightB)/3;
+            let leftR = data[4*((imgX-1) + (imgY)*imageWidth)];
+            let leftG = data[4*((imgX-1) + (imgY)*imageWidth)+1];
+            let leftB = data[4*((imgX-1) + (imgY)*imageWidth)+2];
+            let leftVal = (leftR + leftG + leftB)/3;
 
-            var topR = data[4*((imgX) + (imgY-1)*imageWidth)];
-            var topG = data[4*((imgX) + (imgY-1)*imageWidth)+1];
-            var topB = data[4*((imgX) + (imgY-1)*imageWidth)+2];
-            var topVal = (topR + topG + topB)/3;
+            let rightR = data[4*((imgX+1) + (imgY)*imageWidth)];
+            let rightG = data[4*((imgX+1) + (imgY)*imageWidth)+1];
+            let rightB = data[4*((imgX+1) + (imgY)*imageWidth)+2];
+            let rightVal = (rightR + rightG + rightB)/3;
 
-            var bottomR = data[4*((imgX) + (imgY+1)*imageWidth)];
-            var bottomG = data[4*((imgX) + (imgY+1)*imageWidth)+1];
-            var bottomB = data[4*((imgX) + (imgY+1)*imageWidth)+2];
-            var bottomVal = (bottomR + bottomG + bottomB)/3;
+            let topR = data[4*((imgX) + (imgY-1)*imageWidth)];
+            let topG = data[4*((imgX) + (imgY-1)*imageWidth)+1];
+            let topB = data[4*((imgX) + (imgY-1)*imageWidth)+2];
+            let topVal = (topR + topG + topB)/3;
 
-            var xGradient = leftVal - rightVal;
-            var yGradient = topVal - bottomVal;
+            let bottomR = data[4*((imgX) + (imgY+1)*imageWidth)];
+            let bottomG = data[4*((imgX) + (imgY+1)*imageWidth)+1];
+            let bottomB = data[4*((imgX) + (imgY+1)*imageWidth)+2];
+            let bottomVal = (bottomR + bottomG + bottomB)/3;
 
-            // gradientVectors[imgY][imgX].Dx = xGradient;
-            // gradientVectors[imgY][imgX].Dy = yGradient;
-                    
-            gradientVectors[imageWidth*imgY + imgX].Dx = xGradient;
-            gradientVectors[imageWidth*imgY + imgX].Dy = yGradient;
+            let xGradient = leftVal - rightVal;
+            let yGradient = topVal - bottomVal;
+           
+            pixelData[imgY][imgX] = {gradientX:xGradient, gradientY:yGradient};
+           
+           
+            pixelData[imgY][imgX].gradientX = xGradient;
+            pixelData[imgY][imgX].gradientY = yGradient;
+            pixelData[imgY][imgX].mag = thisVal;
+            //console.log("pixelData[imageWidth*imgY + imgX]", pixelData[imageWidth*imgY + imgX])
+            // pixelData[imageWidth*imgY + imgX].gradientX = xGradient;
+            // pixelData[imageWidth*imgY + imgX].gradientY = yGradient;
         }
     }
-    console.log("gradientVectors",gradientVectors)
+    console.log("pixelData",pixelData);
     var detectedCorners = [];
-    var lambdaJudgement = 64;       //this variable is supposed to determine what defines a small or large lambda
-    var kernelRadius = 50;
-    for(var imgY=kernelRadius; imgY < imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
-        for(var imgX=kernelRadius; imgX < imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
+    var lambdaJudgement = 100;       //this variable is supposed to determine what defines a small or large lambda
+    
+    var imageHeightByPixel = imageData.height;
+    var imageWidthByPixel = imageData.width;
+
+    var xAccelerator = 1;
+    var yAccelerator = 1;
+    var imgY = kernelRadius;
+    var imgX = kernelRadius;
 
 
+    //try doing a path finding algorithm, where if pixel is a part of an edge, it follows the slope of the edge.
+    //map the regions in the image where no edges occur, skip these regions
 
 
+    while(imgY < imageHeightByPixel-kernelRadius) {
+        console.log(`Iteration ${imgY} out of ${imageHeightByPixel-kernelRadius}`)
+        imgX=kernelRadius;
+        while(imgX < imageWidthByPixel-kernelRadius) {
             //2nd moments a,b,c
-            var a = 0;
-            var b = 0;
-            var c = 0;
-
-            for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
-                for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
-
-                    // a+=gradientVectors[imgY-kY][imgX-kX].Dx*gradientVectors[imgY-kY][imgX-kX].Dx      //x^2
-                    // b+=gradientVectors[imgY-kY][imgX-kX].Dx*gradientVectors[imgY-kY][imgX-kX].Dy      //x*y
-                    // c+=gradientVectors[imgY-kY][imgX-kX].Dy*gradientVectors[imgY-kY][imgX-kX].Dy      //y^2
-                    a+=gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dx*gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dx      //x^2
-                    b+=gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dx*gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dy      //x*y
-                    c+=gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dy*gradientVectors[imageWidth*(imgY-kY)+ (imgX-kX)].Dy      //y^2
+            let a = 0;
+            let b = 0;
+            let c = 0;
+            
+           
+            var isBlankSpace = true;
+            for(let kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
+                for(let kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
+                    if(pixelData[imgY-kY][imgX-kX].mag > 100) isBlankSpace=false;
+                    a+=pixelData[imgY-kY][imgX-kX].gradientX*pixelData[imgY-kY][imgX-kX].gradientX      //x^2
+                    b+=pixelData[imgY-kY][imgX-kX].gradientX*pixelData[imgY-kY][imgX-kX].gradientY      //x*y
+                    c+=pixelData[imgY-kY][imgX-kX].gradientY*pixelData[imgY-kY][imgX-kX].gradientY      //y^2
+                  
+                    
+                    // a+=pixelData[imageWidthByPixel*(imgY-kY)+(imgX-kX)].gradientX*pixelData[imageWidthByPixel*(imgY-kY)+ (imgX-kX)].gradientX      //x^2
+                    // b+=pixelData[imageWidthByPixel*(imgY-kY)+(imgX-kX)].gradientX*pixelData[imageWidthByPixel*(imgY-kY)+ (imgX-kX)].gradientY      //x*y
+                    // c+=pixelData[imageWidthByPixel*(imgY-kY)+(imgX-kX)].gradientY*pixelData[imageWidthByPixel*(imgY-kY)+ (imgX-kX)].gradientY      //y^2
                     
                 }
             }
-
+            // if(isBlankSpace) { imgX+=kernelRadius; continue;}
+            // else console.log("not blank")
+            b *=2;
              //computing ellipse axes lengths: lambda1, lambda2
-            var lambda1 = (1/2)*(a+c+Math.sqrt((b*b) + (a-c)^2));        //Emax
-            var lambda2= (1/2)*(a+c-Math.sqrt((b*b) + (a-c)^2));         //Emin
+            let temp = Math.sqrt((b*b) + (a-c)*(a-c));
+            let lambda1 = (1/2)*(a+c+temp);        //Emax
+            let lambda2= (1/2)*(a+c-temp);         //Emin
 
+            pixelData[imgY][imgX].lambda1 = lambda1;
+            pixelData[imgY][imgX].lambda2 = lambda2;
+            pixelData[imgY][imgX].cornerResponse = lambda1*lambda2;
+
+            if(!uniqueLambdas.includes(lambda1)) uniqueLambdas.push(lambda1);
+            if(lambda1!=lambda2 && !uniqueLambdas.includes(lambda2)) uniqueLambdas.push(lambda2);
+            //console.log("lambda1, lambda2",lambda1, lambda2)
             //if both are small relative to lambdaJudgement
             if(lambda1 < lambdaJudgement && lambda2 < lambdaJudgement) {
                 //flat region
+                xAccelerator = 1;
+                yAccelerator = 1;
             }
-            if(lambda1 > lambdaJudgement && lambda2 < lambdaJudgement) {
+            else if(lambda1 > lambdaJudgement && lambda2 < lambdaJudgement) {
                 //edge region
+                xAccelerator = 1;
+                yAccelerator = 1;
             }
-            if(lambda1 > lambdaJudgement && lambda2 > lambdaJudgement) {
+            else if(lambda1 > lambdaJudgement && lambda2 > lambdaJudgement) {
                 //corner region
-                for(let C=0; C < detectedCorners.length; ++C) {
-                    if(detectedCorners[C].x == imgX && detectedCorners[C].y == imgY) {}
-                    else {
-                        detectedCorners.push({x:imgX, y:imgY});
-                    }
-                }
-                
+                xAccelerator = 1;
+                yAccelerator = 1;
+                detectedCorners.push({x:imgX, y:imgY});
+                // if(detectedCorners.length!=0) {
+                //     for(let C=0; C < detectedCorners.length; ++C) {
+                //         if(detectedCorners[C].x == imgX && detectedCorners[C].y == imgY) {}
+                //         else {    detectedCorners.push({x:imgX, y:imgY});}
+                //     }
+                // }
+                // else detectedCorners.push({x:imgX, y:imgY});
             }
-
+           
+            imgX+=xAccelerator;
+            
+            
         }
+        imgY+=yAccelerator;
+
     }
+    // var windowArray = pixelData.slice(imgY-kernelRadius, imgY+kernelRadius)
+    //         windowArray = windowArray.map(x=>{x.slice(imgX-kernelRadius, imgX+kernelRadius)})
+    //         windowArray = windowArray.flat()
+    console.log("uniqueLambdas", uniqueLambdas)
     console.log("detectedCorners",detectedCorners);
+
+    for(let corner=0; corner < detectedCorners.length; ++corner) {
+        context.fillStyle = 'red';
+        context.fillRect(detectedCorners[corner].x, detectedCorners[corner].y, 5, 5)
+        
+        
+    }
     return detectedCorners;
     
 }
@@ -534,8 +594,8 @@ export function imageReader(canvas, addr=null, filterInfo=null) {
                 })
             }
             
-            imageData = morphErosion(imageData);
-            console.log("imageData", imageData);
+            //imageData = morphErosion(imageData);
+            //console.log("imageData", imageData);
             
             context.putImageData(imageData, 0,0);
 

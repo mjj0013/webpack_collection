@@ -1,9 +1,9 @@
 import React, {useState} from 'react';
-import { List, Pagination, Header, Container, Divider, Icon } from 'semantic-ui-react';
+import {Container } from 'semantic-ui-react';
 
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
-import { documentElement } from 'min-document';
+// import { documentElement } from 'min-document';
 import {imageReader, morphErosion, simpleGrayscaleConvert, approximateEdgeBounds} from './imageManip.js'
 // var globalImageData;
 
@@ -178,7 +178,7 @@ function traceEdges() {
     }
 
     morphErosion(canvas);
-    return new Promise((resolve,reject)=> {
+        return new Promise((resolve,reject)=> {
 
     })
 
@@ -199,8 +199,6 @@ class FileManipPage extends React.Component {
         reader.onload = async (e) => {
             const text=(e.target.result);
             const words  = text.split(' ');
-
-
             words.forEach((w) => {
                 document.getElementById("fileText").value += w;
                 document.getElementById("fileText").value += " ";
@@ -217,8 +215,8 @@ class FileManipPage extends React.Component {
         var canvas = document.getElementById('testCanvas');
         var filterInfo = [
             // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
-            {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
-            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.5,.9,1.0]},
+            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
+            {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.5,.9,1.0]},
 
             {type:"edgeDetect", kernelLength:7,middleValue:20, fillValue:-1, cornerValue:-1},
             {type:"blackWhiteTransfer"},
@@ -232,19 +230,13 @@ class FileManipPage extends React.Component {
         await imageReader(canvas,null, filterInfo);
         // var result;
         
-
-
         // var read = imageReader(canvas,null, filterInfo);
         setTimeout(()=> {
             var asyncFunc= approximateEdgeBounds(canvas);
             asyncFunc.then(function(result) {
                 console.log("result",result)
                 drawBounds(result);
-
-
             });
-
-
         }, 1000);
         
         // imageReader(canvas,null,filterInfo).then(function(result) {
@@ -332,7 +324,7 @@ class FileManipPage extends React.Component {
                 
                 {/* <iframe style={{filter:"url(#edgeFilter)"}} width="560" height="315" src="https://www.youtube.com/embed/k9wRPOeUhls" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe> */}
                 
-                
+                <div id="windowTest" style={{backgroundColor:'black', top:'100px', left:'30px', width:25, height:25} } />
                 <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
                 
                 <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"150vh",position:"absolute",display:"block", border:"1px solid black"}} />

@@ -8,7 +8,7 @@ import './layout.css';
 
 import PropTypes from 'prop-types';
 
-import CalculatorModal from './CalculatorModal';
+
 
 
 // import bg_image1 from "../img/pine_tree.jpeg";
@@ -17,7 +17,6 @@ import CalculatorModal from './CalculatorModal';
 
 
 
-import SettingsModal from './SettingsModal';
 
 
 class Home extends React.Component {
@@ -29,10 +28,6 @@ class Home extends React.Component {
 		this.mouseClickHandler = this.mouseClickHandler.bind(this);
 
 		
-		this.toggleSettings = this.toggleSettings.bind(this);
-		this.toggleCalculator = this.toggleCalculator.bind(this);
-	
-		this.getChildContext = this.getChildContext.bind(this);
 		
 		
 		this.state = { activeIndex: 0 }
@@ -40,9 +35,7 @@ class Home extends React.Component {
 
 	
 
-	getChildContext() {
-		return {toggleSettings:this.toggleSettings}
-	}
+	
 
 	mouseClickHandler = (canvas,e) =>{
 		
@@ -58,33 +51,7 @@ class Home extends React.Component {
 
 	
 
-	toggleCalculator() {
-		let w = document.getElementById("cw");
-        if(w.style.display=="none" || w.style.display=='') {
-			
-            w.style.display="block";
-			window.setInterval(w.updateAnswer, 1000);
-        }
-        else { w.style.display="none"; }
-	}
-
-	toggleSettings(e) {
-		
-		
-		let w = document.getElementById("sw");
-		
-        if(w.style.display=="none" || w.style.display=='') { w.style.display="block"; }
-        else { w.style.display="none"; }
-		if(e.target.id=="calcSettingsButton") {		//settings request came from calculator
-			console.log("calculator button requested settings")
-			console.log(document.getElementById('elementSettingsPage'));
-			this.currentFocusedElement = "calc";
-		}
-
-		if(e.target.id=="homeSettingsButton") {		//settings request came from Home Page
-			console.log("home button requested settings")
-		}
-	}
+	
 
 	
 
@@ -112,10 +79,10 @@ class Home extends React.Component {
 
 /* <CalculatorModal id="cm" toggleSettings={this.toggleSettings}/>
 <SettingsModal id='calcSettingsModal'/> */
-Home.childContextTypes = {
-	toggleSettings: PropTypes.func,
+// Home.childContextTypes = {
+// 	toggleSettings: PropTypes.func,
 
-}
+// }
 //<button id="calculatorButton">Calculator</button>
 
 export default Home;

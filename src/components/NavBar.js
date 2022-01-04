@@ -58,43 +58,25 @@ class NavBar extends React.Component {
 
 
 	toggleCalculator() {
-		let w = document.getElementById("cw");
-		if(w == null) return;
-        if(w.style.display=="none" || w.style.display=='') {
-			
-            w.style.display="block";
-			window.setInterval(w.updateAnswer, 1000);
-        }
-        else w.style.display="none";
-        
+	
 	}
 
 	toggleSettings(e) {
-		let w = document.getElementById("sw");
 		
-        if(w.style.display=="none" || w.style.display=='') { w.style.display="block"; }
-        else w.style.display="none";
-
-		if(e.target.id=="calcSettingsButton") {		//settings request came from calculator
-			console.log("calculator button requested settings")
-			console.log(document.getElementById('elementSettingsPage'));
-		}
-		//settings request came from Home Page
-		if(e.target.id=="homeSettingsButton") {	console.log("home button requested settings"); }
 	}
 
 	componentDidMount() {
-		this.contextRef.current = this.canvasRef.current.getContext("2d");
-		var canvas = document.getElementById("coverCanvas");
+		// this.contextRef.current = this.canvasRef.current.getContext("2d");
+		// var canvas = document.getElementById("coverCanvas");
 		
-		canvas.width = canvas.height * (canvas.clientWidth / canvas.clientHeight);
-		this.startAnimation();
+		// canvas.width = canvas.height * (canvas.clientWidth / canvas.clientHeight);
+		// this.startAnimation();
 		
-		window.onresize = () => {
+		// window.onresize = () => {
 			
-			this.canvasRef.current.width = this.canvasRef.current.height * (this.canvasRef.current.clientWidth / this.canvasRef.current.clientHeight);
-			this.startAnimation();
-		}
+		// 	this.canvasRef.current.width = this.canvasRef.current.height * (this.canvasRef.current.clientWidth / this.canvasRef.current.clientHeight);
+		// 	this.startAnimation();
+		// }
 		//setInterval(this.update,1000/30);
 		
 		
@@ -214,7 +196,7 @@ class NavBar extends React.Component {
 					<Link to="/" className="nav-link item">Home</Link>
 					<Link to="/fileload" className="nav-link item">File Load</Link>
 					<Link to="/animation" className="nav-link item">Animation</Link>
-					<Link to="/game" className="nav-link item">Game</Link>
+					
 					
 					<Dropdown item text="Tools">
 						<Dropdown.Menu>

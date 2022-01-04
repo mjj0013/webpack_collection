@@ -4,18 +4,11 @@ const HTMLWebpackPluginConfig = new HTMLWebpackPlugin({
 	template: __dirname + '/dist/index.html',
 	filename: './index.html',
 	inject: false
-	
-
 });
-
 const path = require('path');
-
-
-
 module.exports = {
 	entry: './src/index.js',
 	mode: 'development',
-	
 	module: {
 		rules: [
 		   {
@@ -28,13 +21,11 @@ module.exports = {
 		   	use: [
 		   		{
 		   		    loader: 'style-loader',
-		   		    options: {
-					esModule: false
-				    }
+		   		    options: {esModule: false}
 		   		},
 		   		
 			   	{
-			   	    loader: 'css-loader',
+					   loader: 'css-loader',
 				}
 				
 			]
@@ -56,9 +47,7 @@ module.exports = {
 			use: [
 			  {
 				loader: 'svg-url-loader',
-				options: {
-				  limit: 10000,
-				},
+				options: {limit: 10000,},
 			  },
 			],
 		  },
@@ -68,33 +57,21 @@ module.exports = {
 	output:{
 		filename: 'transformed.js',
 		path: path.resolve(__dirname, 'dist'),
-		
 		publicPath: '/',
 		clean: true
-		
-		
-		
 	},
 	devServer: {
 		host: 'localhost',
-		
 		port: 8080,
 		historyApiFallback: true,
 		open: true,
 		hot: true,
-		//contentBase: path.basename.join(__dirname,'public')
-		
-
 	},
 	
-	plugins: [
-		HTMLWebpackPluginConfig,
-		
-	],
-	resolve: {
-		
-        	extensions: [".js", ".jsx"]
-    	},
+	plugins: [HTMLWebpackPluginConfig,],
+	resolve: {	
+        extensions: [".js", ".jsx"]
+    },
 	
 	
 };

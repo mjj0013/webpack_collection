@@ -12,8 +12,6 @@ import GraphicsPage from './GraphicsPage';
 import Home from './Home';
 //import { hot } from "react-hot-loader/root";
 
-import Game from './Game/Game';
-
 window.addEventListener('beforeunload', event => {
 	event.preventDefault();
 	window.localStorage.clear();	
@@ -28,7 +26,7 @@ function App() {
 				<Switch>
 					<Route path="/fileload" component={FileManipPage} />
 					<Route path="/animation" component={GraphicsPage} />
-					<Route path="/game" component={Game} />
+					
 					<Route  path="/" component={Home} />
 				</Switch>
 			</div>

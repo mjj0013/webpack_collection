@@ -125,7 +125,6 @@ function traceEdges() {
     {
         pts:[{x:x, y:y}, ...],
         id:"",
-        
     }
     */
     var canvas = document.getElementById("testCanvas");
@@ -207,7 +206,6 @@ class FileManipPage extends React.Component {
     }
 
     async loadImage(e) {
-       
         var filterInfo = [
             // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
@@ -217,7 +215,7 @@ class FileManipPage extends React.Component {
             {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
         ]
         this.currentScanObj = new ImageScan('testCanvas',filterInfo);
-        this.currentScanObj.imageReader()
+        await this.currentScanObj.imageReader()
         //this.currentScanObj.imageReader();
         //this.imageScanInstances.push(this.currentScanObj);
         //await imageReader(document.getElementById("luminGrayscale"),null, null)
@@ -259,5 +257,3 @@ class FileManipPage extends React.Component {
     }
 }
 export default FileManipPage;
-
-	

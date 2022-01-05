@@ -8,10 +8,11 @@ export class ImageScan {
 
 
         this.filterInfo = filterInfo;
-        this.canvas = null;
+       
         this.canvasId = targetCanvas;
-        this.context = null;
+       
         this.imageData = null;
+        this.data = null;
         this.pixelData = null;
 
         this.imageReader = this.imageReader.bind(this);
@@ -31,8 +32,8 @@ export class ImageScan {
         this.getImagePartition = this.getImagePartition.bind(this);
         this.edgeDetectComponent = this.edgeDetectComponent.bind(this);
 
-        // this.canvas.onload = (e)=> {
-        //     this.context = this.canvas.getContext("2d");
+        // canvas.onload = (e)=> {
+        //     context = canvas.getContext("2d");
             
         // }
 
@@ -69,8 +70,9 @@ export class ImageScan {
         return amplitude*Math.pow(inColor,exponent) + offset;
     }
     imageReader(addr=null) {
-        this.canvas = document.getElementById(this.canvasId)
-        this.context = this.canvas.getContext("2d");
+        console.log("filterinfO", this.filterInfo);
+        var canvas = document.getElementById(this.canvasId)
+        var context = canvas.getContext("2d");
         //from https://www.youtube.com/watch?v=-AR-6X_98rM&ab_channel=KyleRobinsonYoung
     
         // [{type:"gaussBlur", kernelLength:5, sig:1}]
@@ -86,24 +88,26 @@ export class ImageScan {
         const preview = document.querySelector('img');
         const file = document.querySelector('input[type=file]').files[0];
         const reader = new FileReader();
-        //var context = this.canvas.getContext("2d");
-        console.log("this.context", this.context)
+        
+       
+        
+        var OBJ = this;
         reader.addEventListener("load", function () {
             const img = new Image();
             img.onload = function() {
-                this.context.drawImage(img,0,0);
-                this.imageData = this.context.getImageData(0,0,this.canvas.width,this.canvas.height);
-                var data = imageData.data;
-                this.imageWidth = this.imageData.width;
-                this.imageHeight= this.imageData.height;
-                this.pixelData = Array(this.imageHeight).fill(Array(this.imageWidth).fill({gradientX:0, gradientY:0, mag:0}))
+                context.drawImage(img,0,0);
+                OBJ.imageData = context.getImageData(0,0,canvas.width,canvas.height);
+                OBJ.data = OBJ.imageData.data;
+                OBJ.imageWidth = OBJ.imageData.width;
+                OBJ.imageHeight= OBJ.imageData.height;
+                OBJ.pixelData = Array(OBJ.imageHeight).fill(Array(OBJ.imageWidth).fill({gradientX:0, gradientY:0, mag:0}))
                 //var pixelData = Array(data.length).fill({gradientX:0,gradientY:0});
                 
-                this.filterInfo.forEach(component => {
+                OBJ.filterInfo.forEach(component => {
                     let componentLength = component.kernelLength ? component.kernelLength : 2;
                     let filterSig = component.sig ? component.sig : 5;
                     if(component.type == "gaussBlur") {
-                        var temp = this.gaussianBlurComponent(componentLength, filterSig);
+                        var temp = OBJ.gaussianBlurComponent(componentLength, filterSig);
 
                         component.kernel = temp.kernel;
                         component.sig = temp.sig;
@@ -111,7 +115,7 @@ export class ImageScan {
                     }
                     if(component.type == "edgeDetect") {
                         
-                        var temp = this.edgeDetectComponent(componentLength, component.middleValue,component.fillValue, component.cornerValue);
+                        var temp = OBJ.edgeDetectComponent(componentLength, component.middleValue,component.fillValue, component.cornerValue);
                         component.kernel = temp.kernel;
                         component.kernelRadius = temp.kernelRadius;
                     }
@@ -121,76 +125,76 @@ export class ImageScan {
                     
                 
                     var kernelRadius = component.kernelRadius;
-                    for(var imgY=kernelRadius; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
-                        for(var imgX=kernelRadius; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
+                    for(var imgY=kernelRadius; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
+                        for(var imgX=kernelRadius; imgX < OBJ.imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
 
                             if(component.type=="grayScale") {
-                                let pixel = [data[4*(imgY*this.imageWidth + imgX)],data[4*(imgY*this.imageWidth + imgX)+1],data[4*(imgY*this.imageWidth + imgX)+2],data[4*(imgY*this.imageWidth + imgX)+3]]
-                                var newRGBA = this.simpleGrayscaleConvert(pixel,component.subType);
-                                data[4*(imgY*this.imageWidth + imgX)] = newRGBA[0];
-                                data[4*(imgY*this.imageWidth + imgX) + 1] = newRGBA[1]
-                                data[4*(imgY*this.imageWidth + imgX) + 2] = newRGBA[2]
-                                data[4*(imgY*this.imageWidth + imgX) + 3] = newRGBA[3]
+                                let pixel = [OBJ.data[4*(imgY*OBJ.imageWidth + imgX)],OBJ.data[4*(imgY*OBJ.imageWidth + imgX)+1],OBJ.data[4*(imgY*OBJ.imageWidth + imgX)+2],OBJ.data[4*(imgY*OBJ.imageWidth + imgX)+3]]
+                                var newRGBA = OBJ.simpleGrayscaleConvert(pixel,component.subType);
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = newRGBA[0];
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = newRGBA[1]
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 2] = newRGBA[2]
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = newRGBA[3]
                             }
                             else if(component.type=="blackWhiteTransfer") {
-                                let R = data[4*(imgY*this.imageWidth + imgX)];
-                                let G = data[4*(imgY*this.imageWidth + imgX) +1];
-                                let B = data[4*(imgY*this.imageWidth + imgX) +2];
-                                let A = data[4*(imgY*this.imageWidth + imgX) +3];
-                                var newRGBA = this.colorBlackWhiteTransferComponent([R,G,B,A]);
-                                data[4*(imgY*this.imageWidth + imgX)] = newRGBA[0];
-                                data[4*(imgY*this.imageWidth + imgX) + 1] = newRGBA[1]
-                                data[4*(imgY*this.imageWidth + imgX) + 2] = newRGBA[2]
-                                data[4*(imgY*this.imageWidth + imgX) + 3] = newRGBA[3]
+                                let R = OBJ.data[4*(imgY*OBJ.imageWidth + imgX)];
+                                let G = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +1];
+                                let B = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +2];
+                                let A = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +3];
+                                var newRGBA = OBJ.colorBlackWhiteTransferComponent([R,G,B,A]);
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = newRGBA[0];
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = newRGBA[1]
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 2] = newRGBA[2]
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = newRGBA[3]
 
                             }
                             // let value = kernelObj.kernel[kX+kernelObj.kernelRadius][kY+kernelObj.kernelRadius];
                             else if(component.type=="gammaTransfer") {
-                                let R = data[4*(imgY*this.imageWidth + imgX)];
-                                let G = data[4*(imgY*this.imageWidth + imgX) +1];
-                                let B = data[4*(imgY*this.imageWidth + imgX) +2];
-                                let A = data[4*(imgY*this.imageWidth + imgX) +3];
+                                let R = OBJ.data[4*(imgY*OBJ.imageWidth + imgX)];
+                                let G = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +1];
+                                let B = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +2];
+                                let A = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +3];
                                 
                                 if(component.applyTo.includes("R")) {
-                                    R = this.colorGammaTransferComponent(R, component.amplitude, component.exponent, component.offset);
+                                    R = OBJ.colorGammaTransferComponent(R, component.amplitude, component.exponent, component.offset);
                                 }
                                 if(component.applyTo.includes("G")) {
-                                    G = this.colorGammaTransferComponent(G, component.amplitude, component.exponent, component.offset);
+                                    G = OBJ.colorGammaTransferComponent(G, component.amplitude, component.exponent, component.offset);
                                 }
                                 if(component.applyTo.includes("B")) {
-                                    B = this.colorGammaTransferComponent(B, component.amplitude, component.exponent, component.offset);
+                                    B = OBJ.colorGammaTransferComponent(B, component.amplitude, component.exponent, component.offset);
                                 }
                                 if(component.applyTo.includes("A")) {
-                                    A = this.colorGammaTransferComponent(A, component.amplitude, component.exponent, component.offset, true);
+                                    A = OBJ.colorGammaTransferComponent(A, component.amplitude, component.exponent, component.offset, true);
                                 }
-                                data[4*(imgY*this.imageWidth + imgX)] = R;
-                                data[4*(imgY*this.imageWidth + imgX) + 1] = G;
-                                data[4*(imgY*this.imageWidth + imgX) + 2] = B;
-                                data[4*(imgY*this.imageWidth + imgX) + 3] = A;
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = R;
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = G;
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 2] = B;
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = A;
                                 
                             }
                             else if(component.type=="discreteTransfer") {
-                                let R = data[4*(imgY*this.imageWidth + imgX)];
-                                let G = data[4*(imgY*this.imageWidth + imgX) +1];
-                                let B = data[4*(imgY*this.imageWidth + imgX) +2];
-                                let A = data[4*(imgY*this.imageWidth + imgX) +3];
+                                let R = OBJ.data[4*(imgY*OBJ.imageWidth + imgX)];
+                                let G = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +1];
+                                let B = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +2];
+                                let A = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +3];
                                 
                                 if(component.applyTo.includes("R")) {
-                                    R = this.colorDiscreteTransferComponent(R, component.tableValues);
+                                    R = OBJ.colorDiscreteTransferComponent(R, component.tableValues);
                                 }
                                 if(component.applyTo.includes("G")) {
-                                    G = this.colorDiscreteTransferComponent(G,component.tableValues);
+                                    G = OBJ.colorDiscreteTransferComponent(G,component.tableValues);
                                 }
                                 if(component.applyTo.includes("B")) {
-                                    B = this.colorDiscreteTransferComponent(B, component.tableValues);
+                                    B = OBJ.colorDiscreteTransferComponent(B, component.tableValues);
                                 }
                                 if(component.applyTo.includes("A")) {
-                                    A = this.colorDiscreteTransferComponent(B, component.tableValues, true);
+                                    A = OBJ.colorDiscreteTransferComponent(A, component.tableValues, true);
                                 }
-                                data[4*(imgY*this.imageWidth + imgX)] = R;
-                                data[4*(imgY*this.imageWidth + imgX) + 1] = G;
-                                data[4*(imgY*this.imageWidth + imgX) + 2] = B;
-                                data[4*(imgY*this.imageWidth + imgX) + 3] = A;
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = R;
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = G;
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 2] = B;
+                                OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = A;
                                 
                             }
                             else if(component.type=="gaussBlur" || component.type=="edgeDetect") {
@@ -198,23 +202,70 @@ export class ImageScan {
                                 for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
                                     for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
                                         let value = component.kernel[kY+kernelRadius][kX+kernelRadius];
-                                        R += data[4*((imgX-kX) + (imgY-kY)*this.imageWidth)]*value;
-                                        G += data[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+1]*value;
-                                        B += data[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+2]*value;
+                                        R += OBJ.data[4*((imgX-kX) + (imgY-kY)*OBJ.imageWidth)]*value;
+                                        G += OBJ.data[4*((imgX-kX) + (imgY-kY)*OBJ.imageWidth)+1]*value;
+                                        B += OBJ.data[4*((imgX-kX) + (imgY-kY)*OBJ.imageWidth)+2]*value;
                                     }
                                 }
-                                data[4*(imgX + imgY*this.imageWidth)] = R;
-                                data[4*(imgX + imgY*this.imageWidth) + 1] = G;
-                                data[4*(imgX + imgY*this.imageWidth) + 2] = B;
+                                OBJ.data[4*(imgX + imgY*OBJ.imageWidth)] = R;
+                                OBJ.data[4*(imgX + imgY*OBJ.imageWidth) + 1] = G;
+                                OBJ.data[4*(imgX + imgY*OBJ.imageWidth) + 2] = B;
                             }
                         }
                     }
                 })
                 
+
+                 //calculating values and gradients of every pixel
+                for(var imgY=0; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
+                    for(var imgX=0; imgX < OBJ.imageWidth; imgX+=1) {
+                        let thisR = OBJ.data[4*((imgX) + (imgY)*OBJ.imageWidth)];
+                        let thisG = OBJ.data[4*((imgX) + (imgY)*OBJ.imageWidth)+1];
+                        let thisB = OBJ.data[4*((imgX) + (imgY)*OBJ.imageWidth)+2];
+                        let thisVal = (thisR + thisG + thisB)/3;
+                        
+                        let leftVal=-1, rightVal=-1, topVal=-1, bottomVal=-1;
+
+                        if(imgX>0) {
+                            let leftR = OBJ.data[4*((imgX-1) + (imgY)*OBJ.imageWidth)];
+                            let leftG = OBJ.data[4*((imgX-1) + (imgY)*OBJ.imageWidth)+1];
+                            let leftB = OBJ.data[4*((imgX-1) + (imgY)*OBJ.imageWidth)+2];
+                            leftVal = (leftR + leftG + leftB)/3;
+                        }
+                        
+                        if(imgX < OBJ.imageWidth-1) {
+                            let rightR = OBJ.data[4*((imgX+1) + (imgY)*OBJ.imageWidth)];
+                            let rightG = OBJ.data[4*((imgX+1) + (imgY)*OBJ.imageWidth)+1];
+                            let rightB = OBJ.data[4*((imgX+1) + (imgY)*OBJ.imageWidth)+2];
+                            rightVal = (rightR + rightG + rightB)/3;
+                        }
+                        
+                        if(imgY>0) {
+                            let topR = OBJ.data[4*((imgX) + (imgY-1)*OBJ.imageWidth)];
+                            let topG = OBJ.data[4*((imgX) + (imgY-1)*OBJ.imageWidth)+1];
+                            let topB = OBJ.data[4*((imgX) + (imgY-1)*OBJ.imageWidth)+2];
+                            topVal = (topR + topG + topB)/3;
+                        }
+            
+                        if(imgY < OBJ.imageHeight-1) {
+                            let bottomR = OBJ.data[4*((imgX) + (imgY+1)*OBJ.imageWidth)];
+                            let bottomG = OBJ.data[4*((imgX) + (imgY+1)*OBJ.imageWidth)+1];
+                            let bottomB = OBJ.data[4*((imgX) + (imgY+1)*OBJ.imageWidth)+2];
+                            bottomVal = (bottomR + bottomG + bottomB)/3;
+                        }
+
+                       
+                        let xGradient = leftVal==-1||rightVal==-1?0:leftVal - rightVal;
+                        let yGradient = topVal==-1||bottomVal==-1?0:topVal - bottomVal;
+                        OBJ.pixelData[imgY][imgX].mag = thisVal;
+                        OBJ.pixelData[imgY][imgX].gradientX = xGradient;
+                        OBJ.pixelData[imgY][imgX].gradientY = yGradient;
+
+                    }
+                }
                 //imageData = this.morphErosion(imageData);
-                
-                this.context.putImageData(this.imageData, 0,0);
-                this.detectCorners(this.canvas);
+                context.putImageData(OBJ.imageData, 0,0);
+                OBJ.detectCorners(canvas);
                 
                 return new Promise((resolve,reject)=> { resolve("asdfadsf"); });
             }
@@ -230,57 +281,18 @@ export class ImageScan {
         }
     }
     detectCorners() {
-        
-        //var imageData = this.context.getImageData(0,0,this.canvas.width,this.canvas.height);
-        var data = this.imageData.data;
+        console.log(" this.pixelData", this.pixelData)
+        var canvas = document.getElementById(this.canvasId)
+        var context = canvas.getContext("2d");
+        var imageData = context.getImageData(0,0,canvas.width,canvas.height);
+        var data =imageData.data;
         var kernelRadius = 25;
         var uniqueLambdas = [];
 
         //   https://mccormickml.com/2013/05/07/gradient-vectors/
         //   https://www.youtube.com/watch?v=Z_HwkG90Yvw&ab_channel=FirstPrinciplesofComputerVision
     
-        //calculating gradients of every pixel
-        for(let imgY=1; imgY < this.imageHeight-1; imgY+=1) {       //increment by 4 because its RGBA values
-            for(let imgX=1; imgX < this.imageWidth-1; imgX+=1) { 
-                let thisR = data[4*((imgX) + (imgY)*this.imageWidth)];
-                let thisG = data[4*((imgX) + (imgY)*this.imageWidth)+1];
-                let thisB = data[4*((imgX) + (imgY)*this.imageWidth)+2];
-                let thisVal = (thisR + thisG + thisB)/3;
-    
-                let leftR = data[4*((imgX-1) + (imgY)*this.imageWidth)];
-                let leftG = data[4*((imgX-1) + (imgY)*this.imageWidth)+1];
-                let leftB = data[4*((imgX-1) + (imgY)*this.imageWidth)+2];
-                let leftVal = (leftR + leftG + leftB)/3;
-    
-                let rightR = data[4*((imgX+1) + (imgY)*this.imageWidth)];
-                let rightG = data[4*((imgX+1) + (imgY)*this.imageWidth)+1];
-                let rightB = data[4*((imgX+1) + (imgY)*this.imageWidth)+2];
-                let rightVal = (rightR + rightG + rightB)/3;
-    
-                let topR = data[4*((imgX) + (imgY-1)*this.imageWidth)];
-                let topG = data[4*((imgX) + (imgY-1)*this.imageWidth)+1];
-                let topB = data[4*((imgX) + (imgY-1)*this.imageWidth)+2];
-                let topVal = (topR + topG + topB)/3;
-    
-                let bottomR = data[4*((imgX) + (imgY+1)*this.imageWidth)];
-                let bottomG = data[4*((imgX) + (imgY+1)*this.imageWidth)+1];
-                let bottomB = data[4*((imgX) + (imgY+1)*this.imageWidth)+2];
-                let bottomVal = (bottomR + bottomG + bottomB)/3;
-    
-                let xGradient = leftVal - rightVal;
-                let yGradient = topVal - bottomVal;
-               
-                this.pixelData[imgY][imgX] = {gradientX:xGradient, gradientY:yGradient};
-               
-               
-                this.pixelData[imgY][imgX].gradientX = xGradient;
-                this.pixelData[imgY][imgX].gradientY = yGradient;
-                this.pixelData[imgY][imgX].mag = thisVal;
-                //console.log("this.pixelData[this.imageWidth*imgY + imgX]", this.pixelData[this.imageWidth*imgY + imgX])
-                // this.pixelData[this.imageWidth*imgY + imgX].gradientX = xGradient;
-                // this.pixelData[this.imageWidth*imgY + imgX].gradientY = yGradient;
-            }
-        }
+
         console.log("pixelData",this.pixelData);
         var detectedCorners = [];
         var lambdaJudgement = 100;       //this variable is supposed to determine what defines a small or large lambda
@@ -368,8 +380,8 @@ export class ImageScan {
         console.log("detectedCorners",detectedCorners);
     
         for(let corner=0; corner < detectedCorners.length; ++corner) {
-            this.context.fillStyle = 'red';
-            this.context.fillRect(detectedCorners[corner].x, detectedCorners[corner].y, 5, 5)
+            context.fillStyle = 'red';
+            context.fillRect(detectedCorners[corner].x, detectedCorners[corner].y, 5, 5)
         }
         return detectedCorners;
         
@@ -389,7 +401,9 @@ export class ImageScan {
         return partition;
     }
     morphErosion() {
-        var data = this.imageData.data;
+        var canvas = document.getElementById(this.canvasId)
+        var context = canvas.getContext("2d");
+        var data = imageData.data;
         var kernelRadius = 3;
         for(var imgY=kernelRadius; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
             for(var imgX=kernelRadius; imgX < this.imageWidth; imgX+=1) {
@@ -472,7 +486,8 @@ export class ImageScan {
         return kernelObj;
     }
      approximateEdgeBounds() {
-       
+        var canvas = document.getElementById(this.canvasId)
+        var context = canvas.getContext("2d");
    
         var orderOfEq = 4;
         var mappedCurves = []
@@ -480,7 +495,7 @@ export class ImageScan {
         var scale = this.imageHeight*this.imageWidth/(windowLength*windowLength)
         for(var imgY=0; imgY < this.imageHeight; imgY+=windowLength) {       //increment by 4 because its RGBA values
             for(var imgX=0; imgX < this.imageWidth; imgX+=windowLength) { 
-                var imageData = this.context.getImageData(imgX,imgY,windowLength,windowLength);
+                var imageData = context.getImageData(imgX,imgY,windowLength,windowLength);
                 var data = imageData.data;
                 var dataPts = [];
                 var xMatrix = [];

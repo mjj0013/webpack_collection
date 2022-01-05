@@ -25,37 +25,18 @@ class Home extends React.Component {
 
 		this.bgCanvasRef = React.createRef();		//background canvas reference
         this.bgContextRef = React.createRef();		//background context reference
-		this.mouseClickHandler = this.mouseClickHandler.bind(this);
-
-		
-		
-		
+		this.mouseClickHandler = this.mouseClickHandler.bind(this);		
 		this.state = { activeIndex: 0 }
 	}
 
-	
-
-	
-
 	mouseClickHandler = (canvas,e) =>{
-		
-		
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
-
-        
         console.log("Mouse click.. x: " + x + ", y: " + y)
         
     }
 
-	
-
-	
-
-	
-
-	
 	//<img className="backgroundImage" src='../img/IMG_2313.jpg'/>
 	render() {
 		return (

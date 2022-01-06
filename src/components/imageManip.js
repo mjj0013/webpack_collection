@@ -46,6 +46,7 @@ export class ImageScan {
 
 
     detectBlobs() {
+        //  https://www.youtube.com/watch?v=zItstOggP7M
         this.originalData = this.originalImageData.data;
         
         var componentLength = 2;
@@ -58,45 +59,64 @@ export class ImageScan {
         var layerStack = [];
         
         for(let sig=0; sig < sigStack.length; ++sig) {
-            var temp = this.gaussianBlurComponent(componentLength, filterSig);
+            var temp = this.gaussianBlurComponent(componentLength, sigStack[sig]);
             var component = {kernel:null, sig:null, kernelRadius:null};
             component.kernel = temp.kernel;
             component.sig = temp.sig;
             component.kernelRadius = temp.kernelRadius;
-            layerStack.push({"component":component, "resultData":this.originalData.map((x)=>x)});
+            layerStack.push({"component":component, "resultData":{"RGB":this.originalData.map((x)=>x),"mags":[], "gradientFirst":[], "gradientSecond":[], "nLoG":[]}});
         }
         
         
-        var kernelRadius = componentLength;     //should be the same on each kernel in the component stack
+        var kernelRadius = componentLength;     //should be the same on each kernel in the parallelComponent stack
 
         for(var imgY=kernelRadius; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
             for(var imgX=kernelRadius; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
                 let R = 0,G = 0,B = 0;
                 for(let c=0; c < layerStack.length; ++c) {
-                    var component = layerStack[c];
+                    var parallelComponent = layerStack[c];
                     for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
                         for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
-                            
-                                
-                                let value = component["component"].kernel[kY+kernelRadius][kX+kernelRadius];
+                                let value = parallelComponent["component"].kernel[kY+kernelRadius][kX+kernelRadius];
                                 R += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)]*value;
                                 G += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+1]*value;
-                                B += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+2]*value;
+                                B += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+2]*value; 
                         }   
                     }
-                    component["resultData"][4*(imgX + imgY*this.imageWidth)] = R;
-                    component["resultData"][4*(imgX + imgY*this.imageWidth) + 1] = G;
-                    component["resultData"][4*(imgX + imgY*this.imageWidth) + 2] = B;
+                    parallelComponent["resultData"]["RGB"][4*(imgX + imgY*this.imageWidth)] = R;
+                    parallelComponent["resultData"]["RGB"][4*(imgX + imgY*this.imageWidth) + 1] = G;
+                    parallelComponent["resultData"]["RGB"][4*(imgX + imgY*this.imageWidth) + 2] = B;
+                    parallelComponent["resultData"]["mags"].push((R+G+B)/3);
                 }
             }
         }
-        for(var imgY=kernelRadius; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
-            for(var imgX=kernelRadius; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA xValues
-                for(let c=0; c < layerStack.length; ++c) {
-                    var component = layerStack[c];
+
+        // get derivative of x-y gradients, add them together, multiply that by sigma^2,    <=== nLoG (Normalized Laplacian of Gauss)
+        for(let c=0; c < layerStack.length; ++c) {
+            var parallelComponent = layerStack[c];
+            for(var imgY=0; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
+                for(var imgX=0; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA xValues
+                    let left = parallelComponent["resultData"]["mags"][(imgX-1) + (imgY)*this.imageWidth]
+                    let right = parallelComponent["resultData"]["mags"][(imgX+1) + (imgY)*this.imageWidth]
+                    let top = parallelComponent["resultData"]["mags"][(imgX) + (imgY-1)*this.imageWidth]
+                    let bottom = parallelComponent["resultData"]["mags"][(imgX) + (imgY+1)*this.imageWidth]
+                    parallelComponent["resultData"]["gradientFirst"].push((left-right)+(top-bottom));
+                    
+                }
+            }
+            for(var imgY=0; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
+                for(var imgX=0; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA xValues
+                    let left = parallelComponent["resultData"]["gradientFirst"][(imgX-1) + (imgY)*this.imageWidth]
+                    let right = parallelComponent["resultData"]["gradientFirst"][(imgX+1) + (imgY)*this.imageWidth]
+                    let top = parallelComponent["resultData"]["gradientFirst"][(imgX) + (imgY-1)*this.imageWidth]
+                    let bottom = parallelComponent["resultData"]["gradientFirst"][(imgX) + (imgY+1)*this.imageWidth]
+                    parallelComponent["resultData"]["gradientSecond"].push((left-right)+(top-bottom));
+                    parallelComponent["resultData"]["nLoG"].push(parallelComponent["component"].sig*parallelComponent["component"].sig*((left-right)+(top-bottom)))
                 }
             }
         }
+        
+        
 
     }
 

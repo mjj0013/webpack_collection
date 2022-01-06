@@ -28,13 +28,6 @@ var lastNames =["Smith","Brown","Davis","Wilson","Lee","Johnson","Tremblay", "Ro
 "Jeter","Brooks", "Shelby"]
 
 
-var femaleExclusiveJobs = ['seamstress','waitress','actress','stay-at-home mother']
-var maleExclusiveJobs = ['waiter','actor', 'rabbi',, 'stay-at-home father']
-
-var universalPersonJobs = ['comedian','tailor','plumber','technician','teacher','cook','sailor','engineer','secretary','online forum moderator','blogger','vlogger','gamer','janitor','librarian','construction','architect',
-'garbage collector','artist','pastor','inspector','contractor','scientist','president','vice-president', 'mayor','news anchor','janitor','sheriff','professor','banker', 'reporter','law enforcement', 'activist', 'counselor', 
-'tennis player','basketball player','baseball player','cricket player', 'soccer player','nurse','doctor','first responder','army', 'entrepreneur', 'lawyer','politician','judge','performer','customer service']
-
 var personAttributes = {
     name:['firstName','lastName'],
     interrelations:['step-son','step-daughter','mother','father','son','spouse','daughter','friend','acquaintance', 'grandmother','grandfather','grandchild'],
@@ -56,40 +49,6 @@ var dataStruct = [
         },
         attributes:{
             age:32,
-            job:'technician',
-
-        }
-    },
-    {
-        type:"person", 
-        name:{
-            firstName:"Jen", 
-            lastName:'Smith'
-        },
-        relations:{
-            son:[0],
-            spouse:[2],
-
-        },
-        attributes:{
-            age:62,
-            job:'secretary',
-
-        }
-    },
-    {
-        type:"person", 
-        name:{
-            firstName:"Jack", 
-            lastName:'Smith'
-        },
-        relations:{
-            son:[0],
-            spouse:[2],
-
-        },
-        attributes:{
-            age:64,
             job:'technician',
 
         }
@@ -121,7 +80,7 @@ export class Database extends React.Component {
     }
     generatePerson(leastYear,mostYear, lastName=-1) {
         
-        var adventurous = getRandomInt(0, 100);
+       
         var birthYear = getRandomInt(leastYear,mostYear);
         var birthMonth = getRandomInt(0, 11);
         var birthday = getRandomInt(1,months[birthMonth].length);

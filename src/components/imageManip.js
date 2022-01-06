@@ -49,38 +49,39 @@ export class ImageScan {
         //  https://www.youtube.com/watch?v=zItstOggP7M
         this.originalData = this.originalImageData.data;
         
-        var componentLength = 2;
+        var componentLength = 5;
         let sigMultiplier=2;
         let sig0 = 1;
+        var sigStack = []
         for(let s=0;s<4;++s) {
             sigStack.push(sig0*Math.pow(sigMultiplier,s));
         }
-        var sigStack = []
+        
         var layerStack = [];
         
-        for(let sig=0; sig < sigStack.length; ++sig) {
-            var temp = this.gaussianBlurComponent(componentLength, sigStack[sig]);
-            var component = {kernel:null, sig:null, kernelRadius:null};
-            component.kernel = temp.kernel;
-            component.sig = temp.sig;
-            component.kernelRadius = temp.kernelRadius;
+        for(let s=0; s < sigStack.length; ++s) {
+            var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
+            var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
             layerStack.push({"component":component, "resultData":{"RGB":this.originalData.map((x)=>x),"mags":[], "gradientFirst":[], "gradientSecond":[], "nLoG":[]}});
+            //console.log("at ", s, component);
         }
         
         
-        var kernelRadius = componentLength;     //should be the same on each kernel in the parallelComponent stack
+        var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
 
         for(var imgY=kernelRadius; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
             for(var imgX=kernelRadius; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
-                let R = 0,G = 0,B = 0;
+                
                 for(let c=0; c < layerStack.length; ++c) {
+                    let R = 0,G = 0,B = 0;
                     var parallelComponent = layerStack[c];
                     for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
                         for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
-                                let value = parallelComponent["component"].kernel[kY+kernelRadius][kX+kernelRadius];
-                                R += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)]*value;
-                                G += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+1]*value;
-                                B += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+2]*value; 
+                            let value = parallelComponent["component"].kernel[kY+kernelRadius][kX+kernelRadius];
+                            
+                            R += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)]*value;
+                            G += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+1]*value;
+                            B += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+2]*value; 
                         }   
                     }
                     parallelComponent["resultData"]["RGB"][4*(imgX + imgY*this.imageWidth)] = R;
@@ -92,6 +93,7 @@ export class ImageScan {
         }
 
         // get derivative of x-y gradients, add them together, multiply that by sigma^2,    <=== nLoG (Normalized Laplacian of Gauss)
+        console.log("calculating 1st and 2nd gradients...")
         for(let c=0; c < layerStack.length; ++c) {
             var parallelComponent = layerStack[c];
             for(var imgY=0; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
@@ -115,7 +117,7 @@ export class ImageScan {
                 }
             }
         }
-        
+        console.log("layerStack", layerStack)
         
 
     }
@@ -348,7 +350,7 @@ export class ImageScan {
                 //imageData = this.morphErosion(imageData);
                 context.putImageData(OBJ.imageData, 0,0);
                 // OBJ.detectCorners(canvas);
-                
+                OBJ.detectBlobs();
                 return new Promise((resolve,reject)=> { resolve("asdfadsf"); });
             }
             img.src = reader.result;
@@ -545,23 +547,29 @@ export class ImageScan {
     
         //https://aryamansharda.medium.com/image-filters-gaussian-blur-eb36db6781b1 says to scale sigma value in proportion to radius
         //set minimum standard deviation as a baseline
-        sig = Math.max((kernelRadius / 2), 1)      
+        //sig = Math.max((kernelRadius / 2), sig)      
     
         let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));
         
         let upperExp = sig*sig*2;
-        let lowerExp;
-        let sum = 0;
-        for(let x=-kernelRadius; x <=kernelRadius; ++x) {
-            for(let y=-kernelRadius; y <=kernelRadius; ++y) {
-                lowerExp = (x*x) + (y*y);
-                kernel[x+kernelRadius][y+kernelRadius] = Math.exp(-upperExp/lowerExp)/(Math.PI*lowerExp);
-                sum += kernel[x+kernelRadius][y+kernelRadius];
+        
+        var sum = 0;
+        for(let x=-kernelRadius; x <= kernelRadius; ++x) {
+            for(let y=-kernelRadius; y <= kernelRadius; ++y) {
+                let lowerExp = (x*x) + (y*y);
+               
+                
+                let result = lowerExp==0?1:Math.exp(-upperExp/lowerExp)/(Math.PI*lowerExp);
+                kernel[x+kernelRadius][y+kernelRadius] =result;
+                //console.log(" kernel[x+kernelRadius][y+kernelRadius]",x,y,  kernel[x+kernelRadius][y+kernelRadius])
+                sum += result;
             }
         }
-        for(let x=0; x < kernelLength; ++x) {
-            for(let y=0; y < kernelLength; ++y) {
-                kernel[x][y] /=sum;
+
+        console.log("kernel", kernel,"sum",sum)
+        for(let x=-kernelRadius; x <= kernelRadius; ++x) {
+            for(let y=-kernelRadius; y <= kernelRadius; ++y) {
+                kernel[x+kernelRadius][y+kernelRadius] /=sum;
             }
         }
         let kernelObj = {kernel:kernel, kernelRadius:kernelRadius, sig:sig}

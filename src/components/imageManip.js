@@ -5,15 +5,12 @@ export class ImageScan {
        
         this.imageHeight=0;
         this.imageWidth=0;
-
-
         this.filterInfo = filterInfo;
        
         this.canvasId = targetCanvas;
        
         this.originalImageData = null;
         this.originalData = null;
-
 
         this.imageData = null;
         this.data = null;
@@ -36,21 +33,15 @@ export class ImageScan {
         this.getImagePartition = this.getImagePartition.bind(this);
         this.edgeDetectComponent = this.edgeDetectComponent.bind(this);
         this.detectBlobs = this.detectBlobs.bind(this);
-        // canvas.onload = (e)=> {
-        //     context = canvas.getContext("2d");
-            
-        // }
-
+        this.imageLayers = [];
+        this.selectedImage = null
     }
-
-
 
     detectBlobs() {
         //  https://www.youtube.com/watch?v=zItstOggP7M
         this.originalData = this.originalImageData.data;
-        
-        var componentLength = 5;
-        let sigMultiplier=2;
+        var componentLength = 7;
+        let sigMultiplier=3;
         let sig0 = 1;
         var sigStack = []
         for(let s=0;s<4;++s) {
@@ -58,20 +49,15 @@ export class ImageScan {
         }
         
         var layerStack = [];
-        
         for(let s=0; s < sigStack.length; ++s) {
             var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
             var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
             layerStack.push({"component":component, "resultData":{"RGB":this.originalData.map((x)=>x),"mags":[], "gradientFirst":[], "gradientSecond":[], "nLoG":[]}});
-            //console.log("at ", s, component);
         }
         
-        
         var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
-
         for(var imgY=kernelRadius; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
             for(var imgX=kernelRadius; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
-                
                 for(let c=0; c < layerStack.length; ++c) {
                     let R = 0,G = 0,B = 0;
                     var parallelComponent = layerStack[c];
@@ -118,8 +104,8 @@ export class ImageScan {
             }
         }
         console.log("layerStack", layerStack)
-        
-
+        this.imageLayers = layerStack;
+        return layerStack;
     }
 
     colorDiscreteTransferComponent(inColor, ranges, isAlpha=false) {
@@ -172,7 +158,7 @@ export class ImageScan {
         const file = document.querySelector('input[type=file]').files[0];
         const reader = new FileReader();
         
-       
+        this.selectedImage = file;
         
         var OBJ = this;
         reader.addEventListener("load", function () {
@@ -543,42 +529,36 @@ export class ImageScan {
             return -1;
         }
         let kernelRadius=Math.floor(kernelLength/2);
-        console.log("at kernel");
-    
+        
         //https://aryamansharda.medium.com/image-filters-gaussian-blur-eb36db6781b1 says to scale sigma value in proportion to radius
         //set minimum standard deviation as a baseline
         //sig = Math.max((kernelRadius / 2), sig)      
-    
-        let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));
         
+        let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));
         let upperExp = sig*sig*2;
         
         var sum = 0;
         for(let x=-kernelRadius; x <= kernelRadius; ++x) {
             for(let y=-kernelRadius; y <= kernelRadius; ++y) {
-                let lowerExp = (x*x) + (y*y);
-               
-                
-                let result = lowerExp==0?1:Math.exp(-upperExp/lowerExp)/(Math.PI*lowerExp);
+                let lowerExp = (x*x) + (y*y);  
+                let result = lowerExp==0? 1:Math.exp(-upperExp/lowerExp) / (Math.PI*lowerExp);
                 kernel[x+kernelRadius][y+kernelRadius] =result;
-                //console.log(" kernel[x+kernelRadius][y+kernelRadius]",x,y,  kernel[x+kernelRadius][y+kernelRadius])
                 sum += result;
             }
         }
 
-        console.log("kernel", kernel,"sum",sum)
-        for(let x=-kernelRadius; x <= kernelRadius; ++x) {
-            for(let y=-kernelRadius; y <= kernelRadius; ++y) {
-                kernel[x+kernelRadius][y+kernelRadius] /=sum;
+        for(let x=0; x < kernelLength; ++x) {
+            for(let y=0; y < kernelLength; ++y) {
+                kernel[x][y] /=sum;
             }
         }
+        
         let kernelObj = {kernel:kernel, kernelRadius:kernelRadius, sig:sig}
         return kernelObj;
     }
      approximateEdgeBounds() {
         var canvas = document.getElementById(this.canvasId)
         var context = canvas.getContext("2d");
-   
         var orderOfEq = 4;
         var mappedCurves = []
         var windowLength  = 250;
@@ -590,7 +570,6 @@ export class ImageScan {
                 var dataPts = [];
                 var xMatrix = [];
                 var yValues = [];
-                
                 for(let imgY2=0; imgY2 < windowLength;++imgY2) {
                     for(let imgX2=0; imgX2 < windowLength;++imgX2) {
                         let R = data[4*((imgY2)*windowLength + imgX2)]
@@ -603,7 +582,6 @@ export class ImageScan {
                         }
                     }    
                 }
-
                 if(dataPts.length >orderOfEq) {
                     for(let a=0; a < dataPts.length; ++a) {
                         xMatrix.push(Array(orderOfEq).fill(dataPts[a].x))
@@ -612,9 +590,9 @@ export class ImageScan {
                     }
                     //do order-3 equations
         
-                    console.log("xMatrix", xMatrix, "yValues", yValues)
+                    // console.log("xMatrix", xMatrix, "yValues", yValues)
                     var coeffs = this.leastMeanSquaresEstim(xMatrix,yValues);
-                    console.log("coeffs", coeffs.data)
+                    // console.log("coeffs", coeffs.data)
                     var X = [];
                     var Y = [];
 
@@ -629,7 +607,6 @@ export class ImageScan {
                     mappedCurves.push({xValues:X, yValues:Y, coeffs:coeffs, dataPts:dataPts})
                 }
                 console.log(`done with window at ${imgX}, ${imgY}  `)
-                
             }
         } 
         // return new Promise((resolve,reject)=> { resolve(mappedCurves); });     
@@ -655,14 +632,12 @@ export class ImageScan {
         return kernelObj;
     }
     simpleGrayscaleConvert(pixel, type="luminosity")  {
-    
         if(type=="luminosity") {
             var value = pixel[0]*.27 + pixel[1]*.72 +  pixel[2]*.07;
             pixel[0] = value;
             pixel[1] = value;
             pixel[2] = value;
         }
-
         else if(type=="average") {
             var value = (pixel[0] + pixel[1] + pixel[2])/3;
             pixel[0] = value;
@@ -670,7 +645,6 @@ export class ImageScan {
             pixel[2] = value;
             
         }
-
         else if(type=="lightness") {
             var value = (Math.max(pixel[0], pixel[1], pixel[2]) + Math.min(pixel[0], pixel[1], pixel[2]))/2;
             pixel[0] = value;

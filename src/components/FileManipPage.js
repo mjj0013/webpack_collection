@@ -103,8 +103,6 @@ function drawBounds(curveData) {
         //     let pt4 = `${c[3]*xValues[i]},${c[3]*yValues[i]} `
 
         //     d+=`C`+pt1+pt2+pt3+pt4
-            
-       
         // }
         console.log("d",d)
         var path = document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -184,7 +182,21 @@ class FileManipPage extends React.Component {
         this.numOfPagesChanged= this.numOfPagesChanged.bind(this);
         this.state = {num:''};
         this.loadImage = this.loadImage.bind(this);
+        this.showSigmaLayersOnHover = this.showSigmaLayersOnHover.bind(this)
         this.imageScanInstances = [];
+        this.filterEffectChanged = this.filterEffectChanged.bind(this);
+        this.selectedImage = null
+    }
+    showSigmaLayersOnHover(e) {
+        var x = e.layerX;
+        var y = e.layerY;
+       
+        var layerStr = ''
+        for(let i=0; i < this.currentScanObj.imageLayers.length; ++i) {
+            layerStr+=this.currentScanObj.imageLayers[i]["resultData"]["nLoG"][(x) + (y)*this.currentScanObj.imageWidth] + ",  "
+        }
+        
+        console.log("layerStr", layerStr)
     }
 
     async loadText(e) {
@@ -204,18 +216,48 @@ class FileManipPage extends React.Component {
     numOfPagesChanged(e) {
         this.setState({num: e.target.value});  
     }
+    filterEffectChanged(e) {
+        var context = document.getElementById("testCanvas").getContext('2d');
+        if(e.target.value=="none") {
+            const reader = new FileReader();
+        
+            //var OBJ = this;
+            reader.addEventListener("load", 
+                function () {
+                    const img = new Image();
+                    img.onload = function() {
+                        context.drawImage(img,0,0);
+                        console.log("drawn image");
+                    }
+                    img.src = reader.result;
+                }
+            , false);
+            if (this.selectedImage) reader.readAsDataURL(this.selectedImage);
+
+        }
+        else if(e.target.value=="edgeDetection") {
+            
+        }
+        
+    }
+
 
     async loadImage(e) {
         var filterInfo = [
             // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
-            {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.5,.9,1.0]},
-            {type:"edgeDetect", kernelLength:7,middleValue:20, fillValue:-1, cornerValue:-1},
-            {type:"blackWhiteTransfer"},
-            {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
+
+            {type:"gaussBlur", kernelLength:11, sig:1}
+            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.5,.9,1.0]},
+            // {type:"edgeDetect", kernelLength:7,middleValue:20, fillValue:-1, cornerValue:-1},
+            // {type:"blackWhiteTransfer"},
+            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
         ]
         this.currentScanObj = new ImageScan('testCanvas',filterInfo);
-        await this.currentScanObj.imageReader()
+        await this.currentScanObj.imageReader();
+         
+        document.getElementById("testCanvas").onmousemove = (e) => this.showSigmaLayersOnHover(e);
+        this.selectedImage = this.currentScanObj.selectedFile;
         //this.currentScanObj.imageReader();
         //this.imageScanInstances.push(this.currentScanObj);
         //await imageReader(document.getElementById("luminGrayscale"),null, null)
@@ -232,8 +274,6 @@ class FileManipPage extends React.Component {
                 drawBounds(result);
             });
         }, 1000);
-        
-
         return;
 	}
 
@@ -249,7 +289,11 @@ class FileManipPage extends React.Component {
                 <svg id="mainSVG" style={{display:"none"}} width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"></svg>
                 <div id="windowTest" style={{backgroundColor:'black', top:'100px', left:'30px', width:25, height:25} } />
                 <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
-                
+                <select id="selectFilter" name="filterEffect" onChange={this.filterEffectChanged}>
+                    
+                    <option value="edgeDetection">Edge Detection</option>
+                    <option value="none">None</option>
+                </select>
                 <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"150vh",position:"absolute",display:"block", border:"1px solid black"}} />
             </Layout> 
             

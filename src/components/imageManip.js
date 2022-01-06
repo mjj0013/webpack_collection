@@ -11,6 +11,10 @@ export class ImageScan {
        
         this.canvasId = targetCanvas;
        
+        this.originalImageData = null;
+        this.originalData = null;
+
+
         this.imageData = null;
         this.data = null;
         this.pixelData = null;
@@ -31,11 +35,68 @@ export class ImageScan {
         this.getTranpose = this.getTranpose.bind(this);
         this.getImagePartition = this.getImagePartition.bind(this);
         this.edgeDetectComponent = this.edgeDetectComponent.bind(this);
-
+        this.detectBlobs = this.detectBlobs.bind(this);
         // canvas.onload = (e)=> {
         //     context = canvas.getContext("2d");
             
         // }
+
+    }
+
+
+
+    detectBlobs() {
+        this.originalData = this.originalImageData.data;
+        
+        var componentLength = 2;
+        let sigMultiplier=2;
+        let sig0 = 1;
+        for(let s=0;s<4;++s) {
+            sigStack.push(sig0*Math.pow(sigMultiplier,s));
+        }
+        var sigStack = []
+        var layerStack = [];
+        
+        for(let sig=0; sig < sigStack.length; ++sig) {
+            var temp = this.gaussianBlurComponent(componentLength, filterSig);
+            var component = {kernel:null, sig:null, kernelRadius:null};
+            component.kernel = temp.kernel;
+            component.sig = temp.sig;
+            component.kernelRadius = temp.kernelRadius;
+            layerStack.push({"component":component, "resultData":this.originalData.map((x)=>x)});
+        }
+        
+        
+        var kernelRadius = componentLength;     //should be the same on each kernel in the component stack
+
+        for(var imgY=kernelRadius; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
+            for(var imgX=kernelRadius; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
+                let R = 0,G = 0,B = 0;
+                for(let c=0; c < layerStack.length; ++c) {
+                    var component = layerStack[c];
+                    for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
+                        for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
+                            
+                                
+                                let value = component["component"].kernel[kY+kernelRadius][kX+kernelRadius];
+                                R += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)]*value;
+                                G += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+1]*value;
+                                B += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+2]*value;
+                        }   
+                    }
+                    component["resultData"][4*(imgX + imgY*this.imageWidth)] = R;
+                    component["resultData"][4*(imgX + imgY*this.imageWidth) + 1] = G;
+                    component["resultData"][4*(imgX + imgY*this.imageWidth) + 2] = B;
+                }
+            }
+        }
+        for(var imgY=kernelRadius; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
+            for(var imgX=kernelRadius; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA xValues
+                for(let c=0; c < layerStack.length; ++c) {
+                    var component = layerStack[c];
+                }
+            }
+        }
 
     }
 
@@ -96,6 +157,7 @@ export class ImageScan {
             const img = new Image();
             img.onload = function() {
                 context.drawImage(img,0,0);
+                OBJ.originalImageData = context.getImageData(0,0,canvas.width,canvas.height);
                 OBJ.imageData = context.getImageData(0,0,canvas.width,canvas.height);
                 OBJ.data = OBJ.imageData.data;
                 OBJ.imageWidth = OBJ.imageData.width;
@@ -265,7 +327,7 @@ export class ImageScan {
                 }
                 //imageData = this.morphErosion(imageData);
                 context.putImageData(OBJ.imageData, 0,0);
-                OBJ.detectCorners(canvas);
+                // OBJ.detectCorners(canvas);
                 
                 return new Promise((resolve,reject)=> { resolve("asdfadsf"); });
             }

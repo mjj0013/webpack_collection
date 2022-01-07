@@ -38,13 +38,15 @@ export class ImageScan {
     }
 
     detectBlobs() {
+        //  http://www.cs.toronto.edu/~jepson/csc420/notes/imageFeaturesIIIBinder.pdf
+        //  https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
         //  https://www.youtube.com/watch?v=zItstOggP7M
         this.originalData = this.originalImageData.data;
-        var componentLength = 7;
-        let sigMultiplier=3;
+        var componentLength = 3;
+        let sigMultiplier=8;
         let sig0 = 1;
         var sigStack = []
-        for(let s=0;s<4;++s) {
+        for(let s=0;s<3;++s) {
             sigStack.push(sig0*Math.pow(sigMultiplier,s));
         }
         
@@ -52,7 +54,8 @@ export class ImageScan {
         for(let s=0; s < sigStack.length; ++s) {
             var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
             var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
-            layerStack.push({"component":component, "resultData":{"RGB":this.originalData.map((x)=>x),"mags":[], "gradientFirst":[], "gradientSecond":[], "nLoG":[]}});
+            layerStack.push({"component":component, "resultData":{"RGB":this.originalData.map((x)=>x),"mags":[],"yGradient1":[], "xGradient1":[],"magGradient1":[],"thetaGradient1":[], 
+            "yGradient2":[], "xGradient2":[],"magGradient2":[],"thetaGradient2":[], "nLoG":[]}});
         }
         
         var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
@@ -88,21 +91,50 @@ export class ImageScan {
                     let right = parallelComponent["resultData"]["mags"][(imgX+1) + (imgY)*this.imageWidth]
                     let top = parallelComponent["resultData"]["mags"][(imgX) + (imgY-1)*this.imageWidth]
                     let bottom = parallelComponent["resultData"]["mags"][(imgX) + (imgY+1)*this.imageWidth]
-                    parallelComponent["resultData"]["gradientFirst"].push((left-right)+(top-bottom));
-                    
+                    if(imgX==0 || imgX==this.imageWidth-1) {
+                        left = 0;
+                        right = 0;
+                    }
+                    if(imgY==0 || imgY==this.imageHeight-1) {
+                        top = 0;
+                        bottom = 0;
+                    }
+                    parallelComponent["resultData"]["xGradient1"].push((left-right));
+                    parallelComponent["resultData"]["yGradient1"].push((top-bottom));
+                    let magGrad = Math.sqrt((top-bottom)*(top-bottom) + (left-right)*(left-right))
+                    parallelComponent["resultData"]["magGradient1"].push(magGrad);
+                    parallelComponent["resultData"]["thetaGradient1"].push(Math.atan((top-bottom)/(left-right)));   
                 }
             }
             for(var imgY=0; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
                 for(var imgX=0; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA xValues
-                    let left = parallelComponent["resultData"]["gradientFirst"][(imgX-1) + (imgY)*this.imageWidth]
-                    let right = parallelComponent["resultData"]["gradientFirst"][(imgX+1) + (imgY)*this.imageWidth]
-                    let top = parallelComponent["resultData"]["gradientFirst"][(imgX) + (imgY-1)*this.imageWidth]
-                    let bottom = parallelComponent["resultData"]["gradientFirst"][(imgX) + (imgY+1)*this.imageWidth]
-                    parallelComponent["resultData"]["gradientSecond"].push((left-right)+(top-bottom));
-                    parallelComponent["resultData"]["nLoG"].push(parallelComponent["component"].sig*parallelComponent["component"].sig*((left-right)+(top-bottom)))
+                    
+                    let left = parallelComponent["resultData"]["xGradient1"][(imgX-1) + (imgY)*this.imageWidth]
+                    let right = parallelComponent["resultData"]["xGradient1"][(imgX+1) + (imgY)*this.imageWidth]
+                    let top = parallelComponent["resultData"]["yGradient1"][(imgX) + (imgY-1)*this.imageWidth]
+                    let bottom = parallelComponent["resultData"]["yGradient1"][(imgX) + (imgY+1)*this.imageWidth]
+                    if(imgX==0 || imgX==this.imageWidth-1) {
+                        left = 0;
+                        right = 0;
+                    }
+                    if(imgY==0 || imgY==this.imageHeight-1) {
+                        top = 0;
+                        bottom = 0;
+                    }
+                    parallelComponent["resultData"]["xGradient2"].push((left-right));
+                    parallelComponent["resultData"]["yGradient2"].push((top-bottom));
+                    let magGrad = Math.sqrt((top-bottom)*(top-bottom) + (left-right)*(left-right))
+                    parallelComponent["resultData"]["magGradient2"].push(magGrad);
+                    parallelComponent["resultData"]["thetaGradient2"].push(Math.atan((top-bottom)/(left-right)));
+                    
+                    // nLoG is ???
+                    //parallelComponent["resultData"]["nLoG"].push(parallelComponent["component"].sig*parallelComponent["component"].sig*((left-right)+(top-bottom)))
                 }
             }
+            
         }
+        
+       
         console.log("layerStack", layerStack)
         this.imageLayers = layerStack;
         return layerStack;
@@ -334,9 +366,30 @@ export class ImageScan {
                     }
                 }
                 //imageData = this.morphErosion(imageData);
-                context.putImageData(OBJ.imageData, 0,0);
+                
                 // OBJ.detectCorners(canvas);
+                //context.putImageData(OBJ.imageData, 0,0);
                 OBJ.detectBlobs();
+                console.log("inserting layer0 imageData")
+                for(var imgY=0; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
+                    for(var imgX=0; imgX < OBJ.imageWidth; imgX+=1) {       //increment by 4 because its RGBA xValues
+                        let mag = OBJ.imageLayers[1]["resultData"]["magGradient1"][imgX + (imgY*OBJ.imageWidth)];
+                        let theta = OBJ.imageLayers[1]["resultData"]["thetaGradient1"][imgX + (imgY*OBJ.imageWidth)];
+                        // let R = mag*Math.cos(57.2958*theta)
+                        // let G = mag*Math.sin(57.2958*theta)
+                        // let B = 0;
+                        let R = mag
+                        let G = mag
+                        let B = 0;
+                        OBJ.data[4*(imgX + imgY*OBJ.imageWidth)] = R;
+                        OBJ.data[4*(imgX + imgY*OBJ.imageWidth)+1] = G;
+                        OBJ.data[4*(imgX + imgY*OBJ.imageWidth)+2] = B;
+                        
+                    }
+                    
+                }
+                console.log("done inserting");
+                context.putImageData(OBJ.imageData, 0,0);
                 return new Promise((resolve,reject)=> { resolve("asdfadsf"); });
             }
             img.src = reader.result;
@@ -351,7 +404,7 @@ export class ImageScan {
         }
     }
     detectCorners() {
-        console.log(" this.pixelData", this.pixelData)
+        //console.log(" this.pixelData", this.pixelData)
         var canvas = document.getElementById(this.canvasId)
         var context = canvas.getContext("2d");
         var imageData = context.getImageData(0,0,canvas.width,canvas.height);
@@ -360,7 +413,7 @@ export class ImageScan {
         var uniqueLambdas = [];
 
         //   https://mccormickml.com/2013/05/07/gradient-vectors/
-        //   https://www.youtube.com/watch?v=Z_HwkG90Yvw&ab_channel=FirstPrinciplesofComputerVision
+        //   https://www.youtube.com/watch?v=Z_HwkG90Yvw&ab_channel=1PrinciplesofComputerVision
     
 
         console.log("pixelData",this.pixelData);
@@ -372,7 +425,6 @@ export class ImageScan {
         var yAccelerator = 1;
         var imgY = kernelRadius;
         var imgX = kernelRadius;
-    
     
         //try doing a path finding algorithm, where if pixel is a part of an edge, it follows the slope of the edge.
         //map the regions in the image where no edges occur, skip these regions
@@ -393,7 +445,6 @@ export class ImageScan {
                         b+=this.pixelData[imgY-kY][imgX-kX].gradientX*this.pixelData[imgY-kY][imgX-kX].gradientY      //x*y
                         c+=this.pixelData[imgY-kY][imgX-kX].gradientY*this.pixelData[imgY-kY][imgX-kX].gradientY      //y^2
                       
-                        
                         // a+=this.pixelData[this.imageWidthByPixel*(imgY-kY)+(imgX-kX)].gradientX*this.pixelData[this.imageWidthByPixel*(imgY-kY)+ (imgX-kX)].gradientX      //x^2
                         // b+=this.pixelData[this.imageWidthByPixel*(imgY-kY)+(imgX-kX)].gradientX*this.pixelData[this.imageWidthByPixel*(imgY-kY)+ (imgX-kX)].gradientY      //x*y
                         // c+=this.pixelData[this.imageWidthByPixel*(imgY-kY)+(imgX-kX)].gradientY*this.pixelData[this.imageWidthByPixel*(imgY-kY)+ (imgX-kX)].gradientY      //y^2
@@ -431,21 +482,13 @@ export class ImageScan {
                     xAccelerator = 1;
                     yAccelerator = 1;
                     detectedCorners.push({x:imgX, y:imgY});
-                    // if(detectedCorners.length!=0) {
-                    //     for(let C=0; C < detectedCorners.length; ++C) {
-                    //         if(detectedCorners[C].x == imgX && detectedCorners[C].y == imgY) {}
-                    //         else {    detectedCorners.push({x:imgX, y:imgY});}
-                    //     }
-                    // }
-                    // else detectedCorners.push({x:imgX, y:imgY});
+                   
                 }
                 imgX+=xAccelerator;
             }
             imgY+=yAccelerator;
         }
-        // var windowArray = pixelData.slice(imgY-kernelRadius, imgY+kernelRadius)
-        //         windowArray = windowArray.map(x=>{x.slice(imgX-kernelRadius, imgX+kernelRadius)})
-        //         windowArray = windowArray.flat()
+
         console.log("uniqueLambdas", uniqueLambdas)
         console.log("detectedCorners",detectedCorners);
     
@@ -535,13 +578,13 @@ export class ImageScan {
         //sig = Math.max((kernelRadius / 2), sig)      
         
         let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));
-        let upperExp = sig*sig*2;
+        let lowerExp = sig*sig*2;
         
         var sum = 0;
         for(let x=-kernelRadius; x <= kernelRadius; ++x) {
             for(let y=-kernelRadius; y <= kernelRadius; ++y) {
-                let lowerExp = (x*x) + (y*y);  
-                let result = lowerExp==0? 1:Math.exp(-upperExp/lowerExp) / (Math.PI*lowerExp);
+                let upperExp = (x*x) + (y*y);  
+                let result = upperExp==0? 1/(Math.PI*lowerExp) : Math.exp(-upperExp/lowerExp)/(Math.PI*lowerExp);
                 kernel[x+kernelRadius][y+kernelRadius] =result;
                 sum += result;
             }
@@ -592,7 +635,7 @@ export class ImageScan {
         
                     // console.log("xMatrix", xMatrix, "yValues", yValues)
                     var coeffs = this.leastMeanSquaresEstim(xMatrix,yValues);
-                    // console.log("coeffs", coeffs.data)
+                    
                     var X = [];
                     var Y = [];
 

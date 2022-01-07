@@ -193,7 +193,8 @@ class FileManipPage extends React.Component {
        
         var layerStr = ''
         for(let i=0; i < this.currentScanObj.imageLayers.length; ++i) {
-            layerStr+=this.currentScanObj.imageLayers[i]["resultData"]["nLoG"][(x) + (y)*this.currentScanObj.imageWidth] + ",  "
+            layerStr+="("+this.currentScanObj.imageLayers[i]["resultData"]["magGradient1"][(x) + (y)*this.currentScanObj.imageWidth]+
+            ","+this.currentScanObj.imageLayers[i]["resultData"]["magGradient2"][(x) + (y)*this.currentScanObj.imageWidth]+")" + ";   "
         }
         
         console.log("layerStr", layerStr)
@@ -247,7 +248,7 @@ class FileManipPage extends React.Component {
             // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
 
-            {type:"gaussBlur", kernelLength:11, sig:1}
+            // {type:"gaussBlur", kernelLength:11, sig:1}
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.5,.9,1.0]},
             // {type:"edgeDetect", kernelLength:7,middleValue:20, fillValue:-1, cornerValue:-1},
             // {type:"blackWhiteTransfer"},
@@ -255,6 +256,7 @@ class FileManipPage extends React.Component {
         ]
         this.currentScanObj = new ImageScan('testCanvas',filterInfo);
         await this.currentScanObj.imageReader();
+        
          
         document.getElementById("testCanvas").onmousemove = (e) => this.showSigmaLayersOnHover(e);
         this.selectedImage = this.currentScanObj.selectedFile;

@@ -38,6 +38,8 @@ export class ImageScan {
     }
 
     detectBlobs() {
+        //  https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
+        //  https://www.cs.toronto.edu/~mangas/teaching/320/calendar.html
         //  http://www.cs.toronto.edu/~jepson/csc420/notes/imageFeaturesIIIBinder.pdf
         //  https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
         //  https://www.youtube.com/watch?v=zItstOggP7M

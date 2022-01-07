@@ -245,7 +245,7 @@ class FileManipPage extends React.Component {
 
     async loadImage(e) {
         var filterInfo = [
-            // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
+            {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
 
             // {type:"gaussBlur", kernelLength:11, sig:1}

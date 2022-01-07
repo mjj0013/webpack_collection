@@ -42,37 +42,47 @@ export class ImageScan {
         //  https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
         //  https://www.youtube.com/watch?v=zItstOggP7M
         this.originalData = this.originalImageData.data;
-        var componentLength = 3;
-        let sigMultiplier=8;
-        let sig0 = 1;
+        var componentLength = 7;
+        let sigMultiplier=10;
+        let sig0 = 10;
         var sigStack = []
-        for(let s=0;s<3;++s) {
-            sigStack.push(sig0*Math.pow(sigMultiplier,s));
-        }
+        for(let s=0;s<3;++s)    sigStack.push(sig0*Math.pow(sigMultiplier,s));
+        
         
         var layerStack = [];
         for(let s=0; s < sigStack.length; ++s) {
             var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
             var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
-            layerStack.push({"component":component, "resultData":{"RGB":this.originalData.map((x)=>x),"mags":[],"yGradient1":[], "xGradient1":[],"magGradient1":[],"thetaGradient1":[], 
+            layerStack.push({"component":component, "resultData":{"RGB":this.originalData.map((x)=>x),
+            "mags":[],"yGradient1":[], "xGradient1":[],"magGradient1":[],"thetaGradient1":[], 
             "yGradient2":[], "xGradient2":[],"magGradient2":[],"thetaGradient2":[], "nLoG":[]}});
         }
         
         var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
-        for(var imgY=kernelRadius; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
-            for(var imgX=kernelRadius; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
-                for(let c=0; c < layerStack.length; ++c) {
+        for(let c=0; c < layerStack.length; ++c) {
+            var parallelComponent = layerStack[c];
+            // parallelComponent["resultData"]["mags"]
+            for(var imgY=0; imgY < this.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
+                for(var imgX=0; imgX < this.imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
+                
                     let R = 0,G = 0,B = 0;
-                    var parallelComponent = layerStack[c];
-                    for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
-                        for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
-                            let value = parallelComponent["component"].kernel[kY+kernelRadius][kX+kernelRadius];
-                            
-                            R += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)]*value;
-                            G += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+1]*value;
-                            B += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+2]*value; 
-                        }   
+                    if((imgY >=kernelRadius) && (imgX >=kernelRadius)) {
+                        for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
+                            for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
+                                let value = parallelComponent["component"].kernel[kY+kernelRadius][kX+kernelRadius];
+                                
+                                R += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)]*value;
+                                G += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+1]*value;
+                                B += this.originalData[4*((imgX-kX) + (imgY-kY)*this.imageWidth)+2]*value; 
+                            }   
+                        }
                     }
+                    else {
+                        R = this.originalData[4*(imgX + imgY*this.imageWidth)];
+                        G = this.originalData[4*(imgX + imgY*this.imageWidth) + 1]
+                        B = this.originalData[4*(imgX + imgY*this.imageWidth) + 2]
+                    }
+                    
                     parallelComponent["resultData"]["RGB"][4*(imgX + imgY*this.imageWidth)] = R;
                     parallelComponent["resultData"]["RGB"][4*(imgX + imgY*this.imageWidth) + 1] = G;
                     parallelComponent["resultData"]["RGB"][4*(imgX + imgY*this.imageWidth) + 2] = B;
@@ -373,14 +383,14 @@ export class ImageScan {
                 console.log("inserting layer0 imageData")
                 for(var imgY=0; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
                     for(var imgX=0; imgX < OBJ.imageWidth; imgX+=1) {       //increment by 4 because its RGBA xValues
-                        let mag = OBJ.imageLayers[1]["resultData"]["magGradient1"][imgX + (imgY*OBJ.imageWidth)];
-                        let theta = OBJ.imageLayers[1]["resultData"]["thetaGradient1"][imgX + (imgY*OBJ.imageWidth)];
-                        // let R = mag*Math.cos(57.2958*theta)
-                        // let G = mag*Math.sin(57.2958*theta)
+                        let mag = OBJ.imageLayers[OBJ.imageLayers.length-1]["resultData"]["magGradient1"][imgX + (imgY*OBJ.imageWidth)];
+                        let theta = OBJ.imageLayers[OBJ.imageLayers.length-1]["resultData"]["thetaGradient1"][imgX + (imgY*OBJ.imageWidth)];
+                        let R = mag*Math.cos(theta)     //57.2958*
+                        let G = 0
+                        let B = mag*Math.sin(theta);
+                        // let R = mag
+                        // let G = mag
                         // let B = 0;
-                        let R = mag
-                        let G = mag
-                        let B = 0;
                         OBJ.data[4*(imgX + imgY*OBJ.imageWidth)] = R;
                         OBJ.data[4*(imgX + imgY*OBJ.imageWidth)+1] = G;
                         OBJ.data[4*(imgX + imgY*OBJ.imageWidth)+2] = B;

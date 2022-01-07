@@ -38,6 +38,7 @@ export class ImageScan {
     }
 
     detectBlobs() {
+        // https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L12.pdf
         //  https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
         //  https://www.cs.toronto.edu/~mangas/teaching/320/calendar.html
         //  http://www.cs.toronto.edu/~jepson/csc420/notes/imageFeaturesIIIBinder.pdf

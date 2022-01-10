@@ -190,10 +190,9 @@ class FileManipPage extends React.Component {
     showSigmaLayersOnHover(e) {
         var x = e.layerX;
         var y = e.layerY;
-       
         var layerStr = ''
         for(let i=0; i < this.currentScanObj.imageLayers.length; ++i) {
-            layerStr+="("+this.currentScanObj.imageLayers[i]["resultData"]["magGradient1"][(x) + (y)*this.currentScanObj.imageWidth]+
+            layerStr+="("+this.currentScanObj.imageLayers[i]["resultData"]["magGradient2"][(x) + (y)*this.currentScanObj.imageWidth]+
             ","+this.currentScanObj.imageLayers[i]["resultData"]["magGradient2"][(x) + (y)*this.currentScanObj.imageWidth]+")" + ";   "
         }
         
@@ -236,8 +235,7 @@ class FileManipPage extends React.Component {
             if (this.selectedImage) reader.readAsDataURL(this.selectedImage);
 
         }
-        else if(e.target.value=="edgeDetection") {
-            
+        else if(e.target.value=="edgeDetection") {  
         }
         
     }
@@ -245,7 +243,7 @@ class FileManipPage extends React.Component {
 
     async loadImage(e) {
         var filterInfo = [
-            {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
+            // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
 
             // {type:"gaussBlur", kernelLength:11, sig:1}
@@ -258,24 +256,21 @@ class FileManipPage extends React.Component {
         await this.currentScanObj.imageReader();
         
          
-        document.getElementById("testCanvas").onmousemove = (e) => this.showSigmaLayersOnHover(e);
+        //document.getElementById("testCanvas").onmousemove = (e) => this.showSigmaLayersOnHover(e);
         this.selectedImage = this.currentScanObj.selectedFile;
-        //this.currentScanObj.imageReader();
+        
         //this.imageScanInstances.push(this.currentScanObj);
         //await imageReader(document.getElementById("luminGrayscale"),null, null)
-        //[{type:"grayScale", subType:"luminosity"}]
+        
 
-        // await imageReader(document.getElementById("averageGrayscale"),null, [{type:"grayScale", subType:"average"}])
-        //await this.imageReader(canvas,null, filterInfo);
-        // var read = imageReader(canvas,null, filterInfo);
 
-        setTimeout(()=> {
-            var asyncFunc= this.currentScanObj.approximateEdgeBounds();
-            asyncFunc.then(function(result) {
-                console.log("result",result)
-                drawBounds(result);
-            });
-        }, 1000);
+        // setTimeout(()=> {
+        //     var asyncFunc= this.currentScanObj.approximateEdgeBounds();
+        //     asyncFunc.then(function(result) {
+        //         console.log("result",result)
+        //         drawBounds(result);
+        //     });
+        // }, 1000);
         return;
 	}
 

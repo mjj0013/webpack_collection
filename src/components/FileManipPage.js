@@ -246,7 +246,7 @@ class FileManipPage extends React.Component {
             // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
 
-            // {type:"gaussBlur", kernelLength:11, sig:1}
+            // {type:"gaussBlur", kernelLength:7, sig:4000}
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.5,.9,1.0]},
             // {type:"edgeDetect", kernelLength:7,middleValue:20, fillValue:-1, cornerValue:-1},
             // {type:"blackWhiteTransfer"},

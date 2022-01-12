@@ -264,7 +264,7 @@ export class ImageScan {
                                 // is an edge
                                 var pixelIdx = parallelComponent["resultData"]["xGradient2"].length-1;
                                 var theta = parallelComponent["resultData"]["thetaGradient1"][pixelIdx]
-                                parallelComponent["resultData"]["edgeData"].push({x:imgX, y:imgY, pixelIdx:pixelIdx});
+                                //parallelComponent["resultData"]["edgeData"].push({x:imgX, y:imgY, pixelIdx:pixelIdx});
 
                                 //use theta of pixel to determine which "direction" the edge is ( add 90deg since theta is normal), move a window in that direction and keep doing it till you reach another corner
                                 //ACTUALLY, use Hessian Matrix, page 39 here https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
@@ -282,22 +282,22 @@ export class ImageScan {
                 cornerData.push({x:parallelComponent["resultData"]["cornerLocations"][c].x, y:parallelComponent["resultData"]["cornerLocations"][c].y, closestPts:[], pixelIdx:parallelComponent["resultData"]["cornerLocations"][c].pixelIdx})
             }
 
-            for(let p1=0; p1 < cornerData.length; ++p1) {
-                let thisPt = cornerData[i];
-                let closestPts = [];
-                for(let p2=0; p2 < cornerData.length; ++p2){
-                    if(p2==p1) continue;
-                    let otherPt =  cornerData[p2];
-                    let squaredDist = (thisPt.x-otherPt.x)*(thisPt.x-otherPt.x) + (thisPt.y-otherPt.y)*(thisPt.y-otherPt.y);
-                    closestPts.push({index:j,squaredDist:squaredDist});
-                }
-                closestPts.sort(function(a,b) { return a.squaredDist - b.squaredDist;  })
-                let maxNumClosest = 3
-                let topPts = closestPts.slice(0,maxNumClosest);
+            // for(let p1=0; p1 < cornerData.length; ++p1) {
+            //     let thisPt = cornerData[p1];
+            //     let closestPts = [];
+            //     for(let p2=0; p2 < cornerData.length; ++p2){
+            //         if(p2==p1) continue;
+            //         let otherPt =  cornerData[p2];
+            //         let squaredDist = (thisPt.x-otherPt.x)*(thisPt.x-otherPt.x) + (thisPt.y-otherPt.y)*(thisPt.y-otherPt.y);
+            //         closestPts.push({index:j,squaredDist:squaredDist});
+            //     }
+            //     closestPts.sort(function(a,b) { return a.squaredDist - b.squaredDist;  })
+            //     let maxNumClosest = 3
+            //     let topPts = closestPts.slice(0,maxNumClosest);
                 
-                cornerData[p1].closestPts = closestPts;   
+            //     cornerData[p1].closestPts = closestPts;   
                 
-            }
+            // }
             parallelComponent["resultData"]["cornerData"] = cornerData;
 
             this.mapEdgesFromCorners(parallelComponent);
@@ -315,22 +315,32 @@ export class ImageScan {
         let cornerData = layerData["resultData"]["cornerData"];
         let numCorners = cornerData.length;
         var ninetyDegRad = 1.5708;   //90 degrees = 1.5708 radians
-        var searchRadius = 15;
+        var searchRadius = 5;
         for(let p=0; p < numCorners; ++p) {
-            let cornerIndex = cornerData[p].pixelIdx
+            let cornerIdx = cornerData[p].pixelIdx
             let thisClosestPts = cornerData[p].closestPts;
-            let thetaGradient1 = layerData["resultData"]["thetaGradient1"][cornerIndex];
-            let magGradient1 = layerData["resultData"]["magGradient1"][cornerIndex]
+            let thetaGradient1 = layerData["resultData"]["thetaGradient1"][cornerIdx];
+            let magGradient1 = layerData["resultData"]["magGradient1"][cornerIdx]
             let edgePts = []    //collection of coordinates under a SINGLE edge
-
-            thisClosestPts
+            //console.log("cornerData[p]", cornerData[p])
+            // thisClosestPts
             var nextX = (magGradient1+searchRadius)*Math.cos(thetaGradient1+ninetyDegRad)
-
             var nextY = (magGradient1+searchRadius)*Math.sin(thetaGradient1+ninetyDegRad)
+            var nextPtIdx = nextX + (nextY)*this.imageWidth;
+            console.log("nextPtIdx", nextPtIdx)
+            for(let a=0; a < 10; ++a) {
 
+                let nextTheta = layerData["resultData"]["thetaGradient1"][nextPtIdx];
+                let nextMagGradient = layerData["resultData"]["magGradient1"][nextPtIdx];
+                nextX = (nextMagGradient+searchRadius)*Math.cos(nextTheta+ninetyDegRad)
+                nextY = (nextMagGradient+searchRadius)*Math.sin(nextTheta+ninetyDegRad)
+                nextPtIdx = ((nextX) + (nextY)*this.imageWidth);
+               
+                edgePts.push({x:nextX, y:nextY, pixelIdx:nextPtIdx});
+            }
+            layerData["resultData"]["edgeData"].push(edgePts);
             //map a box that includes pt1 and pt2
-
-            //for(let j=0; j < )
+            
         }
         
         
@@ -587,15 +597,22 @@ export class ImageScan {
                     context.fill()
                 }
                 
-                // var zeroPoints = OBJ.imageLayers[OBJ.imageLayers.length-1]["resultData"]["zeroPoints"]
-                // console.log("zeroPoints.length",zeroPoints.length)
-                // for(let c=0; c < zeroPoints.length; ++c) {
-                //     context.beginPath();
-                //     context.arc(zeroPoints[c].x, zeroPoints[c].y, 1, 0, 2 * Math.PI)
-                //     context.fillStyle = "gold"
-                //     context.fill()
-                //     console.log("iter")
-                // }
+                var edgeData = OBJ.imageLayers[OBJ.imageLayers.length-1]["resultData"]["edgeData"]
+                console.log("edgeData.length",edgeData.length)
+                console.log("edgeData", edgeData)
+                for(let l=0; l<edgeData.length; ++l) {
+                    context.beginPath();
+                    context.moveTo(edgeData[l][0].x,edgeData[l][0].y);
+
+                    for(let c=1; c < edgeData[l].length; ++c) {
+                        
+                        context.lineTo(edgeData[l][c].x,edgeData[l][c].y);
+                        
+                    }
+                    context.strokeStyle = "white"
+                    context.stroke()
+                }
+                
                 
                 console.log("done inserting");
                 return new Promise((resolve,reject)=> { resolve("asdfadsf"); });

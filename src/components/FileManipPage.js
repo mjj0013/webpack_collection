@@ -7,7 +7,7 @@ import "regenerator-runtime/runtime";
 import {ImageScan} from './imageManip.js'
 // var globalImageData;
 
-
+var scanObj;
 // function pick(event) {
 //     var x = event.layerX;
 //     var y = event.layerY;
@@ -16,104 +16,23 @@ import {ImageScan} from './imageManip.js'
    
 //     var pixel = context.getImageData(x, y, 1, 1);
 //     var data = pixel.data;
-//     var rData = data[0]
-//     var gData = data[1]
-//     var bData = data[2]
-//     var aData = data[3]
-  
-//       const rgba = `rgba(${rData}, ${gData}, ${bData}, ${aData / 255})`;
+    
+
+//     // var rData = data[0]
+//     // var gData = data[1]
+//     // var bData = data[2]
+//     // var aData = data[3]
+//     var mag = scanObj.imageLayers[0]["resultData"]["magGradient1"][(x)+scanObj.imageWidth*y]
+//     //   const rgba = `rgba(${rData}, ${gData}, ${bData}, ${aData / 255})`;
+//         const magStr = `mag=${mag}`;
 //       document.getElementById("hovered-color").style.background = rgba;
 //       document.getElementById("hovered-color").textContent = rgba;
   
-//       return rgba;
+//       return magStr;
 //   }
 
 
-function drawBounds(curveData) {
-    //console.log("curveData",curveData)
-    var resultSVG = document.getElementById("resultSVG");
-    for(let curve=0; curve < curveData.length; ++curve) {
-        var xValues = curveData[curve].xValues;
-        var yValues = curveData[curve].yValues;
-        
-        // for(let pt=0; pt < curveData[curve].dataPts.length;++pt) {
-           
-        //     curveData[curve].dataPts[pt].y
-        //     var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        //     ptObj.setAttribute("cx",curveData[curve].dataPts[pt].x);
-        //     ptObj.setAttribute("cy",curveData[curve].dataPts[pt].y);
-        //     ptObj.setAttribute("r",5);
-        //     ptObj.setAttribute("fill","black");
-        //     resultSVG.append(ptObj);
-        // }
-        
-        var leastXVal =99;
-        var mostXVal = 0;
 
-        for(let xv=0; xv< xValues.length;++xv) {
-            if(xValues[xv] > mostXVal) mostXVal = xValues[xv];
-            if(xValues[xv] < leastXVal) leastXVal = xValues[xv];
-        }
-
-        //xValues.sort((a,b)=>a-b);
-        //
-        var d = `M${xValues[0]},${yValues[0]} `
-       
-        var curveFunc = (x) => {return parseFloat(curveData[curve].coeffs.data[0]) + x*parseFloat(curveData[curve].coeffs.data[1]) + x*x*parseFloat(curveData[curve].coeffs.data[2]) + x*x*x*parseFloat(curveData[curve].coeffs.data[3]);}
-        // for(let X=0; X < xValues.length;++X) {
-        //     let y = curveFunc(xValues[X])
-        //     d+=`L${xValues[X]},${yValues[X]} `
-        // }
-
-
-        //find average slope in curve
-        // var slopes = [];
-        // for(let p1=0; p1 < xValues.length; ++p1) {
-        //     for(let p2=0; p2 < xValues.length; ++p2) {
-        //         if(p1==p2) continue;
-
-        //     }
-        // }
-
-
-
-        var c = [];
-        for(let co=0; co <curveData[curve].coeffs.data.length;++co) {
-            c.push(parseFloat(curveData[curve].coeffs.data[co]))
-        }
-
-        //let y = curveFunc(xValues[xValues.length-1])
-            
-        // if(i+3 >= xValues.length) {console.log("isdjfidjfijfidjf"); break;}
-        let pt1 = `${c[0]*xValues[0]},${c[0]*yValues[0]} `
-        let pt2 = `${c[1]*xValues[xValues.length-1]},${c[1]*yValues[yValues.length-1]} `
-        let pt3 = `${c[2]*xValues[xValues.length-1]},${c[2]*yValues[yValues.length-1]} `
-        let pt4 = `${c[3]*xValues[xValues.length-1]},${c[3]*yValues[yValues.length-1]} `
-        
-        d+=`C`+pt1+pt3+pt4
-        // console.log("c", c)
-        // for(let i=leastXVal; i < mostXVal; ++i) {
-        // for(let i=0; i < xValues.length; i+=1) {
-        //     let y = curveFunc(xValues[i])
-            
-          
-        //     let pt1 = `${c[0]*xValues[i]},${c[0]*yValues[i]} `
-        //     let pt2 = `${c[1]*xValues[i]},${c[1]*yValues[i]} `
-        //     let pt3 = `${c[2]*xValues[i]},${c[2]*yValues[i]} `
-        //     let pt4 = `${c[3]*xValues[i]},${c[3]*yValues[i]} `
-
-        //     d+=`C`+pt1+pt2+pt3+pt4
-        // }
-        console.log("d",d)
-        var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-        path.setAttribute("d",d);
-        path.setAttribute("stroke","black");
-        path.setAttribute("fill","none");
-        resultSVG.append(path);
-
-
-    }
-}
 
 function traceEdges() {
     console.log("starting scanning")
@@ -186,17 +105,15 @@ class FileManipPage extends React.Component {
         this.imageScanInstances = [];
         this.filterEffectChanged = this.filterEffectChanged.bind(this);
         this.selectedImage = null
+        this.drawBounds = this.drawBounds.bind(this);
     }
     showSigmaLayersOnHover(e) {
         var x = e.layerX;
         var y = e.layerY;
-        var layerStr = ''
-        for(let i=0; i < this.currentScanObj.imageLayers.length; ++i) {
-            layerStr+="("+this.currentScanObj.imageLayers[i]["resultData"]["magGradient2"][(x) + (y)*this.currentScanObj.imageWidth]+
-            ","+this.currentScanObj.imageLayers[i]["resultData"]["magGradient2"][(x) + (y)*this.currentScanObj.imageWidth]+")" + ";   "
-        }
+       
+        var layerStr = this.currentScanObj.imageLayers[0]["resultData"]["magGradient2"][(x) + (y)*this.currentScanObj.imageWidth]
         
-        console.log("layerStr", layerStr)
+        console.log("mag1", layerStr)
     }
 
     async loadText(e) {
@@ -239,6 +156,7 @@ class FileManipPage extends React.Component {
         }
         
     }
+    
 
 
     async loadImage(e) {
@@ -254,7 +172,7 @@ class FileManipPage extends React.Component {
         ]
         this.currentScanObj = new ImageScan('testCanvas',filterInfo);
         await this.currentScanObj.imageReader();
-        
+        scanObj = this.currentScanObj;
          
         //document.getElementById("testCanvas").onmousemove = (e) => this.showSigmaLayersOnHover(e);
         this.selectedImage = this.currentScanObj.selectedFile;
@@ -262,17 +180,105 @@ class FileManipPage extends React.Component {
         //this.imageScanInstances.push(this.currentScanObj);
         //await imageReader(document.getElementById("luminGrayscale"),null, null)
         
-
-
         setTimeout(()=> {
-            var asyncFunc= this.currentScanObj.approximateEdgeBounds();
-            asyncFunc.then(function(result) {
-                console.log("result",result)
-                drawBounds(this.currentScanObj.mappedCurves);
-            });
+            this.drawBounds();
         }, 1000);
+
+        // setTimeout(()=> {
+        //     var asyncFunc= this.currentScanObj.approximateEdgeBounds();
+        //     asyncFunc.then(function(result) {
+        //         console.log("result",result)
+        //         drawBounds(result);
+        //     });
+        // }, 1000);
         return;
 	}
+    drawBounds() {
+        //console.log("curveData",curveData)
+        console.log("Drawing bounds on SVG...");
+        var curveData = this.currentScanObj.imageLayers[0]["resultData"]["mappedCurves"];
+        console.log("curveData", curveData)
+        var resultSVG = document.getElementById("resultSVG");
+        for(let curve=0; curve < curveData.length; ++curve) {
+            console.log("curveData[curve]", curveData[curve])
+            var xValues = curveData[curve].xValues;
+            var yValues = curveData[curve].yValues;
+            
+            // for(let pt=0; pt < curveData[curve].dataPts.length;++pt) {
+               
+            //     curveData[curve].dataPts[pt].y
+            //     var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
+            //     ptObj.setAttribute("cx",curveData[curve].dataPts[pt].x);
+            //     ptObj.setAttribute("cy",curveData[curve].dataPts[pt].y);
+            //     ptObj.setAttribute("r",5);
+            //     ptObj.setAttribute("fill","black");
+            //     resultSVG.append(ptObj);
+            // }
+            
+            var leastXVal =99;
+            var mostXVal = 0;
+    
+            for(let xv=0; xv< xValues.length;++xv) {
+                if(xValues[xv] > mostXVal) mostXVal = xValues[xv];
+                if(xValues[xv] < leastXVal) leastXVal = xValues[xv];
+            }
+            var d = `M${xValues[0]},${yValues[0]} `
+           
+            var curveFunc = (x) => {return parseFloat(curveData[curve].coeffs.data[0]) + x*parseFloat(curveData[curve].coeffs.data[1]) + x*x*parseFloat(curveData[curve].coeffs.data[2]) + x*x*x*parseFloat(curveData[curve].coeffs.data[3]);}
+            // for(let X=0; X < xValues.length;++X) {
+            //     let y = curveFunc(xValues[X])
+            //     d+=`L${xValues[X]},${yValues[X]} `
+            // }
+    
+    
+            //find average slope in curve
+            // var slopes = [];
+            // for(let p1=0; p1 < xValues.length; ++p1) {
+            //     for(let p2=0; p2 < xValues.length; ++p2) {
+            //         if(p1==p2) continue;
+    
+            //     }
+            // }
+    
+    
+    
+            var c = [];
+            for(let co=0; co <curveData[curve].coeffs.data.length;++co) {
+                c.push(parseFloat(curveData[curve].coeffs.data[co]))
+            }
+    
+            //let y = curveFunc(xValues[xValues.length-1])
+                
+            // if(i+3 >= xValues.length) {console.log("isdjfidjfijfidjf"); break;}
+            let pt1 = `${c[0]*xValues[0]},${c[0]*yValues[0]} `
+            let pt2 = `${c[1]*xValues[xValues.length-1]},${c[1]*yValues[yValues.length-1]} `
+            let pt3 = `${c[2]*xValues[xValues.length-1]},${c[2]*yValues[yValues.length-1]} `
+            let pt4 = `${c[3]*xValues[xValues.length-1]},${c[3]*yValues[yValues.length-1]} `
+            
+            d+=`C`+pt1+pt3+pt4
+            // console.log("c", c)
+            // for(let i=leastXVal; i < mostXVal; ++i) {
+            // for(let i=0; i < xValues.length; i+=1) {
+            //     let y = curveFunc(xValues[i])
+                
+              
+            //     let pt1 = `${c[0]*xValues[i]},${c[0]*yValues[i]} `
+            //     let pt2 = `${c[1]*xValues[i]},${c[1]*yValues[i]} `
+            //     let pt3 = `${c[2]*xValues[i]},${c[2]*yValues[i]} `
+            //     let pt4 = `${c[3]*xValues[i]},${c[3]*yValues[i]} `
+    
+            //     d+=`C`+pt1+pt2+pt3+pt4
+            // }
+            console.log("d",d)
+            var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+            path.setAttribute("d",d);
+            path.setAttribute("stroke","black");
+            path.setAttribute("fill","none");
+            resultSVG.append(path);
+    
+    
+        }
+    }
 
     render() {
         return (

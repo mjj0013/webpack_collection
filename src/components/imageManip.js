@@ -70,7 +70,7 @@ export class ImageScan {
             layerStack.push({"component":component, "resultData":{"RGB":data.map((x)=>x),
             "mags":[],"yGradient1":[], "xGradient1":[],"magGradient1":[],"thetaGradient1":[], "zeroPoints":[],
             "yGradient2":[], "xGradient2":[],"magGradient2":[],"thetaGradient2":[],"harrisResponse":[], "nLoG":[],"slopeRateX1":[], "slopeRateY1":[],"slopeRateX2":[], "slopeRateY2":[], 
-            "cornerLocations":[], "edgeData":[],"curveData":[], "classification":[]}});
+            "cornerLocations":[], "edgeData":[],"mappedCurves":[], "classification":[]}});
         }
         var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
         for(let c=0; c < layerStack.length; ++c) {
@@ -266,7 +266,6 @@ export class ImageScan {
                                 parallelComponent["resultData"]["cornerLocations"].push({x:imgX, y:imgY, pixelIdx:pixelIdx});
                                 
                                 //use Hessian Matrix, page 39 here https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
-                                
                                 determined=true;
                                 break;
                             }
@@ -297,22 +296,22 @@ export class ImageScan {
                 cornerData.push({x:cornerLocations[c].x, y:cornerLocations[c].y, closestPts:[], pixelIdx:cornerLocations[c].pixelIdx})
             }
 
-            // for(let p1=0; p1 < cornerData.length; ++p1) {
-            //     let thisPt = cornerData[p1];
-            //     let closestPts = [];
-            //     for(let p2=0; p2 < cornerData.length; ++p2){
-            //         if(p2==p1) continue;
-            //         let otherPt =  cornerData[p2];
-            //         let squaredDist = (thisPt.x-otherPt.x)*(thisPt.x-otherPt.x) + (thisPt.y-otherPt.y)*(thisPt.y-otherPt.y);
-            //         closestPts.push({index:p2,squaredDist:squaredDist});
-            //     }
-            //     closestPts.sort(function(a,b) { return a.squaredDist - b.squaredDist;  })
-            //     let maxNumClosest = 3
-            //     let topPts = closestPts.slice(0,maxNumClosest);
+            for(let p1=0; p1 < cornerData.length; ++p1) {
+                let thisPt = cornerData[p1];
+                let closestPts = [];
+                for(let p2=0; p2 < cornerData.length; ++p2){
+                    if(p2==p1) continue;
+                    let otherPt =  cornerData[p2];
+                    let squaredDist = (thisPt.x-otherPt.x)*(thisPt.x-otherPt.x) + (thisPt.y-otherPt.y)*(thisPt.y-otherPt.y);
+                    closestPts.push({index:p2,squaredDist:squaredDist});
+                }
+                closestPts.sort(function(a,b) { return a.squaredDist - b.squaredDist;  })
+                let maxNumClosest = 4
+                let topPts = closestPts.slice(0,maxNumClosest);
                 
-            //     cornerData[p1].closestPts = closestPts;   
+                cornerData[p1].closestPts = topPts;   
                 
-            // }
+            }
             parallelComponent["resultData"]["cornerData"] = cornerData;
 
             parallelComponent["resultData"]["curveData"] = this.mapEdgesFromCorners(parallelComponent);
@@ -381,132 +380,58 @@ export class ImageScan {
 
     mapEdgesFromCorners(layerData) {
         //use Hessian Matrix, page 39 here https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
-
+        console.log("mapping edges from corners...")
         let cornerData = layerData["resultData"]["cornerData"];
         let numCorners = cornerData.length;
         var ninetyDegRad = 1.5708;   //90 degrees = 1.5708 radians
 
-        
+        var mappedCurves = [];
         var searchRadius = 5;       //NOT USED CURRENTLY    
 
-        //pathData contains paths, which are collections of edges each having 1-2 connections 
-        //map a box that includes pt1 and pt2
-       
-        for(let p1=0; p1 < numCorners; ++p1) {
-            for(let p2=0; p2 < numCorners; ++p2) {
-                if(p1==p2) continue;
-                let closestPts1 = cornerData[p1].closestPts;
-                let closestPts2 = cornerData[p2].closestPts;
-                closestPts1 = closestPts1.map(x=>x.index)
-                closestPts2 = closestPts2.map(x=>x.index)
-                if(!closestPts1.includes(p2) && !closestPts2.includes(p1)) continue;
-                let cornerIdx1 = cornerData[p1].pixelIdx
-                let cornerX1 = cornerData[p1].x
-                let cornerY1 = cornerData[p1].y
-
-                let cornerIdx2 = cornerData[p2].pixelIdx
-                let cornerX2 = cornerData[p2].x
-                let cornerY2 = cornerData[p2].y
-
-                let boxLeft=cornerX2>cornerX1? cornerX1:cornerX2;       //x min
-                let boxTop = cornerY2>cornerY1? cornerY1:cornerY2;      //y min
-                let boxRight= boxLeft==cornerX1? cornerX2:cornerX1;      //x max
-                let boxBottom = boxTop==cornerY1? cornerY2:cornerY1;   //y max
-
-                var currentX = boxLeft;
-                var currentY = boxTop;
-
-                // layerData["resultData"]["pathData"]
-                var nextTheta1 = layerData["resultData"]["thetaGradient1"][cornerIdx1];
-                var nextMagGradient1 = layerData["resultData"]["magGradient1"][cornerIdx1];
-                
-                var dataPts=[]
-                var mags = layerData["resultData"]["mags"].slice(boxLeft+(this.imageWidth*boxTop), boxRight+(this.imageWidth*boxBottom));
-                var orderOfEq = 3;
-
-                for(let d=0; d < mags.length; ++d) {
-                    
-                    if(mags[d] >= 254) {
-                        var Y = d%this.imageWidth;
-                        var X = d-this.imageWidth*Y
-                        //let idx = currentX+(this.imageWidth*currentY);
-                        dataPts.push({x:X, y:Y, pixelIdx:idx});
-                    }
-                    // currentX = (currentX+1)%this.imageWidth;
-                    // currentY += 1;
-                }
-                
-
-                if(dataPts.length > orderOfEq) {
-                    var xMatrix = [];
-                    var yValues = [];
-                    for(let a=0; a < dataPts.length; ++a) {
-                        xMatrix.push(Array(orderOfEq).fill(dataPts[a].x))
-                        yValues.push(dataPts[a].y)
-                    }
-                    //do order-3 equations
-                    var coeffs = this.leastMeanSquaresEstim(xMatrix,yValues);
-                    var X = [];
-                    var Y = [];
-                    for(let p=0; p < dataPts.length;++p) {
-                        X.push(dataPts[p].x);
-                        Y.push(dataPts[p].y);
-                    }
-                   this.mappedCurves.push({xValues:X, yValues:Y, coeffs:coeffs, dataPts:dataPts})
-                }
-                // for(let y=boxTop; y < boxBottom; ++y) {
-                //     for(let x=boxLeft; x < boxRight; ++x) {
-                        
-                //         nextTheta = layerData["resultData"]["thetaGradient1"][nextPtIdx];
-                //         nextMagGradient = layerData["resultData"]["magGradient1"][nextPtIdx] + 2;       //increase length by 2
-                //         nextX = (nextMagGradient)*Math.cos(nextTheta+ninetyDegRad)+nextX
-                //         nextY = (nextMagGradient)*Math.sin(nextTheta+ninetyDegRad)+nextY
-                //         var nextPtIdx = Math.floor(nextX + (nextY)*this.imageWidth);
-                //     }
-                // }
-                //var nextMagGradient = layerData["resultData"]["magGradient1"][cornerIdx1]
-                
-            }
-        }
-        return this.mappedCurves;
+        
         
 
-        // for(let p=0; p < numCorners; ++p) {
-        //     let cornerIdx = cornerData[p].pixelIdx
-        //     let cornerX = cornerData[p].x
-        //     let cornerY = cornerData[p].y
+        for(let p=0; p < numCorners; ++p) {
+            let cornerIdx = cornerData[p].pixelIdx
+            let cornerX = cornerData[p].x
+            let cornerY = cornerData[p].y
 
-        //     let thisClosestPts = cornerData[p].closestPts;
-        //     var nextTheta = layerData["resultData"]["thetaGradient1"][cornerIdx];
-        //     var nextMagGradient = layerData["resultData"]["magGradient1"][cornerIdx]
+        
+            var nextTheta1 = layerData["resultData"]["thetaGradient1"][cornerIdx];
+            var nextTheta2 = layerData["resultData"]["thetaGradient2"][cornerIdx];
+            var nextMagGradient1 = layerData["resultData"]["magGradient1"][cornerIdx]
+            var nextMagGradient2 = layerData["resultData"]["magGradient2"][cornerIdx]
+    
 
-        //     var edgePts = []    //collection of coordinates under a SINGLE edge
-        //     edgePts.push({x:cornerX, y:cornerY, pixelIdx:cornerIdx})
-        //     var nextX =  ((1)*Math.cos(nextTheta+ninetyDegRad)) +cornerX
-        //     var nextY =  -1*((1)*Math.sin(nextTheta+ninetyDegRad)) +cornerY
-        //     var nextPtIdx = Math.ceil(nextX + (nextY)*this.imageWidth);
-        //     nextMagGradient = layerData["resultData"]["magGradient1"][nextPtIdx]
-        //     if(nextMagGradient>10) {
-        //         edgePts.push({x:nextX, y:nextY, pixelIdx:nextPtIdx});
-        //     }
-        //     //edgePts.push({x:nextX, y:nextY, pixelIdx:nextPtIdx});
+
+            var edgePts = []    //collection of coordinates under a SINGLE edge
+            edgePts.push({x:cornerX, y:cornerY, pixelIdx:cornerIdx})
+            var nextX =  ((1)*Math.cos(nextTheta1+ninetyDegRad)) - ((1)*Math.sin(nextTheta2)) +cornerX
+            var nextY =  ((1)*Math.sin(nextTheta1+ninetyDegRad)) + ((1)*Math.cos(nextTheta2)) +cornerY
+            var nextPtIdx = Math.ceil(nextX + (nextY)*this.imageWidth);
+            nextMagGradient1 = layerData["resultData"]["magGradient1"][nextPtIdx]
+            nextMagGradient2 = layerData["resultData"]["magGradient2"][nextPtIdx]
             
-        //     for(let a=0; a < 50; ++a) {
-        //         nextTheta = layerData["resultData"]["thetaGradient1"][nextPtIdx];
-        //         nextMagGradient = layerData["resultData"]["magGradient1"][nextPtIdx];
-        //         nextX = ((1)*Math.cos(nextTheta+ninetyDegRad))+nextX
-        //         nextY = -1*((1)*Math.sin(nextTheta+ninetyDegRad))+nextY
-        //         var nextPtIdx = Math.ceil(nextX + (nextY)*this.imageWidth);
+            
+            for(let a=0; a < 20; ++a) {
+                nextTheta1 = layerData["resultData"]["thetaGradient1"][nextPtIdx];
+                nextTheta2 = layerData["resultData"]["thetaGradient1"][nextPtIdx];
+                nextMagGradient1 = layerData["resultData"]["magGradient1"][nextPtIdx];
+                nextMagGradient2 = layerData["resultData"]["magGradient2"][nextPtIdx];
                 
-        //         if(nextMagGradient>10) {
-        //             edgePts.push({x:nextX, y:nextY, pixelIdx:nextPtIdx});
-        //         }
-        //     }
-        //     //console.log("edgePts",edgePts)
-        //     layerData["resultData"]["edgeData"].push(edgePts);
+                nextX =  ((1)*Math.cos(nextTheta1+ninetyDegRad)) - ((1)*Math.sin(nextTheta2)) +nextX
+                nextY =  ((1)*Math.sin(nextTheta1+ninetyDegRad)) + ((1)*Math.cos(nextTheta2)) +nextY
+                var nextPtIdx = Math.ceil(nextX + (nextY)*this.imageWidth);
+                
+                //if(layerData["resultData"]["magGradient1"][nextPtIdx]>10) {
+                    edgePts.push({x:nextX, y:nextY, pixelIdx:nextPtIdx});
+                //}
+            }
+            //console.log("edgePts",edgePts)
+            layerData["resultData"]["edgeData"].push(edgePts);
             
             
-        // }
+        }
     }
 
     colorDiscreteTransferComponent(inColor, ranges, isAlpha=false) {
@@ -762,7 +687,6 @@ export class ImageScan {
                     context.stroke()
                 }
                 
-                
                 console.log("done inserting");
                 return new Promise((resolve,reject)=> { resolve("asdfadsf"); });
             }
@@ -875,7 +799,7 @@ export class ImageScan {
         var orderOfEq = 4;
         
         var windowLength  = 250;
-        var scale = this.imageHeight*this.imageWidth/(windowLength*windowLength)
+        
         for(var imgY=0; imgY < this.imageHeight; imgY+=windowLength) {       //increment by 4 because its RGBA values
             for(var imgX=0; imgX < this.imageWidth; imgX+=windowLength) { 
                 var imageData = context.getImageData(imgX,imgY,windowLength,windowLength);
@@ -911,7 +835,7 @@ export class ImageScan {
             }
         } 
         
-        return new Promise((resolve,reject)=> { resolve(this.mappedCurves); });     
+        return new Promise((resolve,reject)=> { resolve(); });     
     }
     edgeDetectComponent(kernelLength=5, middleValue=8, fillValue=-1, cornerValue=-1) {
         let kernel = new Array(kernelLength).fill(fillValue).map(() => new Array(kernelLength).fill(fillValue));

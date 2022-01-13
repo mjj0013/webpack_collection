@@ -264,13 +264,13 @@ class FileManipPage extends React.Component {
         
 
 
-        // setTimeout(()=> {
-        //     var asyncFunc= this.currentScanObj.approximateEdgeBounds();
-        //     asyncFunc.then(function(result) {
-        //         console.log("result",result)
-        //         drawBounds(result);
-        //     });
-        // }, 1000);
+        setTimeout(()=> {
+            var asyncFunc= this.currentScanObj.approximateEdgeBounds();
+            asyncFunc.then(function(result) {
+                console.log("result",result)
+                drawBounds(this.currentScanObj.mappedCurves);
+            });
+        }, 1000);
         return;
 	}
 

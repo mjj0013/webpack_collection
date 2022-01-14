@@ -1,5 +1,9 @@
 import { Matrix, solve } from 'ml-matrix';
 
+
+ 
+
+
 export class ImageScan {
     constructor(targetCanvas,filterInfo) {
        
@@ -22,8 +26,12 @@ export class ImageScan {
         this.morphErosion = this.morphErosion.bind(this);  //represents a cluster of white pixels as a single pixel (if all pixels in the frame are white, they're all white except for the middle )
         this.diffOfGauss = this.diffOfGauss.bind(this);
         
-        
-        this.approximateEdgeBounds = this.approximateEdgeBounds.bind(this);
+
+
+        this.generateLagrangePolyString = this.generateLagrangePolyString.bind(this);
+        this.lagrangePolys = [];  //strings that are unevaluated functions ( just use eval on them to create)
+
+       
         this.colorBlackWhiteTransferComponent = this.colorBlackWhiteTransferComponent.bind(this);
         this.colorGammaTransferComponent = this.colorGammaTransferComponent.bind(this);
         this.colorDiscreteTransferComponent = this.colorDiscreteTransferComponent.bind(this);
@@ -40,6 +48,37 @@ export class ImageScan {
         this.mappedCurves = []
         this.selectedImage = null
     }
+
+
+    generateLagrangePolyString(pts,equationId) {
+        var terms = [];
+        var xVals = pts.map(a=>a.x);
+        var leastX=99;
+        var mostX = 0;
+        for(let x=0; x < xVals.length; ++x) {
+            if(xVals[x] > mostX) mostX=xVals[x];
+            if(xVals[x] < leastX) leastX = xVals[x];
+        }
+        var yVals = pts.map(a=> a.y);
+        for(let p=0; p < pts.length; ++p) {
+            var numerator=`${yVals[p]}`
+            var denominator = 1;
+            for(let pk=0; pk < pts.length; ++pk) {
+                if(p==pk) continue;
+                numerator += `*(x - ${xVals[pk]})`
+                denominator *= (xVals[p]-xVals[pk]);
+            }
+            // if(denominator==0) terms.push("(0)")
+            // else terms.push("("+numerator+`/${denominator}`+")")
+            terms.push("("+numerator+`/${denominator}`+")")
+
+        }
+        
+        var equation = `var curvePoly${equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
+        this.lagrangePolys.push({xRange:[leastX, mostX],equationStr:equation, equationName:`curvePoly${equationId.toString()}`});
+        return equation; 
+    }
+
 
     detectBlobs() {
         // https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L12.pdf
@@ -70,7 +109,7 @@ export class ImageScan {
             layerStack.push({"component":component, "resultData":{"RGB":data.map((x)=>x),
             "mags":[],"yGradient1":[], "xGradient1":[],"magGradient1":[],"thetaGradient1":[], "zeroPoints":[],
             "yGradient2":[], "xGradient2":[],"magGradient2":[],"thetaGradient2":[],"harrisResponse":[], "nLoG":[],"slopeRateX1":[], "slopeRateY1":[],"slopeRateX2":[], "slopeRateY2":[], 
-            "cornerLocations":[], "edgeData":[],"mappedCurves":[], "classification":[]}});
+            "cornerLocations":[], "edgeData":[], "classification":[]}});
         }
         var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
         for(let c=0; c < layerStack.length; ++c) {
@@ -314,7 +353,7 @@ export class ImageScan {
             }
             parallelComponent["resultData"]["cornerData"] = cornerData;
 
-            parallelComponent["resultData"]["curveData"] = this.mapEdgesFromCorners(parallelComponent);
+            //this.mapEdgesFromCorners(parallelComponent);
                        
         }
         
@@ -384,53 +423,54 @@ export class ImageScan {
         let cornerData = layerData["resultData"]["cornerData"];
         let numCorners = cornerData.length;
         var ninetyDegRad = 1.5708;   //90 degrees = 1.5708 radians
-
-        var mappedCurves = [];
-        var searchRadius = 5;       //NOT USED CURRENTLY    
-
-        
-        
-
-        for(let p=0; p < numCorners; ++p) {
-            let cornerIdx = cornerData[p].pixelIdx
-            let cornerX = cornerData[p].x
-            let cornerY = cornerData[p].y
-
-        
-            var nextTheta1 = layerData["resultData"]["thetaGradient1"][cornerIdx];
-            var nextTheta2 = layerData["resultData"]["thetaGradient2"][cornerIdx];
-            var nextMagGradient1 = layerData["resultData"]["magGradient1"][cornerIdx]
-            var nextMagGradient2 = layerData["resultData"]["magGradient2"][cornerIdx]
-    
-
-
-            var edgePts = []    //collection of coordinates under a SINGLE edge
-            edgePts.push({x:cornerX, y:cornerY, pixelIdx:cornerIdx})
-            var nextX =  ((1)*Math.cos(nextTheta1+ninetyDegRad)) - ((1)*Math.sin(nextTheta2)) +cornerX
-            var nextY =  ((1)*Math.sin(nextTheta1+ninetyDegRad)) + ((1)*Math.cos(nextTheta2)) +cornerY
-            var nextPtIdx = Math.ceil(nextX + (nextY)*this.imageWidth);
-            nextMagGradient1 = layerData["resultData"]["magGradient1"][nextPtIdx]
-            nextMagGradient2 = layerData["resultData"]["magGradient2"][nextPtIdx]
-            
-            
-            for(let a=0; a < 20; ++a) {
-                nextTheta1 = layerData["resultData"]["thetaGradient1"][nextPtIdx];
-                nextTheta2 = layerData["resultData"]["thetaGradient1"][nextPtIdx];
-                nextMagGradient1 = layerData["resultData"]["magGradient1"][nextPtIdx];
-                nextMagGradient2 = layerData["resultData"]["magGradient2"][nextPtIdx];
+  
+        console.log("numCorners", numCorners);
+        for(let p1=0; p1 < 10; ++p1) {              //just doing 10 corners
+            let cornerIdx = cornerData[p1].pixelIdx
+            let closestPts = cornerData[p1].closestPts
+            let cornerX1 = cornerData[p1].x
+            let cornerY1 = cornerData[p1].y
+            // var nextTheta1 = layerData["resultData"]["thetaGradient1"][cornerIdx];
+            // var nextTheta2 = layerData["resultData"]["thetaGradient2"][cornerIdx];
+            for(let p2=0; p2 < closestPts.length; ++p2) {
+                var edgePts = []    //collection of coordinates under a SINGLE edge
+                let cornerX2 = cornerData[p2].x
+                let cornerY2 = cornerData[p2].y
                 
-                nextX =  ((1)*Math.cos(nextTheta1+ninetyDegRad)) - ((1)*Math.sin(nextTheta2)) +nextX
-                nextY =  ((1)*Math.sin(nextTheta1+ninetyDegRad)) + ((1)*Math.cos(nextTheta2)) +nextY
-                var nextPtIdx = Math.ceil(nextX + (nextY)*this.imageWidth);
+                let boxLeft = cornerX2>cornerX1?cornerX1:cornerX2;
+                let boxRight= cornerX2==boxLeft?cornerX1:cornerX2;
+
+                let boxBottom = cornerY2>cornerY1?cornerY2:cornerY1;
+                let boxTop= cornerY2==boxBottom?cornerY1:cornerY2;
+                var startingMag = layerData["resultData"]["magGradient1"][cornerX1 + this.imageWidth*cornerY1];
+                         
+                var startingTheta = layerData["resultData"]["thetaGradient1"][cornerX1 + this.imageWidth*cornerY1]
+                var startingVal = Math.floor(startingMag*Math.cos(startingTheta)*startingMag*Math.cos(startingTheta) + startingMag*Math.sin(startingTheta)*startingMag*Math.sin(startingMag))
+                for(let by=boxTop-10; by < boxBottom+10; ++by) {
+                    for(let bx=boxLeft-10; bx < boxRight+10; ++bx) {
+                        var mag = layerData["resultData"]["magGradient1"][bx + this.imageWidth*by];
+                         
+                        var theta = layerData["resultData"]["thetaGradient1"][bx + this.imageWidth*by]
+                        var val = Math.floor(mag*Math.cos(theta)*mag*Math.cos(theta) + mag*Math.sin(theta)*mag*Math.sin(theta))
+
+                        //if(((startingVal <= val+2) && (startingVal >= val-2) )) {
+                            edgePts.push({x:bx, y:by,  magGradient1:mag,
+                                theta:layerData["resultData"]["thetaGradient1"][bx + this.imageWidth*by]
+                            });
+                        //}
+                    }
+                }
+                // for(let i=0; i < edgePts.length; ++i) {
+                //     if(i%2!=0) edgePts.splice(i, 1)
+                // }
+                if(edgePts.length >1) this.generateLagrangePolyString(edgePts, p1);
                 
-                //if(layerData["resultData"]["magGradient1"][nextPtIdx]>10) {
-                    edgePts.push({x:nextX, y:nextY, pixelIdx:nextPtIdx});
-                //}
             }
-            //console.log("edgePts",edgePts)
-            layerData["resultData"]["edgeData"].push(edgePts);
             
             
+            //layerData["resultData"]["curveData"].push(edgePts);
+            
+            console.log("equation created");   
         }
     }
 
@@ -671,21 +711,21 @@ export class ImageScan {
                     context.fill()
                 }
                 
-                var edgeData = OBJ.imageLayers[OBJ.imageLayers.length-1]["resultData"]["edgeData"]
-                console.log("edgeData.length",edgeData.length)
-                console.log("edgeData", edgeData)
-                for(let l=0; l<edgeData.length; ++l) {
-                    context.beginPath();
-                    context.moveTo(edgeData[l][0].x,edgeData[l][0].y);
+                // var edgeData = OBJ.imageLayers[OBJ.imageLayers.length-1]["resultData"]["edgeData"]
+                // console.log("edgeData.length",edgeData.length)
+                // console.log("edgeData", edgeData)
+                // for(let l=0; l<edgeData.length; ++l) {
+                //     context.beginPath();
+                //     context.moveTo(edgeData[l][0].x,edgeData[l][0].y);
 
-                    for(let c=1; c < edgeData[l].length; ++c) {
+                //     for(let c=1; c < edgeData[l].length; ++c) {
                         
-                        context.lineTo(edgeData[l][c].x,edgeData[l][c].y);
+                //         context.lineTo(edgeData[l][c].x,edgeData[l][c].y);
                         
-                    }
-                    context.strokeStyle = "white"
-                    context.stroke()
-                }
+                //     }
+                //     context.strokeStyle = "white"
+                //     context.stroke()
+                // }
                 
                 console.log("done inserting");
                 return new Promise((resolve,reject)=> { resolve("asdfadsf"); });
@@ -793,50 +833,8 @@ export class ImageScan {
         let kernelObj = {kernel:kernel, kernelRadius:kernelRadius, sig:sig}
         return kernelObj;
     }
-    approximateEdgeBounds() {
-        var canvas = document.getElementById(this.canvasId)
-        var context = canvas.getContext("2d");
-        var orderOfEq = 4;
-        
-        var windowLength  = 250;
-        
-        for(var imgY=0; imgY < this.imageHeight; imgY+=windowLength) {       //increment by 4 because its RGBA values
-            for(var imgX=0; imgX < this.imageWidth; imgX+=windowLength) { 
-                var imageData = context.getImageData(imgX,imgY,windowLength,windowLength);
-                var data = imageData.data;
-                var dataPts = [];
-                var xMatrix = [];
-                var yValues = [];
-                for(let imgY2=0; imgY2 < windowLength;++imgY2) {
-                    for(let imgX2=0; imgX2 < windowLength;++imgX2) {
-                        let R = data[4*((imgY2)*windowLength + imgX2)]
-                        let G = data[4*((imgY2)*windowLength + imgX2) + 1]
-                        let B = data[4*((imgY2)*windowLength + imgX2) + 2]
-                        let avg = (R + G + B)/3;
-                        if(avg >= 255) {dataPts.push({x:imgX2+imgX, y:imgY2+imgY})}
-                    }    
-                }
-                if(dataPts.length >orderOfEq) {
-                    for(let a=0; a < dataPts.length; ++a) {
-                        xMatrix.push(Array(orderOfEq).fill(dataPts[a].x))
-                        yValues.push(dataPts[a].y)
-                    }
-                    //do order-3 equations
-                    var coeffs = this.leastMeanSquaresEstim(xMatrix,yValues);
-                    var X = [];
-                    var Y = [];
-                    for(let p=0; p < dataPts.length;++p) {
-                        X.push(dataPts[p].x);
-                        Y.push(dataPts[p].y);
-                    }
-                    this.mappedCurves.push({xValues:X, yValues:Y, coeffs:coeffs, dataPts:dataPts})
-                }
-                console.log(`done with window at ${imgX}, ${imgY}  `)
-            }
-        } 
-        
-        return new Promise((resolve,reject)=> { resolve(); });     
-    }
+       
+    
     edgeDetectComponent(kernelLength=5, middleValue=8, fillValue=-1, cornerValue=-1) {
         let kernel = new Array(kernelLength).fill(fillValue).map(() => new Array(kernelLength).fill(fillValue));
         let kernelRadius;

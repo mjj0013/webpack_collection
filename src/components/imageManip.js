@@ -1,7 +1,17 @@
 import { Matrix, solve } from 'ml-matrix';
 
 
- 
+function calcCubicBezierIntercepts(curvePts, testPts) {
+    //curvePts is list of three point of {x:...,y:...}
+    //testPts is list of points to test if they intercept with the curve
+
+
+    //for help: look at https://javascript.tutorialink.com/calculating-intersection-point-of-quadratic-bezier-curve/
+    var curvePt1 = curvePts[0];
+    var curvePt2= curvePts[1];
+    var curvePt3 = curvePts[2];
+
+}
 
 
 export class ImageScan {

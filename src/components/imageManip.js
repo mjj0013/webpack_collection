@@ -6,6 +6,7 @@ function calcCubicBezierIntercepts(curvePts, testPts) {
     //testPts is list of points to test if they intercept with the curve
 
 
+    // attempt to do vote-process on what bezier curve has the most intercepts ( perhaps the # of intercepts has to be at least the distance b/w beginning and end) 
     //for help: look at https://javascript.tutorialink.com/calculating-intersection-point-of-quadratic-bezier-curve/
     var curvePt1 = curvePts[0];
     var curvePt2= curvePts[1];

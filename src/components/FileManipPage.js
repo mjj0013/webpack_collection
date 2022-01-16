@@ -31,7 +31,40 @@ var scanObj;
 //       return magStr;
 //   }
 
+function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
+}
 
+function testLagrangePolyString(pts,equationId) {
+    var terms = [];
+    var xVals = pts.map(a=>a.x);
+    var leastX=99;
+    var mostX = 0;
+    for(let x=0; x < xVals.length; ++x) {
+        if(xVals[x] > mostX) mostX=xVals[x];
+        if(xVals[x] < leastX) leastX = xVals[x];
+    }
+    var yVals = pts.map(a=> a.y);
+    for(let p=0; p < pts.length; ++p) {
+        var numerator=`${yVals[p]}`
+        var denominator = 1;
+        for(let pk=0; pk < pts.length; ++pk) {
+            if(p==pk) continue;
+            numerator += `*(x - ${xVals[pk]})`
+            denominator *= (xVals[p]-xVals[pk]);
+        }
+        if(denominator==0) terms.push("(0)")
+        else terms.push("("+numerator+`/${denominator}`+")")
+        // terms.push("("+numerator+`/${denominator}`+")")
+
+    }
+    
+    var equation = `var curvePoly${equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
+    var result = {xRange:[leastX, mostX],equationStr:equation, equationName:`curvePoly${equationId.toString()}`}
+    return result; 
+}
 
 
 function traceEdges() {
@@ -158,6 +191,64 @@ class FileManipPage extends React.Component {
         else if(e.target.value=="edgeDetection") {  
         }
         
+    }
+
+    componentDidMount() {
+
+
+
+        //TESTING CURVE GENERATING
+        //IMPORTANT!!!  equation below is at https://en.wikipedia.org/wiki/B%C3%A9zier_curve
+        // Bezier(t) = sum for i to n-points( P_i * ((n!/(i!(n-i)!)) * (t^i) * (1-t)^(n-i))
+
+        var resultSVG = document.getElementById("resultSVG")
+        //var pts = [{x:100, y:175},{x:50, y:305},{x:300, y:300}  ,{x:400, y:230}]
+        var pts = [];
+        var numPoints = getRandomInt(2,5);
+        for(let p=0; p < numPoints; ++p) {
+            let x = getRandomInt(0,200)
+            let y = getRandomInt(0,200)
+            pts.push({x:x,y:y})
+        }
+        for(let i =0; i < pts.length; ++i) {
+            
+            var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
+            ptObj.setAttribute("cx",pts[i].x);
+            ptObj.setAttribute("cy",pts[i].y);
+            ptObj.setAttribute("r",5);
+            ptObj.setAttribute("fill","black");
+            resultSVG.append(ptObj);
+            
+        }
+
+        var curveData = [testLagrangePolyString(pts,'0')];
+
+       
+        console.log("curveData.length", curveData.length)
+        
+        for(let curve=0; curve < curveData.length; ++curve) {
+            console.log("curveData[curve]", curveData[curve])
+            //var funcStr = this.currentScanObj.generateLagrangePolyString(polyData[curve], curve);
+            geval(curveData[curve]["equationStr"])
+            
+            var thisCurveFunc = geval(curveData[curve].equationName)
+            let xMin = curveData[curve].xRange[0];
+            let xMax = curveData[curve].xRange[1];
+
+            var d = `M${xMin},${thisCurveFunc(xMin)} `
+            
+            for(let x =xMin; x < xMax; ++x) {
+                var y = thisCurveFunc(x)
+                d+=`L${x},${y} `
+            }
+            var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+            path.setAttribute("d",d);
+            path.setAttribute("stroke","black");
+            path.setAttribute("fill","none");
+            resultSVG.append(path);
+    
+        }
+
     }
     
 

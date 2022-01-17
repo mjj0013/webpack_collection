@@ -7,7 +7,13 @@ import "regenerator-runtime/runtime";
 import {ImageScan} from './imageManip.js'
 // var globalImageData;
 var geval =eval;
-var scanObj;
+
+
+
+//pre-calculated factorials for numbers 0 to 13; value at index k is (k!)
+var preCalcFactorials = [1,1,2,6,24,120, 720, 5040, 40320, 362880,39916800, 479001600, 6227020800, 87178291200]
+
+
 // function pick(event) {
 //     var x = event.layerX;
 //     var y = event.layerY;
@@ -37,6 +43,71 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
 }
 
+
+function binomialCoeff(n,i) {
+    if(n > 13 || i > 13) return -1;
+
+    var nFact = preCalcFactorials[n];
+    var iFact = preCalcFactorials[i];
+    var diffFact = preCalcFactorials[n-i];
+
+    return nFact/(iFact*diffFact);
+}
+
+
+// https://stackoverflow.com/questions/5634460/quadratic-b%c3%a9zier-curve-calculate-points
+
+        
+
+
+ 
+function getBezierParametricFunctions(order) {
+    //returns {xFunc:x(t), yFunc: y(t)}
+
+
+    //For calculating point on Cubic bezier x(t) and y(t), 0 <= t <= 1 :
+        //  x(t) = (1-t)*(1-t)*(1-t)*p[0].x + 3*(1-t)*(1-t)*t*p[1].x + 3*(1-t)*t*t*p[2].x + t*t*t*p[3].x
+        //  y(t) = (1-t)*(1-t)*(1-t)*p[0].y + 3*(1-t)*(1-t)*t*p[1].y + 3*(1-t)*t*t*p[2].y + t*t*t*p[3].y
+        //p[0] --> starting point
+        //p[1] --> control point
+        //p[2] --> control point
+        //p[3] --> end point
+    var xTerms = [];
+    var yTerms = [];
+    for(let i=0; i < order+1; ++i) {
+        let thisBinomCoeff = binomialCoeff(order,i);
+        let currentTerm = `(${thisBinomCoeff}*(1-t)`
+        
+        let repeatingFactors = order-i;
+        if(repeatingFactors==0) currentTerm=`(${thisBinomCoeff}`;
+        else {
+            for(let fact=1; fact < repeatingFactors; ++fact) {currentTerm += `*(1-t)`}
+        }
+        if(i == 0) currentTerm+=`*1`
+        else {
+            currentTerm+=`*t`
+            for(let tFact=1; tFact < i; ++tFact) {currentTerm+=`*t` }
+            
+        }
+        currentTerm+=`*pts[${i}]`
+
+        xTerms.push(currentTerm+`.x)`);
+        yTerms.push(currentTerm+`.y)`);
+
+    }
+
+    geval(`var bezierParametric${order} = (t, pts) => {
+        let xVal = ${xTerms.join(` + `)};
+        let yVal = ${yTerms.join(` + `)};
+        return {x:xVal, y:yVal}
+    }`)
+    // geval(`var bezierX${order} = (t, pts) => {return ()}`)
+    // geval(`var bezierY${order} = (t, pts) => {return (${yTerms.join(` + `)})}`)
+    
+    return {func:`bezierParametric${order}`, order: order};
+}
+
+
 function testLagrangePolyString(pts,equationId) {
     var terms = [];
     var xVals = pts.map(a=>a.x);
@@ -65,6 +136,10 @@ function testLagrangePolyString(pts,equationId) {
     var result = {xRange:[leastX, mostX],equationStr:equation, equationName:`curvePoly${equationId.toString()}`}
     return result; 
 }
+
+
+
+
 
 
 function traceEdges() {
@@ -201,15 +276,22 @@ class FileManipPage extends React.Component {
         //IMPORTANT!!!  equation below is at https://en.wikipedia.org/wiki/B%C3%A9zier_curve
         // Bezier(t) = sum for i to n-points( P_i * ((n!/(i!(n-i)!)) * (t^i) * (1-t)^(n-i))
 
+        var cubicBezier = getBezierParametricFunctions(3)
+        var bezierParametricX3 = eval(cubicBezier.func)
+        
+
         var resultSVG = document.getElementById("resultSVG")
         //var pts = [{x:100, y:175},{x:50, y:305},{x:300, y:300}  ,{x:400, y:230}]
         var pts = [];
-        var numPoints = getRandomInt(2,5);
+        var numPoints = 4;
         for(let p=0; p < numPoints; ++p) {
             let x = getRandomInt(0,200)
             let y = getRandomInt(0,200)
             pts.push({x:x,y:y})
         }
+
+        
+        console.log(bezierParametricX3(.3,pts))
         for(let i =0; i < pts.length; ++i) {
             
             var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");

@@ -8,8 +8,10 @@ import {ImageScan} from './imageManip.js'
 // var globalImageData;
 var geval =eval;
 var preCalcFactorials = [1,1,2,6,24,120, 720, 5040, 40320, 362880,39916800, 479001600, 6227020800, 87178291200]
-var cubicBezier = getBezierParametricFunctions(3)   //3 --> cubic, which means 4 Bezier points describe it
-var bezierParametric3 = geval(cubicBezier.func)
+// var cubicBezier = getBezierParametricFunctions(3)   //3 --> cubic, which means 4 Bezier points describe it
+// var bezierParametric3 = geval(cubicBezier.func)
+
+
 
 
 //pre-calculated factorials for numbers 0 to 13; value at index k is (k!)
@@ -46,111 +48,69 @@ function getRandomInt(min, max) {
 }
 
 
-function binomialCoeff(n,i) {
-    if(n > 13 || i > 13) return -1;
-
-    var nFact = preCalcFactorials[n];
-    var iFact = preCalcFactorials[i];
-    var diffFact = preCalcFactorials[n-i];
-
-    return nFact/(iFact*diffFact);
-}
 
 
-function testPtsOnCurve(curvePts, testPts) {
-     // attempt to do vote-process on what bezier curve has the most intercepts ( perhaps the # of intercepts has to be at least the distance b/w beginning and end) 
-    //for help: look at https://javascript.tutorialink.com/calculating-intersection-point-of-quadratic-bezier-curve/
+
+function testPtsOnCurve(curveObj, testPts, tolerance=5) {
     
     //testPts is list of points to test if they intercept with the curve
+     //tolerance:     how many pixels away can a point be from the line to be valid
 
-    let measureLen = .1;      //measure every 1/10 of curve to find intercepts
-
-    let tolerance = 5       //how many pixels away can a point be from the line to be valid
-    let numMeasurements = Math.floor(1.0/measureLen);
-    var results = Array(numMeasurements).fill(false);
+    // attempt to do vote-process on what bezier curve has the most intercepts ( perhaps the # of intercepts has to be at least the distance b/w beginning and end) 
+    //for help: look at https://javascript.tutorialink.com/calculating-intersection-point-of-quadratic-bezier-curve/
+    
+    
+    let matchingPts = Array(testPts.length).fill(false);
+    var curveFunc = geval(curveObj.equationName)
+    var curveXRange = curveObj.xRange;
 
     var successNum = 0;
-    for(let i =0; i <= 1.0; i+=measureLen) {
-        var ptOnCurve = bezierParametric3(i,curvePts)
-        var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        ptObj.setAttribute("cx",ptOnCurve.x);
-        ptObj.setAttribute("cy",ptOnCurve.y);
-        ptObj.setAttribute("r",1);
-        ptObj.setAttribute("fill","red");
-        document.getElementById("resultSVG").append(ptObj);
+    var funcValPairs = []
 
-        if(testPts.includes(ptOnCurve)) {   //point is on curve exactly
-            results[i] = true;
-            ++successNum;
+    for(let x =curveXRange[0]; x <= curveXRange[1]; ++x) {
+        var y = curveFunc(x)
+        funcValPairs.push({x:x, y:y})
+        var isFound = false;
+        for(let tp=0; tp < testPts.length; ++tp) {
+            if(testPts[tp].x==x && (testPts[tp].y==Math.floor(y) || testPts[tp].y==Math.ceil(y))) {
+                matchingPts[tp] = true;
+                isFound = true;
+                ++successNum;
+            }
         }
+    }
 
-        else  {             // test with tolerance
-            for(let p =0; p < testPts.length; ++p ) {
-                let dist = Math.sqrt((testPts[p].x-ptOnCurve.x)*(testPts[p].x-ptOnCurve.x) + (testPts[p].y-ptOnCurve.y)*(testPts[p].y-ptOnCurve.y))
-                if(dist <=tolerance) {
-                    results[i] = true;
-                    ++successNum;
+    if(matchingPts.includes(false)) {
+        for(let tp=0; tp < matchingPts.length; ++tp) {
+            if(matchingPts[tp]==false) {
+                var closestPt = null;
+                for(let i =0; i < funcValPairs.length; ++i) {
+                    if(funcValPairs[i].x==testPts[tp].x) {
+                        closestPt = funcValPairs[i];
+                        break;
+                    }
+                }
+                if(closestPt !=null) {
+                    let dist = Math.sqrt((testPts[tp].x-closestPt.x)*(testPts[tp].x-closestPt.x) + (testPts[tp].y-closestPt.y)*(testPts[tp].y-closestPt.y))
+                    if(dist <=tolerance) {
+                        console.log("at index: ", tp)
+                        ++successNum;
+                        matchingPts[tp] = true;
+                        break;
+                    }
                 }
             }
         }
     }
-    console.log(successNum/numMeasurements);
-    return successNum/numMeasurements;
+
+    
+    console.log("match likelihood: ", successNum/testPts.length);
+    console.log("matchingPts", matchingPts)
+    return successNum/testPts.length;
 
 }
         
 
-
- 
-
-
-
-//NOTE: BEZIER PARAMETRIC FUNCTIONS BELOW ARE NOT THE SAME AS THE LAGRANGE POLYNOMIAL!!
-
-function getBezierParametricFunctions(order) {
-    //returns {xFunc:x(t), yFunc: y(t)}
-    // https://stackoverflow.com/questions/5634460/quadratic-b%c3%a9zier-curve-calculate-points
-    //For calculating point on Cubic bezier x(t) and y(t), 0 <= t <= 1 :
-        //  x(t) = (1-t)*(1-t)*(1-t)*p[0].x + 3*(1-t)*(1-t)*t*p[1].x + 3*(1-t)*t*t*p[2].x + t*t*t*p[3].x
-        //  y(t) = (1-t)*(1-t)*(1-t)*p[0].y + 3*(1-t)*(1-t)*t*p[1].y + 3*(1-t)*t*t*p[2].y + t*t*t*p[3].y
-        //p[0] --> starting point
-        //p[1] --> control point
-        //p[2] --> control point
-        //p[3] --> end point
-    var xTerms = [];
-    var yTerms = [];
-    for(let i=0; i < order+1; ++i) {
-        let thisBinomCoeff = binomialCoeff(order,i);
-        let currentTerm = `(${thisBinomCoeff}*(1-t)`
-        
-        let repeatingFactors = order-i;
-        if(repeatingFactors==0) currentTerm=`(${thisBinomCoeff}`;
-        else {
-            for(let fact=1; fact < repeatingFactors; ++fact) {currentTerm += `*(1-t)`}
-        }
-        if(i == 0) currentTerm+=`*1`
-        else {
-            currentTerm+=`*t`
-            for(let tFact=1; tFact < i; ++tFact) {currentTerm+=`*t` }
-            
-        }
-        currentTerm+=`*pts[${i}]`
-
-        xTerms.push(currentTerm+`.x)`);
-        yTerms.push(currentTerm+`.y)`);
-
-    }
-    
-    geval(`var bezierParametric${order} = (t, pts) => {
-        let xVal = ${xTerms.join(` + `)};
-        let yVal = ${yTerms.join(` + `)};
-        return {x:xVal, y:yVal}
-    }`)
-    // geval(`var bezierX${order} = (t, pts) => {return ()}`)
-    // geval(`var bezierY${order} = (t, pts) => {return (${yTerms.join(` + `)})}`)
-    
-    return {func:`bezierParametric${order}`, order: order};
-}
 
 
 function testLagrangePolyString(pts,equationId) {
@@ -178,14 +138,9 @@ function testLagrangePolyString(pts,equationId) {
     }
     
     var equation = `var curvePoly${equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
-    var result = {xRange:[leastX, mostX],equationOrder:terms.length-1, equationStr:equation, equationName:`curvePoly${equationId.toString()}`}
+    var result = {pts:pts, xRange:[leastX, mostX],equationOrder:terms.length-1, equationStr:equation, equationName:`curvePoly${equationId.toString()}`}
     return result; 
 }
-
-
-
-
-
 
 function traceEdges() {
     console.log("starting scanning")
@@ -325,10 +280,10 @@ class FileManipPage extends React.Component {
         var resultSVG = document.getElementById("resultSVG")
         //var pts = [{x:100, y:175},{x:50, y:305},{x:300, y:300}  ,{x:400, y:230}]
         var pts = [];
-        var numPoints = 4;
+        var numPoints = 3;
         for(let p=0; p < numPoints; ++p) {
-            let x = getRandomInt(0,200)
-            let y = getRandomInt(0,200)
+            let x = getRandomInt(0,900)
+            let y = getRandomInt(200,300)
             pts.push({x:x,y:y})
         }
 
@@ -346,11 +301,11 @@ class FileManipPage extends React.Component {
         }
 
         var curveData = [testLagrangePolyString(pts,'0')];
-        console.log("curveData.length", curveData.length)
+        
         
         for(let curve=0; curve < curveData.length; ++curve) {
             console.log("curveData[curve]", curveData[curve])
-            //var funcStr = this.currentScanObj.generateLagrangePolyString(polyData[curve], curve);
+            
             geval(curveData[curve]["equationStr"])
             
             var thisCurveFunc = geval(curveData[curve].equationName)
@@ -368,9 +323,10 @@ class FileManipPage extends React.Component {
             path.setAttribute("stroke","black");
             path.setAttribute("fill","none");
             resultSVG.append(path);
-    
+            var temp = pts.concat({x:pts[0].x, y:pts[0].y+5})
+            testPtsOnCurve(curveData[curve], temp);
         }
-        testPtsOnCurve(pts, pts);
+        
         
 
     }
@@ -402,13 +358,7 @@ class FileManipPage extends React.Component {
             this.drawBounds();
         }, 1000);
 
-        // setTimeout(()=> {
-        //     var asyncFunc= this.currentScanObj.approximateEdgeBounds();
-        //     asyncFunc.then(function(result) {
-        //         console.log("result",result)
-        //         drawBounds(result);
-        //     });
-        // }, 1000);
+       
         return;
 	}
     drawBounds() {

@@ -7,11 +7,13 @@ import "regenerator-runtime/runtime";
 import {ImageScan} from './imageManip.js'
 // var globalImageData;
 var geval =eval;
-
+var preCalcFactorials = [1,1,2,6,24,120, 720, 5040, 40320, 362880,39916800, 479001600, 6227020800, 87178291200]
+var cubicBezier = getBezierParametricFunctions(3)   //3 --> cubic, which means 4 Bezier points describe it
+var bezierParametric3 = geval(cubicBezier.func)
 
 
 //pre-calculated factorials for numbers 0 to 13; value at index k is (k!)
-var preCalcFactorials = [1,1,2,6,24,120, 720, 5040, 40320, 362880,39916800, 479001600, 6227020800, 87178291200]
+
 
 
 // function pick(event) {
@@ -55,8 +57,53 @@ function binomialCoeff(n,i) {
 }
 
 
-// https://stackoverflow.com/questions/5634460/quadratic-b%c3%a9zier-curve-calculate-points
+function testPtsOnCurve(curvePts, testPts) {
+     // attempt to do vote-process on what bezier curve has the most intercepts ( perhaps the # of intercepts has to be at least the distance b/w beginning and end) 
+    //for help: look at https://javascript.tutorialink.com/calculating-intersection-point-of-quadratic-bezier-curve/
 
+
+
+    
+    //testPts is list of points to test if they intercept with the curve
+
+    let measureLen = .01;      //measure every 1/10 of curve to find intercepts
+
+    let tolerance = 5       //how many pixels away can a point be from the line to be valid
+    let numMeasurements = Math.floor(1.0/measureLen);
+    var results = Array(numMeasurements).fill(false);
+
+    var successNum = 0;
+    for(let i =0; i <= 1.0; i+=measureLen) {
+        
+        var ptOnCurve = bezierParametric3(i,curvePts)
+        
+        var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        ptObj.setAttribute("cx",ptOnCurve.x);
+        ptObj.setAttribute("cy",ptOnCurve.y);
+        ptObj.setAttribute("r",1);
+        ptObj.setAttribute("fill","red");
+        document.getElementById("resultSVG").append(ptObj);
+
+        if(testPts.includes(ptOnCurve)) {   //point is on curve exactly
+            results[i] = true;
+            ++successNum;
+        }
+
+        
+        else  {             // test with tolerance
+            for(let p =0; p < testPts.length; ++p ) {
+                let dist = Math.sqrt((testPts[p].x-ptOnCurve.x)*(testPts[p].x-ptOnCurve.x) + (testPts[p].y-ptOnCurve.y)*(testPts[p].y-ptOnCurve.y))
+                if(dist <=tolerance) {
+                    results[i] = true;
+                    ++successNum;
+                }
+            }
+        }
+    }
+    console.log(successNum/numMeasurements);
+    return successNum/numMeasurements;
+
+}
         
 
 
@@ -65,6 +112,7 @@ function getBezierParametricFunctions(order) {
     //returns {xFunc:x(t), yFunc: y(t)}
 
 
+    // https://stackoverflow.com/questions/5634460/quadratic-b%c3%a9zier-curve-calculate-points
     //For calculating point on Cubic bezier x(t) and y(t), 0 <= t <= 1 :
         //  x(t) = (1-t)*(1-t)*(1-t)*p[0].x + 3*(1-t)*(1-t)*t*p[1].x + 3*(1-t)*t*t*p[2].x + t*t*t*p[3].x
         //  y(t) = (1-t)*(1-t)*(1-t)*p[0].y + 3*(1-t)*(1-t)*t*p[1].y + 3*(1-t)*t*t*p[2].y + t*t*t*p[3].y
@@ -95,7 +143,8 @@ function getBezierParametricFunctions(order) {
         yTerms.push(currentTerm+`.y)`);
 
     }
-
+    console.log(xTerms.join(` + `))
+    console.log(yTerms.join(` + `))
     geval(`var bezierParametric${order} = (t, pts) => {
         let xVal = ${xTerms.join(` + `)};
         let yVal = ${yTerms.join(` + `)};
@@ -117,7 +166,7 @@ function testLagrangePolyString(pts,equationId) {
         if(xVals[x] > mostX) mostX=xVals[x];
         if(xVals[x] < leastX) leastX = xVals[x];
     }
-    var yVals = pts.map(a=> a.y);
+    var yVals = pts.map(a => a.y);
     for(let p=0; p < pts.length; ++p) {
         var numerator=`${yVals[p]}`
         var denominator = 1;
@@ -133,7 +182,7 @@ function testLagrangePolyString(pts,equationId) {
     }
     
     var equation = `var curvePoly${equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
-    var result = {xRange:[leastX, mostX],equationStr:equation, equationName:`curvePoly${equationId.toString()}`}
+    var result = {xRange:[leastX, mostX],equationOrder:terms.length-1, equationStr:equation, equationName:`curvePoly${equationId.toString()}`}
     return result; 
 }
 
@@ -269,15 +318,12 @@ class FileManipPage extends React.Component {
     }
 
     componentDidMount() {
-
-
-
         //TESTING CURVE GENERATING
         //IMPORTANT!!!  equation below is at https://en.wikipedia.org/wiki/B%C3%A9zier_curve
         // Bezier(t) = sum for i to n-points( P_i * ((n!/(i!(n-i)!)) * (t^i) * (1-t)^(n-i))
 
-        var cubicBezier = getBezierParametricFunctions(3)
-        var bezierParametricX3 = eval(cubicBezier.func)
+        // var cubicBezier = getBezierParametricFunctions(3)   //3 --> cubic, which means 4 Bezier points describe it
+        // var bezierParametric3 = eval(cubicBezier.func)
         
 
         var resultSVG = document.getElementById("resultSVG")
@@ -291,7 +337,7 @@ class FileManipPage extends React.Component {
         }
 
         
-        console.log(bezierParametricX3(.3,pts))
+        //console.log(bezierParametric3(.3,pts))
         for(let i =0; i < pts.length; ++i) {
             
             var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
@@ -304,8 +350,6 @@ class FileManipPage extends React.Component {
         }
 
         var curveData = [testLagrangePolyString(pts,'0')];
-
-       
         console.log("curveData.length", curveData.length)
         
         for(let curve=0; curve < curveData.length; ++curve) {
@@ -330,6 +374,8 @@ class FileManipPage extends React.Component {
             resultSVG.append(path);
     
         }
+        testPtsOnCurve(pts, pts);
+        
 
     }
     

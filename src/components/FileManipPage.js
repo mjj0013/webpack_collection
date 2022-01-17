@@ -60,13 +60,10 @@ function binomialCoeff(n,i) {
 function testPtsOnCurve(curvePts, testPts) {
      // attempt to do vote-process on what bezier curve has the most intercepts ( perhaps the # of intercepts has to be at least the distance b/w beginning and end) 
     //for help: look at https://javascript.tutorialink.com/calculating-intersection-point-of-quadratic-bezier-curve/
-
-
-
     
     //testPts is list of points to test if they intercept with the curve
 
-    let measureLen = .01;      //measure every 1/10 of curve to find intercepts
+    let measureLen = .1;      //measure every 1/10 of curve to find intercepts
 
     let tolerance = 5       //how many pixels away can a point be from the line to be valid
     let numMeasurements = Math.floor(1.0/measureLen);
@@ -74,9 +71,7 @@ function testPtsOnCurve(curvePts, testPts) {
 
     var successNum = 0;
     for(let i =0; i <= 1.0; i+=measureLen) {
-        
         var ptOnCurve = bezierParametric3(i,curvePts)
-        
         var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
         ptObj.setAttribute("cx",ptOnCurve.x);
         ptObj.setAttribute("cy",ptOnCurve.y);
@@ -89,7 +84,6 @@ function testPtsOnCurve(curvePts, testPts) {
             ++successNum;
         }
 
-        
         else  {             // test with tolerance
             for(let p =0; p < testPts.length; ++p ) {
                 let dist = Math.sqrt((testPts[p].x-ptOnCurve.x)*(testPts[p].x-ptOnCurve.x) + (testPts[p].y-ptOnCurve.y)*(testPts[p].y-ptOnCurve.y))
@@ -108,10 +102,13 @@ function testPtsOnCurve(curvePts, testPts) {
 
 
  
+
+
+
+//NOTE: BEZIER PARAMETRIC FUNCTIONS BELOW ARE NOT THE SAME AS THE LAGRANGE POLYNOMIAL!!
+
 function getBezierParametricFunctions(order) {
     //returns {xFunc:x(t), yFunc: y(t)}
-
-
     // https://stackoverflow.com/questions/5634460/quadratic-b%c3%a9zier-curve-calculate-points
     //For calculating point on Cubic bezier x(t) and y(t), 0 <= t <= 1 :
         //  x(t) = (1-t)*(1-t)*(1-t)*p[0].x + 3*(1-t)*(1-t)*t*p[1].x + 3*(1-t)*t*t*p[2].x + t*t*t*p[3].x
@@ -143,8 +140,7 @@ function getBezierParametricFunctions(order) {
         yTerms.push(currentTerm+`.y)`);
 
     }
-    console.log(xTerms.join(` + `))
-    console.log(yTerms.join(` + `))
+    
     geval(`var bezierParametric${order} = (t, pts) => {
         let xVal = ${xTerms.join(` + `)};
         let yVal = ${yTerms.join(` + `)};

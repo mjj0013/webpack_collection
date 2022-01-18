@@ -118,61 +118,6 @@ export function getAvgRgbaOfImage(image_url) {
     
 
 }
-function binomialCoeff(n,i) {
-    if(n > 13 || i > 13) return -1;
-
-    var nFact = preCalcFactorials[n];
-    var iFact = preCalcFactorials[i];
-    var diffFact = preCalcFactorials[n-i];
-
-    return nFact/(iFact*diffFact);
-}
-
-//NOTE: BEZIER PARAMETRIC FUNCTIONS BELOW ARE NOT THE SAME AS THE LAGRANGE POLYNOMIAL!!
-function getBezierParametricFunctions(order) {
-    //returns {xFunc:x(t), yFunc: y(t)}
-    // https://stackoverflow.com/questions/5634460/quadratic-b%c3%a9zier-curve-calculate-points
-    //For calculating point on Cubic bezier x(t) and y(t), 0 <= t <= 1 :
-        //  x(t) = (1-t)*(1-t)*(1-t)*p[0].x + 3*(1-t)*(1-t)*t*p[1].x + 3*(1-t)*t*t*p[2].x + t*t*t*p[3].x
-        //  y(t) = (1-t)*(1-t)*(1-t)*p[0].y + 3*(1-t)*(1-t)*t*p[1].y + 3*(1-t)*t*t*p[2].y + t*t*t*p[3].y
-        //p[0] --> starting point
-        //p[1] --> control point
-        //p[2] --> control point
-        //p[3] --> end point
-    var xTerms = [];
-    var yTerms = [];
-    for(let i=0; i < order+1; ++i) {
-        let thisBinomCoeff = binomialCoeff(order,i);
-        let currentTerm = `(${thisBinomCoeff}*(1-t)`
-        
-        let repeatingFactors = order-i;
-        if(repeatingFactors==0) currentTerm=`(${thisBinomCoeff}`;
-        else {
-            for(let fact=1; fact < repeatingFactors; ++fact) {currentTerm += `*(1-t)`}
-        }
-        if(i == 0) currentTerm+=`*1`
-        else {
-            currentTerm+=`*t`
-            for(let tFact=1; tFact < i; ++tFact) {currentTerm+=`*t` }
-            
-        }
-        currentTerm+=`*pts[${i}]`
-
-        xTerms.push(currentTerm+`.x)`);
-        yTerms.push(currentTerm+`.y)`);
-
-    }
-    
-    eval(`var bezierParametric${order} = (t, pts) => {
-        let xVal = ${xTerms.join(` + `)};
-        let yVal = ${yTerms.join(` + `)};
-        return {x:xVal, y:yVal}
-    }`)
-    // geval(`var bezierX${order} = (t, pts) => {return ()}`)
-    // geval(`var bezierY${order} = (t, pts) => {return (${yTerms.join(` + `)})}`)
-    
-    return {func:`bezierParametric${order}`, order: order};
-}
 
 
 

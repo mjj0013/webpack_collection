@@ -16,31 +16,6 @@ var preCalcFactorials = [1,1,2,6,24,120, 720, 5040, 40320, 362880,39916800, 4790
 
 //pre-calculated factorials for numbers 0 to 13; value at index k is (k!)
 
-
-
-// function pick(event) {
-//     var x = event.layerX;
-//     var y = event.layerY;
-    
-//     var context = event.target.getContext("2d");
-   
-//     var pixel = context.getImageData(x, y, 1, 1);
-//     var data = pixel.data;
-    
-
-//     // var rData = data[0]
-//     // var gData = data[1]
-//     // var bData = data[2]
-//     // var aData = data[3]
-//     var mag = scanObj.imageLayers[0]["resultData"]["magGradient1"][(x)+scanObj.imageWidth*y]
-//     //   const rgba = `rgba(${rData}, ${gData}, ${bData}, ${aData / 255})`;
-//         const magStr = `mag=${mag}`;
-//       document.getElementById("hovered-color").style.background = rgba;
-//       document.getElementById("hovered-color").textContent = rgba;
-  
-//       return magStr;
-//   }
-
 function getRandomInt(min, max) {
     min = Math.ceil(min);
     max = Math.floor(max);
@@ -275,7 +250,16 @@ class FileManipPage extends React.Component {
 
         // var cubicBezier = getBezierParametricFunctions(3)   //3 --> cubic, which means 4 Bezier points describe it
         // var bezierParametric3 = eval(cubicBezier.func)
+        document.addEventListener('keydown', (event) => {
+            const keyName = event.key;
+          
+            if (keyName === 'Space') {
+                console.log('space');
+              // do not alert when only Control key is pressed.
+              return;
+            }
         
+          }, false);
 
         var resultSVG = document.getElementById("resultSVG")
         //var pts = [{x:100, y:175},{x:50, y:305},{x:300, y:300}  ,{x:400, y:230}]
@@ -287,10 +271,7 @@ class FileManipPage extends React.Component {
             pts.push({x:x,y:y})
         }
 
-        
-        //console.log(bezierParametric3(.3,pts))
         for(let i =0; i < pts.length; ++i) {
-            
             var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
             ptObj.setAttribute("cx",pts[i].x);
             ptObj.setAttribute("cy",pts[i].y);

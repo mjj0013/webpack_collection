@@ -157,41 +157,60 @@ export class Curve {
         var segmentLen = Math.floor((currentRange[1]-currentRange[0])/numSegments);
         var optimalSegments = [];
         
-        while(!isOptimal) {
-            if(currentN%numSegments!=0) {
-                //try every combination of remainder position, see which results in the least std-dev
-                var oddResults = []
-                for(let remPos=0; remPos < numSegments; ++remPos) {
-                    
-                    var segments = partitionItems(this.slopeSteps.slice(currentRange[0], currentRange[1]), numSegments,remPos)
-                    var subIsOptimal = true;
-                    for(let seg =0; seg < segments.length; ++seg) {
-                        let stdDev = getStdDev(segments[seg])
-                        if(stdDev > stdDevThreshold) {
-                            subIsOptimal = false
-                            break;
-                        }
-                    }
-                    if(subIsOptimal) oddResults.push([stdDev,segments])
-                }
-                oddResults.sort(function(a,b){return a-b});
-                optimalSegments.push(oddResults[0][1])
-            }
-            else {
-                var segments = partitionItems(this.slopeSteps.slice(currentRange[0], currentRange[1]), numSegments)
-                
-                for(let seg =0; seg < segments.length; ++seg) {
+       
 
-                    let stdDev = getStdDev(segments[seg])
-                    if(stdDev <= stdDevThreshold) {
-                        currentRange = []
-                        optimalSegments.push(segments[seg])
-                    }
+        
+        if(currentN%numSegments==0) {           //segments are divided perfectly
+            var segments = partitionItems(this.slopeSteps.slice(currentRange[0], currentRange[1]), numSegments)
+            //segments is an array of partitions of the curve's slopes (still in order)
+            var segmentResults = [];
+            for(let seg =0; seg < segments.length; ++seg) {
+
+                let stdDev = getStdDev(segments[seg])
+                let subIsOptimal = false;
+                if(stdDev <= stdDevThreshold) {
+                    subIsOptimal = true;
+                }
+                segmentResults.push({idx:seg, status:subIsOptimal, segmentRange:segments[seg]})
+            }
+            for(let resultSeg=0; resultSeg < segmentResults.length; ++resultSeg) {
+                if(segmentResults[resultSeg].status) {
+                    //save this segment since the stdDev of its slopes were below threshold!!
+                    
+                }
+                else  {
+                    //further divide this segment into more sub segments!!
                 }
             }
-            numSegments+=1;
-            if(numSegments >= (currentRange[1]-currentRange[0])) break;
+
+           
         }
+
+
+        //experimental for unevenly divided
+        else {          
+            //for when points in each segment are NOT evenly divided
+            //try every combination of remainder position, see which results in the least std-dev
+            var oddResults = []
+            for(let remPos=0; remPos < numSegments; ++remPos) {
+                
+                var segments = partitionItems(this.slopeSteps.slice(currentRange[0], currentRange[1]), numSegments,remPos)
+                var subIsOptimal = true;
+                for(let seg =0; seg < segments.length; ++seg) {
+                    let stdDev = getStdDev(segments[seg])
+                    if(stdDev > stdDevThreshold) {
+                        subIsOptimal = false
+                        break;
+                    }
+                }
+                if(subIsOptimal) oddResults.push([stdDev,segments])
+            }
+            oddResults.sort(function(a,b){return a-b});
+            optimalSegments.push(oddResults[0][1])
+        }
+        numSegments+=1;
+        if(numSegments >= (currentRange[1]-currentRange[0])) break;
+        
         
         this.curveData = this.testLagrangePolyString();
     }

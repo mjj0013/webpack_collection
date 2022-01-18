@@ -49,48 +49,212 @@ function getBezierParametricFunctions(order) {
         let yVal = ${yTerms.join(` + `)};
         return {x:xVal, y:yVal}
     }`)
-    // geval(`var bezierX${order} = (t, pts) => {return ()}`)
-    // geval(`var bezierY${order} = (t, pts) => {return (${yTerms.join(` + `)})}`)
+   
     
     return {func:`bezierParametric${order}`, order: order};
 }
 
-class Curve {
-    constructor(curveId, pts) {
+
+function partitionItems(items,k,remPos = 0) {
+    //splits items into k segments and returns array of partitions
+    //if there's a remainder, there is option to adjust where the remainder will be placed in the partitions.
+
+    var segments = []
+    var N = items.length;
+    var segmentLen = Math.floor(N/k)
+    if(N%k!=0) {
+        var rem = N%k;
+        var remAdded = false;
+        for(let d=0; d<k; ++d) {
+            if(d==remPos) {
+                remAdded = true;
+                segments.push(items.slice(d*segmentLen, rem+ segmentLen*(d+1)));
+            }
+            else {
+                if(remAdded) {
+                    segments.push(items.slice(d*segmentLen+rem, segmentLen*(d+1)+rem));
+                }
+                else {
+                    segments.push(items.slice( d*segmentLen, segmentLen*(d+1) ));
+                }   
+            }
+        } 
+    }
+    else {
+        for(let d=0; d<k; ++d) {
+            segments.push(this.pts.slice(d*segmentLen,segmentLen*(d+1)));
+        }   
+    }
+    return segments;
+}
+
+
+
+function getStdDev(allItems) {
+    var totalNum = allItems.length;
+    var total = 0
+    for(let i =0; i < allItems.length; ++i) total+=allItems[i];
+    var average = total/totalNum;
+
+    var summation = 0
+    for(let i =0; i < allItems.length; ++i) {
+        summation += (allItems[i]-average)*(allItems[i]-average)
+    }
+
+    return Math.sqrt(summation/(totalNum-1));
+}
+
+export class Curve {
+    constructor(pts,equationId) {
+        
         this.testPtsOnCurve = this.testPtsOnCurve.bind(this);
         this.testLagrangePolyString = this.testLagrangePolyString.bind(this);
-
-        this.curveId = curveId;
-        this.pts = pts;
-        this.curveData = this.testLagrangePolyString();
+        this.getSlopes = this.getSlopes.bind(this);
+        this.getXRange = this.getXRange.bind(this);
+        this.optimizeCurve = this.optimizeCurve.bind(this);
         
+
+
+        this.equationId = equationId;
+
+        this.subCurves = [];
+
+        this.pts = pts;
+        this.N = this.pts.length;
         this.xVals = this.pts.map(a=>a.x);
         this.yVals = this.pts.map(a=>a.y);
+        
         
         this.currentEquationStr = this.curveData.equationStr;       //you would call geval/eval on this variable in another module
         this.currentEquationName = this.curveData.equationName;
         this.equationOrder = this.curveData.equationOrder;
 
-        this.xRange = this.curveData.xRange;
-        this.xMin = this.curveData.xRange[0];
-        this.xMax = this.curveData.xRange[1];
+        this.xRange = this.getXRange(0,this.pts.length);
+        this.xMin = this.xRange[0];
+        this.xMax = this.xRange[1];
+
+
+        this.optimizeCurve();
+        
+        
     }
-    testLagrangePolyString() {
+    
+    optimizeCurve(stdDevThreshold=1.5) {
+        this.slopeSteps = this.getSlopes();      //the slopes between each consecutive point in the curve
+        var slopeStdDev = getStdDev(this.slopeSteps);   //the std-deviation of the the slopes
+
+
+        //divide slope points in half. if standard deviation is still high, then divide into quarters, then into eighths etc 
+
+        var numSegments = 2;
+        
+        var slopeStdDev = getStdDev(this.slopeSteps);   //the std-deviation of the the slopes
+        var isOptimal = slopeStdDev <= stdDevThreshold;
+        
+        var currentN = this.N;
+        
+        var currentRange = [0,this.N];
+        var segmentLen = Math.floor((currentRange[1]-currentRange[0])/numSegments);
+        var optimalSegments = [];
+        
+        while(!isOptimal) {
+            if(currentN%numSegments!=0) {
+                //try every combination of remainder position, see which results in the least std-dev
+                var oddResults = []
+                for(let remPos=0; remPos < numSegments; ++remPos) {
+                    
+                    var segments = partitionItems(this.slopeSteps.slice(currentRange[0], currentRange[1]), numSegments,remPos)
+                    var subIsOptimal = true;
+                    for(let seg =0; seg < segments.length; ++seg) {
+                        let stdDev = getStdDev(segments[seg])
+                        if(stdDev > stdDevThreshold) {
+                            subIsOptimal = false
+                            break;
+                        }
+                    }
+                    if(subIsOptimal) oddResults.push([stdDev,segments])
+                }
+                oddResults.sort(function(a,b){return a-b});
+                optimalSegments.push(oddResults[0][1])
+            }
+            else {
+                var segments = partitionItems(this.slopeSteps.slice(currentRange[0], currentRange[1]), numSegments)
+                
+                for(let seg =0; seg < segments.length; ++seg) {
+
+                    let stdDev = getStdDev(segments[seg])
+                    if(stdDev <= stdDevThreshold) {
+                        currentRange = []
+                        optimalSegments.push(segments[seg])
+                    }
+                }
+            }
+            numSegments+=1;
+            if(numSegments >= (currentRange[1]-currentRange[0])) break;
+        }
+        
+        this.curveData = this.testLagrangePolyString();
+    }
+
+    getXRange(xVals) {
+        var xMin=99;
+        var xMax = 0;
+        for(let x=0; x < xVals.length; ++x) {
+            if(xVals[x] > xMax) xMax = xVals[x];
+            if(xVals[x] < xMin) xMin = xVals[x];
+        }
+        return [xMin, xMax]
+    }
+
+    getSlopes() {
+        var slopes = [];
+        var mappedFunc = []
+        for(let x=0; x < this.xVals.length; ++x) {
+            mappedFunc.push([this.xVals[x],this.yVals[x]])
+        }
+
+        var outputs = Object.fromEntries(mappedFunc);
+        var sortedXVals = [...this.xVals].sort(function(a,b){return a-b});
+
+        let lastX = 0;
+        let lastY = 0;
+        for(let x=0; x < sortedXVals.length; ++x) {
+            let thisX = sortedXVals[x];
+            let thisY = outputs[thisX];
+            slopes.push((thisY-lastY)/(thisX-lastX))
+
+            lastX = thisX;
+            lastY = thisY;
+        }
+
+        return slopes;
+
+    }
+
+    testLagrangePolyString(range=null) {
+        //range[0] is xMin
+        //range[1] is xMax
+        if(range==null) range = this.xRange;
+        
+        var selectedPts = this.pts.slice(range[0],range[1]);
+        var selectedXVals = this.xVals.slice(range[0],range[1]);
+        var selectedYVals = this.yVals.slice(range[0],range[1]);
         var terms = [];
-        for(let p=0; p < this.pts.length; ++p) {
-            var numerator=`${this.yVals[p]}`
+
+        for(let p=0; p < selectedPts.length; ++p) {
+            var numerator=`${selectedYVals[p]}`
             var denominator = 1;
-            for(let pk=0; pk < this.pts.length; ++pk) {
+            for(let pk=0; pk < selectedPts.length; ++pk) {
                 if(p==pk) continue;
-                numerator += `*(x - ${this.xVals[pk]})`
-                denominator *= (this.xVals[p]-this.xVals[pk]);
+                numerator += `*(x - ${selectedXVals[pk]})`
+                denominator *= (selectedXVals[p]-selectedXVals[pk]);
             }
             if(denominator==0) terms.push("(0)")
             else terms.push("("+numerator+`/${denominator}`+")")
         }
         
-        var equation = `var curvePoly${equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
-        var result = {pts:this.pts, xRange:[leastX, mostX],equationOrder:terms.length-1, equationStr:equation, equationName:`curvePoly${equationId.toString()}`}
+        var equation = `var curvePoly${this.equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
+        var result = {pts:selectedPts, xRange:[range[0], range[1]],equationOrder:terms.length-1, equationStr:equation, equationName:`curvePoly${this.equationId.toString()}`}
         return result; 
     }
     testPtsOnCurve(testPts, tolerance=5) {
@@ -147,4 +311,3 @@ class Curve {
     }
 }
 
-export default Curve;

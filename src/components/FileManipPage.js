@@ -5,6 +5,7 @@ import Layout from './Layout';
 import "regenerator-runtime/runtime";
 // import { documentElement } from 'min-document';
 import {ImageScan} from './imageManip.js'
+import {Curve} from './Curve.js'
 // var globalImageData;
 var geval =eval;
 var preCalcFactorials = [1,1,2,6,24,120, 720, 5040, 40320, 362880,39916800, 479001600, 6227020800, 87178291200]
@@ -189,6 +190,27 @@ class FileManipPage extends React.Component {
         this.filterEffectChanged = this.filterEffectChanged.bind(this);
         this.selectedImage = null
         this.drawBounds = this.drawBounds.bind(this);
+
+        this.currentPts = [];
+
+        this.curveObjs = [];
+        this.mouseClickHandler = this.mouseClickHandler.bind(this);
+    }
+    mouseClickHandler(e) {
+        var resultSVG = document.getElementById("resultSVG");
+        const rect = resultSVG.getBoundingClientRect();
+        const x = e.clientX - rect.left
+        const y = e.clientY - rect.top
+        
+        this.currentPts.push({x:x, y:y});
+        
+        var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        ptObj.setAttribute("cx",x);
+        ptObj.setAttribute("cy",y);
+        ptObj.setAttribute("r",5);
+        ptObj.setAttribute("fill","black");
+        // resultSVG.append(ptObj);
+        document.getElementById("ptGroup").append(ptObj);
     }
     showSigmaLayersOnHover(e) {
         var x = e.layerX;
@@ -250,63 +272,76 @@ class FileManipPage extends React.Component {
 
         // var cubicBezier = getBezierParametricFunctions(3)   //3 --> cubic, which means 4 Bezier points describe it
         // var bezierParametric3 = eval(cubicBezier.func)
+
+        var resultSVG = document.getElementById("resultSVG")
         document.addEventListener('keydown', (event) => {
             const keyName = event.key;
-          
-            if (keyName === 'Space') {
-                console.log('space');
-              // do not alert when only Control key is pressed.
-              return;
+            
+            if (keyName === 'Enter') {
+                var curveGroup =document.getElementById("curveGroup")
+                while (curveGroup.firstChild) {
+                    curveGroup.removeChild(curveGroup.firstChild);
+                }
+                this.curveObjs = [];
+                
+                var curveObj = new Curve(this.currentPts,'0')
+                this.curveObjs.push(curveObj);
+                
+                console.log("curveObj",curveObj)
+        
+                for(let curve=0; curve < this.curveObjs.length; ++curve) {
+                    var curveData = this.curveObjs[curve].curveData;
+                    console.log("curveData", curveData)
+                    
+                    geval(curveData["equationStr"])
+                    
+                    var thisCurveFunc = geval(curveData.equationName)
+                    let xMin = curveObj.xRange[0];
+                    let xMax = curveObj.xRange[1];
+
+                    var d = `M${xMin},${thisCurveFunc(xMin)} `
+                    
+                    for(let x =xMin; x < xMax; ++x) {
+                        var y = thisCurveFunc(x)
+                        d+=`L${x},${y} `
+                    }
+                    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+                    path.setAttribute("d",d);
+                    path.setAttribute("stroke","black");
+                    path.setAttribute("fill","none");
+                    document.getElementById("curveGroup").append(path);
+                    var temp = this.currentPts.concat({x:this.currentPts[0].x, y:this.currentPts[0].y+5})
+                    testPtsOnCurve(curveData, temp);
+                }
+                return;
             }
         
           }, false);
-
-        var resultSVG = document.getElementById("resultSVG")
+        
+        
+        resultSVG.addEventListener("click", this.mouseClickHandler, false);
         //var pts = [{x:100, y:175},{x:50, y:305},{x:300, y:300}  ,{x:400, y:230}]
-        var pts = [];
+        
         var numPoints = 3;
         for(let p=0; p < numPoints; ++p) {
             let x = getRandomInt(0,900)
             let y = getRandomInt(200,300)
-            pts.push({x:x,y:y})
+            
+            this.currentPts.push({x:x,y:y})
         }
 
-        for(let i =0; i < pts.length; ++i) {
+        for(let i =0; i < this.currentPts.length; ++i) {
             var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
-            ptObj.setAttribute("cx",pts[i].x);
-            ptObj.setAttribute("cy",pts[i].y);
+            ptObj.setAttribute("cx",this.currentPts[i].x);
+            ptObj.setAttribute("cy",this.currentPts[i].y);
             ptObj.setAttribute("r",5);
             ptObj.setAttribute("fill","black");
-            resultSVG.append(ptObj);
+            document.getElementById("ptGroup").append(ptObj);
+            // resultSVG.append();
             
         }
 
-        var curveData = [testLagrangePolyString(pts,'0')];
         
-        
-        for(let curve=0; curve < curveData.length; ++curve) {
-            console.log("curveData[curve]", curveData[curve])
-            
-            geval(curveData[curve]["equationStr"])
-            
-            var thisCurveFunc = geval(curveData[curve].equationName)
-            let xMin = curveData[curve].xRange[0];
-            let xMax = curveData[curve].xRange[1];
-
-            var d = `M${xMin},${thisCurveFunc(xMin)} `
-            
-            for(let x =xMin; x < xMax; ++x) {
-                var y = thisCurveFunc(x)
-                d+=`L${x},${y} `
-            }
-            var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-            path.setAttribute("d",d);
-            path.setAttribute("stroke","black");
-            path.setAttribute("fill","none");
-            resultSVG.append(path);
-            var temp = pts.concat({x:pts[0].x, y:pts[0].y+5})
-            testPtsOnCurve(curveData[curve], temp);
-        }
         
         
 
@@ -414,7 +449,10 @@ class FileManipPage extends React.Component {
                     <option value="edgeDetection">Edge Detection</option>
                     <option value="none">None</option>
                 </select>
-                <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"150vh",position:"absolute",display:"block", border:"1px solid black"}} />
+                <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"150vh",position:"absolute",display:"block", border:"1px solid black"}}>
+                    <g id="curveGroup"></g>
+                    <g id="ptGroup"></g>
+                </svg>
             </Layout> 
             
       );

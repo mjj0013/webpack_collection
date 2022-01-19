@@ -109,9 +109,11 @@ class FileManipPage extends React.Component {
         var x = e.layerX;
         var y = e.layerY;
         var idx = (x) + (y)*this.currentScanObj.imageWidth;
-        var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient1"][idx]
-        var theta = this.currentScanObj.imageLayers[0]["resultData"]["thetaGradient1"][idx]
-        console.log("mag", Math.sqrt(mag*Math.cos(theta)*mag*Math.cos(theta) + mag*Math.sin(theta)*mag*Math.sin(theta)))
+        var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient2"][idx]
+        var theta = this.currentScanObj.imageLayers[0]["resultData"]["thetaGradient2"][idx]
+        // console.log("mag", Math.sqrt(mag*Math.cos(theta)*mag*Math.cos(theta) + mag*Math.sin(theta)*mag*Math.sin(theta)))
+        console.log('x,y:  ', this.currentScanObj.imageLayers[0]["resultData"]["xGradient2"][idx], this.currentScanObj.imageLayers[0]["resultData"]["yGradient2"][idx])
+        
     }
 
     async loadText(e) {
@@ -150,56 +152,56 @@ class FileManipPage extends React.Component {
         }
     }
 
-    componentDidMount() {
-        //TESTING CURVE GENERATING
-        var resultSVG = document.getElementById("resultSVG")
-        document.addEventListener('keydown', (event) => {
-            const keyName = event.key;
-            if (keyName === 'Enter') {
-                var curveGroup =document.getElementById("curveGroup")
-                while (curveGroup.firstChild) curveGroup.removeChild(curveGroup.firstChild);
-                this.curveObjs = [];
-                var curveObj = new Curve(this.currentPts,'0')
-                this.curveObjs.push(curveObj);
-                console.log("curveObj",curveObj)
-                for(let curve=0; curve < this.curveObjs.length; ++curve) {
-                    var curveData = this.curveObjs[curve].curveData;
-                    console.log("curveData", curveData)
-                    geval(curveData["equationStr"])
-                    var thisCurveFunc = geval(curveData.equationName)
-                    let xMin = curveObj.xRange[0];
-                    let xMax = curveObj.xRange[1];
-                    var d = `M${xMin},${thisCurveFunc(xMin)} `
-                    for(let x =xMin; x < xMax; ++x) {
-                        var y = thisCurveFunc(x)
-                        d+=`L${x},${y} `
-                    }
-                    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-                    path.setAttribute("d",d);
-                    path.setAttribute("stroke","black");
-                    path.setAttribute("fill","none");
-                    document.getElementById("curveGroup").append(path);
-                }
-                return;
-            }
-          }, false);
-        resultSVG.addEventListener("click", this.mouseClickHandler, false);
-        var numPoints = 3;
-        for(let p=0; p < numPoints; ++p) {
-            let x = getRandomInt(0,900)
-            let y = getRandomInt(200,300)
-            this.currentPts.push({x:x,y:y})
-        }
+    // componentDidMount() {
+    //     //TESTING CURVE GENERATING
+    //     var resultSVG = document.getElementById("resultSVG")
+    //     document.addEventListener('keydown', (event) => {
+    //         const keyName = event.key;
+    //         if (keyName === 'Enter') {
+    //             var curveGroup =document.getElementById("curveGroup")
+    //             while (curveGroup.firstChild) curveGroup.removeChild(curveGroup.firstChild);
+    //             this.curveObjs = [];
+    //             var curveObj = new Curve(this.currentPts,'0')
+    //             this.curveObjs.push(curveObj);
+    //             console.log("curveObj",curveObj)
+    //             for(let curve=0; curve < this.curveObjs.length; ++curve) {
+    //                 var curveData = this.curveObjs[curve].curveData;
+    //                 console.log("curveData", curveData)
+    //                 geval(curveData["equationStr"])
+    //                 var thisCurveFunc = geval(curveData.equationName)
+    //                 let xMin = curveObj.xRange[0];
+    //                 let xMax = curveObj.xRange[1];
+    //                 var d = `M${xMin},${thisCurveFunc(xMin)} `
+    //                 for(let x =xMin; x < xMax; ++x) {
+    //                     var y = thisCurveFunc(x)
+    //                     d+=`L${x},${y} `
+    //                 }
+    //                 var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+    //                 path.setAttribute("d",d);
+    //                 path.setAttribute("stroke","black");
+    //                 path.setAttribute("fill","none");
+    //                 document.getElementById("curveGroup").append(path);
+    //             }
+    //             return;
+    //         }
+    //       }, false);
+    //     resultSVG.addEventListener("click", this.mouseClickHandler, false);
+    //     var numPoints = 3;
+    //     for(let p=0; p < numPoints; ++p) {
+    //         let x = getRandomInt(0,900)
+    //         let y = getRandomInt(200,300)
+    //         this.currentPts.push({x:x,y:y})
+    //     }
 
-        for(let i =0; i < this.currentPts.length; ++i) {
-            var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");         
-            ptObj.setAttribute("cx",this.currentPts[i].x);
-            ptObj.setAttribute("cy",this.currentPts[i].y);
-            ptObj.setAttribute("r",5);
-            ptObj.setAttribute("fill","black");
-            document.getElementById("ptGroup").append(ptObj);
-        }
-    }
+    //     for(let i =0; i < this.currentPts.length; ++i) {
+    //         var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");         
+    //         ptObj.setAttribute("cx",this.currentPts[i].x);
+    //         ptObj.setAttribute("cy",this.currentPts[i].y);
+    //         ptObj.setAttribute("r",5);
+    //         ptObj.setAttribute("fill","black");
+    //         document.getElementById("ptGroup").append(ptObj);
+    //     }
+    // }
     
     async loadImage(e) {
         var filterInfo = [
@@ -214,7 +216,7 @@ class FileManipPage extends React.Component {
         ]
         this.currentScanObj = new ImageScan('testCanvas',filterInfo);
         await this.currentScanObj.imageReader();
-        scanObj = this.currentScanObj;
+        // scanObj = this.currentScanObj;
          
         document.getElementById("testCanvas").onmousemove = (e) => this.showSigmaLayersOnHover(e);
         this.selectedImage = this.currentScanObj.selectedFile;
@@ -226,7 +228,6 @@ class FileManipPage extends React.Component {
         return;
 	}
     drawBounds() {
-        //console.log("curveData",curveData)
         console.log("Drawing bounds on SVG...");
         var polyData = this.currentScanObj.lagrangePolys;
         console.log("polyData.length", polyData.length)
@@ -257,24 +258,12 @@ class FileManipPage extends React.Component {
             for(let X=xMin; X < xMax;X+=.5) {
                 let y = thisCurveFunc(X)
                 if(!isNaN(y)) d+=`L${X},${-y} `
-                
             }
-
-            //find average slope in curve
-            // var slopes = [];
-            // for(let p1=0; p1 < xValues.length; ++p1) {
-            //     for(let p2=0; p2 < xValues.length; ++p2) {
-            //         if(p1==p2) continue;
-    
-            //     }
-            // }
             var path = document.createElementNS("http://www.w3.org/2000/svg","path");
             path.setAttribute("d",d);
             path.setAttribute("stroke","black");
             path.setAttribute("fill","none");
             resultSVG.append(path);
-    
-    
         }
     }
 

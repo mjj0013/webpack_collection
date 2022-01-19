@@ -8,114 +8,11 @@ import {ImageScan} from './imageManip.js'
 import {Curve} from './Curve.js'
 // var globalImageData;
 var geval =eval;
-var preCalcFactorials = [1,1,2,6,24,120, 720, 5040, 40320, 362880,39916800, 479001600, 6227020800, 87178291200]
-// var cubicBezier = getBezierParametricFunctions(3)   //3 --> cubic, which means 4 Bezier points describe it
-// var bezierParametric3 = geval(cubicBezier.func)
-
-
-
-
-//pre-calculated factorials for numbers 0 to 13; value at index k is (k!)
 
 function getRandomInt(min, max) {
     min = Math.ceil(min);
     max = Math.floor(max);
     return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
-}
-
-
-
-
-
-function testPtsOnCurve(curveObj, testPts, tolerance=5) {
-    
-    //testPts is list of points to test if they intercept with the curve
-     //tolerance:     how many pixels away can a point be from the line to be valid
-
-    // attempt to do vote-process on what bezier curve has the most intercepts ( perhaps the # of intercepts has to be at least the distance b/w beginning and end) 
-    //for help: look at https://javascript.tutorialink.com/calculating-intersection-point-of-quadratic-bezier-curve/
-    
-    
-    let matchingPts = Array(testPts.length).fill(false);
-    var curveFunc = geval(curveObj.equationName)
-    var curveXRange = curveObj.xRange;
-
-    var successNum = 0;
-    var funcValPairs = []
-
-    for(let x =curveXRange[0]; x <= curveXRange[1]; ++x) {
-        var y = curveFunc(x)
-        funcValPairs.push({x:x, y:y})
-        var isFound = false;
-        for(let tp=0; tp < testPts.length; ++tp) {
-            if(testPts[tp].x==x && (testPts[tp].y==Math.floor(y) || testPts[tp].y==Math.ceil(y))) {
-                matchingPts[tp] = true;
-                isFound = true;
-                ++successNum;
-            }
-        }
-    }
-
-    if(matchingPts.includes(false)) {
-        for(let tp=0; tp < matchingPts.length; ++tp) {
-            if(matchingPts[tp]==false) {
-                var closestPt = null;
-                for(let i =0; i < funcValPairs.length; ++i) {
-                    if(funcValPairs[i].x==testPts[tp].x) {
-                        closestPt = funcValPairs[i];
-                        break;
-                    }
-                }
-                if(closestPt !=null) {
-                    let dist = Math.sqrt((testPts[tp].x-closestPt.x)*(testPts[tp].x-closestPt.x) + (testPts[tp].y-closestPt.y)*(testPts[tp].y-closestPt.y))
-                    if(dist <=tolerance) {
-                        console.log("at index: ", tp)
-                        ++successNum;
-                        matchingPts[tp] = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-
-    
-    console.log("match likelihood: ", successNum/testPts.length);
-    console.log("matchingPts", matchingPts)
-    return successNum/testPts.length;
-
-}
-        
-
-
-
-function testLagrangePolyString(pts,equationId) {
-    var terms = [];
-    var xVals = pts.map(a=>a.x);
-    var leastX=99;
-    var mostX = 0;
-    for(let x=0; x < xVals.length; ++x) {
-        if(xVals[x] > mostX) mostX=xVals[x];
-        if(xVals[x] < leastX) leastX = xVals[x];
-    }
-    var yVals = pts.map(a => a.y);
-    for(let p=0; p < pts.length; ++p) {
-        var numerator=`${yVals[p]}`
-        var denominator = 1;
-        for(let pk=0; pk < pts.length; ++pk) {
-            if(p==pk) continue;
-            numerator += `*(x - ${xVals[pk]})`
-            denominator *= (xVals[p]-xVals[pk]);
-        }
-        if(denominator==0) terms.push("(0)")
-        else terms.push("("+numerator+`/${denominator}`+")")
-        // terms.push("("+numerator+`/${denominator}`+")")
-
-    }
-    
-    var equation = `var curvePoly${equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
-    var result = {pts:pts, xRange:[leastX, mostX],equationOrder:terms.length-1, equationStr:equation, equationName:`curvePoly${equationId.toString()}`}
-    return result; 
 }
 
 function traceEdges() {
@@ -190,9 +87,7 @@ class FileManipPage extends React.Component {
         this.filterEffectChanged = this.filterEffectChanged.bind(this);
         this.selectedImage = null
         this.drawBounds = this.drawBounds.bind(this);
-
         this.currentPts = [];
-
         this.curveObjs = [];
         this.mouseClickHandler = this.mouseClickHandler.bind(this);
     }
@@ -203,13 +98,11 @@ class FileManipPage extends React.Component {
         const y = e.clientY - rect.top
         
         this.currentPts.push({x:x, y:y});
-        
         var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
         ptObj.setAttribute("cx",x);
         ptObj.setAttribute("cy",y);
         ptObj.setAttribute("r",5);
         ptObj.setAttribute("fill","black");
-        // resultSVG.append(ptObj);
         document.getElementById("ptGroup").append(ptObj);
     }
     showSigmaLayersOnHover(e) {
@@ -218,10 +111,7 @@ class FileManipPage extends React.Component {
         var idx = (x) + (y)*this.currentScanObj.imageWidth;
         var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient1"][idx]
         var theta = this.currentScanObj.imageLayers[0]["resultData"]["thetaGradient1"][idx]
-
-        // console.log("mag", Math.sqrt(mag*Math.cos(theta)*mag*Math.cos(theta) + mag*Math.sin(theta)*mag*Math.sin(theta)))
         console.log("mag", Math.sqrt(mag*Math.cos(theta)*mag*Math.cos(theta) + mag*Math.sin(theta)*mag*Math.sin(theta)))
-        
     }
 
     async loadText(e) {
@@ -238,15 +128,12 @@ class FileManipPage extends React.Component {
         reader.readAsText(e.target.files[0]);
     }
 
-    numOfPagesChanged(e) {
-        this.setState({num: e.target.value});  
-    }
+    numOfPagesChanged(e) {    this.setState({num: e.target.value});  }
+
     filterEffectChanged(e) {
         var context = document.getElementById("testCanvas").getContext('2d');
         if(e.target.value=="none") {
             const reader = new FileReader();
-        
-            //var OBJ = this;
             reader.addEventListener("load", 
                 function () {
                     const img = new Image();
@@ -258,49 +145,31 @@ class FileManipPage extends React.Component {
                 }
             , false);
             if (this.selectedImage) reader.readAsDataURL(this.selectedImage);
-
         }
         else if(e.target.value=="edgeDetection") {  
         }
-        
     }
 
     componentDidMount() {
         //TESTING CURVE GENERATING
-        //IMPORTANT!!!  equation below is at https://en.wikipedia.org/wiki/B%C3%A9zier_curve
-        // Bezier(t) = sum for i to n-points( P_i * ((n!/(i!(n-i)!)) * (t^i) * (1-t)^(n-i))
-
-        // var cubicBezier = getBezierParametricFunctions(3)   //3 --> cubic, which means 4 Bezier points describe it
-        // var bezierParametric3 = eval(cubicBezier.func)
-
         var resultSVG = document.getElementById("resultSVG")
         document.addEventListener('keydown', (event) => {
             const keyName = event.key;
-            
             if (keyName === 'Enter') {
                 var curveGroup =document.getElementById("curveGroup")
-                while (curveGroup.firstChild) {
-                    curveGroup.removeChild(curveGroup.firstChild);
-                }
+                while (curveGroup.firstChild) curveGroup.removeChild(curveGroup.firstChild);
                 this.curveObjs = [];
-                
                 var curveObj = new Curve(this.currentPts,'0')
                 this.curveObjs.push(curveObj);
-                
                 console.log("curveObj",curveObj)
-        
                 for(let curve=0; curve < this.curveObjs.length; ++curve) {
                     var curveData = this.curveObjs[curve].curveData;
                     console.log("curveData", curveData)
-                    
                     geval(curveData["equationStr"])
-                    
                     var thisCurveFunc = geval(curveData.equationName)
                     let xMin = curveObj.xRange[0];
                     let xMax = curveObj.xRange[1];
-
                     var d = `M${xMin},${thisCurveFunc(xMin)} `
-                    
                     for(let x =xMin; x < xMax; ++x) {
                         var y = thisCurveFunc(x)
                         d+=`L${x},${y} `
@@ -310,45 +179,28 @@ class FileManipPage extends React.Component {
                     path.setAttribute("stroke","black");
                     path.setAttribute("fill","none");
                     document.getElementById("curveGroup").append(path);
-                    var temp = this.currentPts.concat({x:this.currentPts[0].x, y:this.currentPts[0].y+5})
-                    testPtsOnCurve(curveData, temp);
                 }
                 return;
             }
-        
           }, false);
-        
-        
         resultSVG.addEventListener("click", this.mouseClickHandler, false);
-        //var pts = [{x:100, y:175},{x:50, y:305},{x:300, y:300}  ,{x:400, y:230}]
-        
         var numPoints = 3;
         for(let p=0; p < numPoints; ++p) {
             let x = getRandomInt(0,900)
             let y = getRandomInt(200,300)
-            
             this.currentPts.push({x:x,y:y})
         }
 
         for(let i =0; i < this.currentPts.length; ++i) {
-            var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
+            var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");         
             ptObj.setAttribute("cx",this.currentPts[i].x);
             ptObj.setAttribute("cy",this.currentPts[i].y);
             ptObj.setAttribute("r",5);
             ptObj.setAttribute("fill","black");
             document.getElementById("ptGroup").append(ptObj);
-            // resultSVG.append();
-            
         }
-
-        
-        
-        
-
     }
     
-
-
     async loadImage(e) {
         var filterInfo = [
             // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
@@ -367,14 +219,10 @@ class FileManipPage extends React.Component {
         document.getElementById("testCanvas").onmousemove = (e) => this.showSigmaLayersOnHover(e);
         this.selectedImage = this.currentScanObj.selectedFile;
         
-        //this.imageScanInstances.push(this.currentScanObj);
-        //await imageReader(document.getElementById("luminGrayscale"),null, null)
-        
         setTimeout(()=> {
             this.drawBounds();
         }, 1000);
 
-       
         return;
 	}
     drawBounds() {
@@ -384,8 +232,6 @@ class FileManipPage extends React.Component {
         console.log("polyData.length", polyData.length)
         var resultSVG = document.getElementById("resultSVG");
 
-
-       
         for(let curve=0; curve < polyData.length; ++curve) {
             console.log("polyData[curve]", polyData[curve])
             //var funcStr = this.currentScanObj.generateLagrangePolyString(polyData[curve], curve);
@@ -450,6 +296,7 @@ class FileManipPage extends React.Component {
                     <option value="none">None</option>
                 </select>
                 <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"150vh",position:"absolute",display:"block", border:"1px solid black"}}>
+                    
                     <g id="curveGroup"></g>
                     <g id="ptGroup"></g>
                 </svg>

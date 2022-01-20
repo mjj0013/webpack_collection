@@ -92,7 +92,7 @@ export class ImageScan {
         Therefore, group together data points that are BOTH relative in their gradients and location. 
         Then perform curve fitting on those data points.   */
 
-        /*Move a window  throughout an image (from top-left to bottom-right) like normal. If a distinct gradient is found, record the position of it and any other pixels that are the same
+        /*Move a window  throughout  image (from top-left to bottom-right) like normal. If a distinct gradient is found, record the position of it and any other pixels that are the same
         When you move the window adjacent to that region again, see whether the slope continues or not. You would most likely already have covered 4 of 8 possible directions it could move in
         After testing all 8 directions on that location, determine which direction it may continue in. 
         If gradient continues in a direction, update its  with newly discovered part. 
@@ -177,9 +177,13 @@ export class ImageScan {
 
         console.log("calculating 1st and 2nd gradients...")
         for(let c=0; c < layerStack.length; ++c) {
+            var regions = []        //temporary place to store region data
+            // regions will have objects w/ format:     {top:.., left:.., width:.., height:.., }
 
             var lastCornerDetected = null;
             var parallelComponent = layerStack[c];
+
+            //first gradient
             for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
                 for(var imgX=0; imgX < this.imageWidth; imgX+=1) {      
                     let left = parallelComponent["resultData"]["mags"][(imgX-1) + (imgY)*this.imageWidth]
@@ -203,6 +207,8 @@ export class ImageScan {
  
                 }
             }
+
+            //second gradient
             for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
                 for(var imgX=0; imgX < this.imageWidth; imgX+=1) {     
                     let left = parallelComponent["resultData"]["xGradient1"][(imgX-1) + (imgY)*this.imageWidth]

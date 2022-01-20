@@ -152,56 +152,56 @@ class FileManipPage extends React.Component {
         }
     }
 
-    // componentDidMount() {
-    //     //TESTING CURVE GENERATING
-    //     var resultSVG = document.getElementById("resultSVG")
-    //     document.addEventListener('keydown', (event) => {
-    //         const keyName = event.key;
-    //         if (keyName === 'Enter') {
-    //             var curveGroup =document.getElementById("curveGroup")
-    //             while (curveGroup.firstChild) curveGroup.removeChild(curveGroup.firstChild);
-    //             this.curveObjs = [];
-    //             var curveObj = new Curve(this.currentPts,'0')
-    //             this.curveObjs.push(curveObj);
-    //             console.log("curveObj",curveObj)
-    //             for(let curve=0; curve < this.curveObjs.length; ++curve) {
-    //                 var curveData = this.curveObjs[curve].curveData;
-    //                 console.log("curveData", curveData)
-    //                 geval(curveData["equationStr"])
-    //                 var thisCurveFunc = geval(curveData.equationName)
-    //                 let xMin = curveObj.xRange[0];
-    //                 let xMax = curveObj.xRange[1];
-    //                 var d = `M${xMin},${thisCurveFunc(xMin)} `
-    //                 for(let x =xMin; x < xMax; ++x) {
-    //                     var y = thisCurveFunc(x)
-    //                     d+=`L${x},${y} `
-    //                 }
-    //                 var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-    //                 path.setAttribute("d",d);
-    //                 path.setAttribute("stroke","black");
-    //                 path.setAttribute("fill","none");
-    //                 document.getElementById("curveGroup").append(path);
-    //             }
-    //             return;
-    //         }
-    //       }, false);
-    //     resultSVG.addEventListener("click", this.mouseClickHandler, false);
-    //     var numPoints = 3;
-    //     for(let p=0; p < numPoints; ++p) {
-    //         let x = getRandomInt(0,900)
-    //         let y = getRandomInt(200,300)
-    //         this.currentPts.push({x:x,y:y})
-    //     }
+    componentDidMount() {
+        //TESTING CURVE GENERATING
+        var resultSVG = document.getElementById("resultSVG")
+        document.addEventListener('keydown', (event) => {
+            const keyName = event.key;
+            if (keyName === 'Enter') {
+                var curveGroup =document.getElementById("curveGroup")
+                while (curveGroup.firstChild) curveGroup.removeChild(curveGroup.firstChild);
+                this.curveObjs = [];
+                var curveObj = new Curve(this.currentPts,'0')
+                this.curveObjs.push(curveObj);
+                console.log("curveObj",curveObj)
+                for(let curve=0; curve < this.curveObjs.length; ++curve) {
+                    var curveData = this.curveObjs[curve].curveData;
+                    console.log("curveData", curveData)
+                    geval(curveData["equationStr"])
+                    var thisCurveFunc = geval(curveData.equationName)
+                    let xMin = curveObj.xRange[0];
+                    let xMax = curveObj.xRange[1];
+                    var d = `M${xMin},${thisCurveFunc(xMin)} `
+                    for(let x =xMin; x < xMax; ++x) {
+                        var y = thisCurveFunc(x)
+                        d+=`L${x},${y} `
+                    }
+                    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+                    path.setAttribute("d",d);
+                    path.setAttribute("stroke","black");
+                    path.setAttribute("fill","none");
+                    document.getElementById("curveGroup").append(path);
+                }
+                return;
+            }
+          }, false);
+        resultSVG.addEventListener("click", this.mouseClickHandler, false);
+        var numPoints = 3;
+        for(let p=0; p < numPoints; ++p) {
+            let x = getRandomInt(0,900)
+            let y = getRandomInt(200,300)
+            this.currentPts.push({x:x,y:y})
+        }
 
-    //     for(let i =0; i < this.currentPts.length; ++i) {
-    //         var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");         
-    //         ptObj.setAttribute("cx",this.currentPts[i].x);
-    //         ptObj.setAttribute("cy",this.currentPts[i].y);
-    //         ptObj.setAttribute("r",5);
-    //         ptObj.setAttribute("fill","black");
-    //         document.getElementById("ptGroup").append(ptObj);
-    //     }
-    // }
+        for(let i =0; i < this.currentPts.length; ++i) {
+            var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");         
+            ptObj.setAttribute("cx",this.currentPts[i].x);
+            ptObj.setAttribute("cy",this.currentPts[i].y);
+            ptObj.setAttribute("r",5);
+            ptObj.setAttribute("fill","black");
+            document.getElementById("ptGroup").append(ptObj);
+        }
+    }
     
     async loadImage(e) {
         var filterInfo = [

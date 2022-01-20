@@ -191,7 +191,7 @@ export class ImageScan {
                     //1st order gradient   
 
                     //********************* */
-                    /* Trying using Sobel operators here instead*/
+                    /* For 1st order gradients, Trying using Sobel operators here instead*/
                     //********************* */
 
 

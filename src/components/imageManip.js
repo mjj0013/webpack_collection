@@ -36,8 +36,7 @@ export class ImageScan {
         this.edgeDetectComponent = this.edgeDetectComponent.bind(this);
         this.detectBlobs = this.detectBlobs.bind(this);
         this.mapEdgesFromCorners = this.mapEdgesFromCorners.bind(this);
-        this.hasIntersection = this.hasIntersection.bind(this)
-        this.getAngleOfLines = this.getAngleOfLines.bind(this);
+       
         this.imageLayers = [];
         this.mappedCurves = []
         this.selectedImage = null
@@ -127,7 +126,7 @@ export class ImageScan {
             layerStack.push({"component":component, "resultData":{"RGB":data.map((x)=>x),
             "mags":[],"yGradient1":[], "xGradient1":[],"magGradient1":[],"thetaGradient1":[], "zeroPoints":[],
             "harrisResponse":[], "nLoG":[],"slopeRateX1":[], "slopeRateY1":[],"cornerLocations":[], 
-            "interestRegions":[], "classification":[], "determinant":[], "laplacian":[]}});
+            "interestRegions":[], "classification":[], "determinant":[], "laplacian":[], "eigenVals":[]}});
         }
 
         //"interestRegions" will have rectangles with format -> {top:.., left:.., width:.., height:..}
@@ -173,6 +172,8 @@ export class ImageScan {
                
         // var LaplacianKernel = [[0,-1,0], [-1,4,-1], [0,-1,0]];
         var LaplacianKernel = [[1,1,1], [1,-8,1], [1,1,1]];
+        var SobelKernelX = [[1,0,-1], [2,0,-2], [1,0,-1]]
+        var SobelKernelY = [[1,2,1], [0,0,0], [-1,-2,-1]]
                     
         //gaussKernel is multipled to every product of sum (Ixx, Ixy, Iyy)
 
@@ -188,6 +189,13 @@ export class ImageScan {
             for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
                 for(var imgX=0; imgX < this.imageWidth; imgX+=1) {   
                     //1st order gradient   
+
+                    //********************* */
+                    /* Trying using Sobel operators here instead*/
+                    //********************* */
+
+
+
                     let left = parallelComponent["resultData"]["mags"][(imgX-1) + (imgY)*this.imageWidth]
                     let right = parallelComponent["resultData"]["mags"][(imgX+1) + (imgY)*this.imageWidth]
                     let top = parallelComponent["resultData"]["mags"][(imgX) + (imgY-1)*this.imageWidth]
@@ -229,7 +237,7 @@ export class ImageScan {
             var minEigenValue = 99;
             var corners =0;
             var leastDiff = 999999999999;
-
+            var Rs = [];
             // Harris corner detector
             for(var imgY=windowR; imgY < this.imageHeight-windowR; imgY+=1) {      
                 for(var imgX=windowR; imgX < this.imageWidth-windowR; imgX+=1) {   
@@ -301,15 +309,16 @@ export class ImageScan {
 
 
                     var R = det - k*(trace*trace);      //measure of corner response
-
-
+                    
+                    parallelComponent["resultData"]["harrisResponse"].push(R);
+                    parallelComponent["resultData"]["eigenVals"].push(eigs);
                  
 
                     if(real[0] > maxEigenValue) maxEigenValue = real[0];
                     if(real[1] > maxEigenValue) maxEigenValue = real[1];
                     if(real[0] < minEigenValue) minEigenValue = real[0];
                     if(real[1] < minEigenValue) minEigenValue = real[1];
-                    
+                    Rs.push(R);
                     if(R>0) {
                         real.sort(function(a,b){return a-b})
                         if(Math.abs(real[1]-real[0])<leastDiff)  {
@@ -354,6 +363,7 @@ export class ImageScan {
                 }
                 console.log("iter completed")
             }
+            console.log("Rs",Rs)
             console.log("minEigenValue", minEigenValue, "maxEigenValue", maxEigenValue, "corners", corners);
             console.log("leastDiff", leastDiff)
             var cornerLocations = parallelComponent["resultData"]["cornerLocations"];
@@ -384,57 +394,6 @@ export class ImageScan {
         console.log("layerStack", layerStack)
         this.imageLayers = layerStack;
         return layerStack;
-    }
-    hasIntersection(segment1,segment2) {
-        let x1 = segment1[0].x;
-        let y1 = segment1[0].y;
-        let x2 = segment1[1].x;
-        let y2 = segment1[1].y;
-
-        let x3 = segment2[0].x;
-        let y3 = segment2[0].y;
-        let x4 = segment2[1].x;
-        let y4 = segment2[1].y;
-
-        let upperLeft = det(x1,y1,x2,y2)
-        let lowerLeft = det(x3,y3,x4,y4)
-        let denominator = det(x1-x2, y1-y2, x3-x4, y3-y4);
-
-        let xNumerator = det(upperLeft, x1-x2, lowerLeft, x3-x4);
-        let yNumerator = det(upperLeft, y1-y2, lowerLeft, y3-y4);
-        let xCoord = xNumerator/denominator;
-        let yCoord = yNumerator/denominator;
-
-        
-        if((xCoord==segment1[0].x && yCoord==segment1[0].y) ||  (xCoord==segment1[1].x && yCoord==segment1[1].y) ||  (xCoord==segment2[0].x && yCoord==segment2[0].y) ||  (xCoord==segment2[1].x && yCoord==segment2[1].y)) {
-            return false;   }
-   
-        let onSegment1X = Math.min(segment1[0].x,segment1[1].x) <= xCoord &&  xCoord <= Math.max(segment1[0].x,segment1[1].x);
-        let onSegment1Y = Math.min(segment1[0].y,segment1[1].y) <= yCoord <= Math.max(segment1[0].y,segment1[1].y);
-        let onSegment1 = onSegment1X && onSegment1Y;
-
-        let onSegment2X = Math.min(segment2[0].x,segment2[1].x) <= xCoord &&  xCoord <= Math.max(segment2[0].x,segment2[1].x);
-        let onSegment2Y = Math.min(segment2[0].y,segment2[1].y) <= yCoord <= Math.max(segment2[0].y,segment2[1].y);
-        let onSegment2 = onSegment2X && onSegment2Y;
-        return onSegment1 && onSegment2;
-
-    }
-    getAngleOfLines(lineA, lineB) {
-        //lineA ==> this.M.edges[e].data , which has format [{x:x, y:y}, {x:x, y:y}]
-        //lineB ==> this.M.edges[e].data , which has format [{x:x, y:y}, {x:x, y:y}]
-
-        var dxLineA = lineA[1].x - lineA[0].x;
-        var dyLineA = lineA[1].y - lineA[0].y;
-
-        var dxLineB = lineB[1].x - lineB[0].x;
-        var dyLineB = lineB[1].y - lineB[0].y;
-
-        var angle = Math.atan2(dxLineA*dyLineB - dyLineA*dxLineB, dxLineA*dxLineB + dyLineA*dyLineB);
-        angle = angle<0? angle*=-1 : angle;
-        //console.log("angle", angle*(180/Math.PI));
-        return angle*(180/Math.PI);
-
-
     }
 
     mapEdgesFromCorners(layerData) {

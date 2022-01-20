@@ -178,7 +178,8 @@ export class ImageScan {
         console.log("calculating 1st and 2nd gradients...")
         for(let c=0; c < layerStack.length; ++c) {
             var regions = []        //temporary place to store region data
-            // regions will have objects w/ format:     {top:.., left:.., width:.., height:.., }
+            // regions will have objects w/ format:     
+            //{top:.., left:.., width:.., height:.., leftMost:[], rightMost:[], topMost:[], bottomMost:[], topLeftMost:[], topRightMost:[], bottomLeftMost:[], bottomRightMost:[]  }
 
             var lastCornerDetected = null;
             var parallelComponent = layerStack[c];
@@ -204,6 +205,12 @@ export class ImageScan {
                     parallelComponent["resultData"]["thetaGradient1"].push(Math.atan((top-bottom)/(left-right)));   
                     parallelComponent["resultData"]["slopeRateX1"].push(slopeRateX1) //measure of horizontal-ness
                     parallelComponent["resultData"]["slopeRateY1"].push(slopeRateY1) //measure of vertical-ness
+
+                    // let xGradient1 = Math.floor(parallelComponent["resultData"]["xGradient1"]);
+                    // let yGradient1 = Math.floor(parallelComponent["resultData"]["yGradient1"]);
+                    // if(xGradient1>0 || yGradient1>0) {
+
+                    // }
  
                 }
             }
@@ -296,6 +303,7 @@ export class ImageScan {
                     Ixx2 = new Matrix(Ixx2);
                     Ixy2 = new Matrix(Ixy2);
                     Iyy2 = new Matrix(Iyy2);
+                    
 
                     
                     // Ixx = Ixx.mmul(gaussKernel);
@@ -340,10 +348,11 @@ export class ImageScan {
                             else if(harrisResponse.get(row,col) < 0) {
                                 // is an edge
                                 parallelComponent["resultData"]["classification"].push("edge")
-                                var theta = parallelComponent["resultData"]["thetaGradient1"][pixelIdx]
+                               
                                 //parallelComponent["resultData"]["edgeData"].push({x:imgX, y:imgY, pixelIdx:pixelIdx});
 
                                 //use theta of pixel to determine which "direction" the edge is ( add 90deg since theta is normal), move a window in that direction and keep doing it till you reach another corner
+                                
                                 //ACTUALLY, use Hessian Matrix, page 39 here https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
                                 determined=true;
                                 break;

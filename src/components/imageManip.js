@@ -1,4 +1,5 @@
-import { Matrix, solve } from 'ml-matrix';
+import { ifStatement, variableDeclaration } from 'babel-types';
+import { Matrix,EigenvalueDecomposition, solve } from 'ml-matrix';
 
 export class ImageScan {
     constructor(targetCanvas,filterInfo) {
@@ -74,7 +75,7 @@ export class ImageScan {
     }
 
 
-    detectBlobs(k=.04) {
+    detectBlobs(k=.1) {
         // k is sensitivity factor
         //  https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L12.pdf
         //  https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
@@ -82,8 +83,6 @@ export class ImageScan {
         //  http://www.cs.toronto.edu/~jepson/csc420/notes/imageFeaturesIIIBinder.pdf
         //  https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
         //  https://www.youtube.com/watch?v=zItstOggP7M
-
-
 
 
         //********************************************** */
@@ -100,7 +99,6 @@ export class ImageScan {
         //********************************************** */
 
 
-
         this.originalData = this.originalImageData.data;
         var data = this.imageData.data;     //should normally be this.originalImageData.data;
 
@@ -109,8 +107,8 @@ export class ImageScan {
         // let sig0 = 10;
         // var sigStack = [sig0*Math.pow(sigMultiplier,2)]
 
-        var componentLength = 9;   //was 3
-        let sigMultiplier=10;
+        var componentLength = 7;   //was 3
+        let sigMultiplier=9;
         let sig0 = 1;
         var sigStack = [sig0*Math.pow(sigMultiplier,3)]
 
@@ -128,8 +126,8 @@ export class ImageScan {
 
             layerStack.push({"component":component, "resultData":{"RGB":data.map((x)=>x),
             "mags":[],"yGradient1":[], "xGradient1":[],"magGradient1":[],"thetaGradient1":[], "zeroPoints":[],
-            "yGradient2":[], "xGradient2":[],"magGradient2":[],"thetaGradient2":[],"harrisResponse":[], "nLoG":[],"slopeRateX1":[], "slopeRateY1":[],"slopeRateX2":[], "slopeRateY2":[], 
-            "cornerLocations":[], "interestRegions":[], "classification":[]}});
+            "harrisResponse":[], "nLoG":[],"slopeRateX1":[], "slopeRateY1":[],"cornerLocations":[], 
+            "interestRegions":[], "classification":[], "determinant":[], "laplacian":[]}});
         }
 
         //"interestRegions" will have rectangles with format -> {top:.., left:.., width:.., height:..}
@@ -168,11 +166,14 @@ export class ImageScan {
 
 
         // get derivative of x-y gradients, add them together, multiply that by sigma^2,    <=== nLoG (Normalized Laplacian of Gauss)
-        var windowR = 3; //3 worked good
-        var tempKernel = this.gaussianBlurComponent(1+windowR*2, 1);
-        var gaussKernel = tempKernel.kernel
-        gaussKernel = new Matrix(gaussKernel)
+        var windowR = 0; //3 worked good
+        var tempKernel = this.gaussianBlurComponent(1+windowR*2, 3);
+        var gaussKernel = tempKernel.kernel;
+        // gaussKernel = new Matrix(gaussKernel)
                
+        // var LaplacianKernel = [[0,-1,0], [-1,4,-1], [0,-1,0]];
+        var LaplacianKernel = [[1,1,1], [1,-8,1], [1,1,1]];
+                    
         //gaussKernel is multipled to every product of sum (Ixx, Ixy, Iyy)
 
         console.log("calculating 1st and 2nd gradients...")
@@ -181,12 +182,12 @@ export class ImageScan {
             // regions will have objects w/ format:     
             //{top:.., left:.., width:.., height:.., leftMost:[], rightMost:[], topMost:[], bottomMost:[], topLeftMost:[], topRightMost:[], bottomLeftMost:[], bottomRightMost:[]  }
 
-            var lastCornerDetected = null;
+            // var lastCornerDetected = null;
             var parallelComponent = layerStack[c];
-
-            //first gradient
+            
             for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
-                for(var imgX=0; imgX < this.imageWidth; imgX+=1) {      
+                for(var imgX=0; imgX < this.imageWidth; imgX+=1) {   
+                    //1st order gradient   
                     let left = parallelComponent["resultData"]["mags"][(imgX-1) + (imgY)*this.imageWidth]
                     let right = parallelComponent["resultData"]["mags"][(imgX+1) + (imgY)*this.imageWidth]
                     let top = parallelComponent["resultData"]["mags"][(imgX) + (imgY-1)*this.imageWidth]
@@ -206,165 +207,155 @@ export class ImageScan {
                     parallelComponent["resultData"]["slopeRateX1"].push(slopeRateX1) //measure of horizontal-ness
                     parallelComponent["resultData"]["slopeRateY1"].push(slopeRateY1) //measure of vertical-ness
 
-                    // let xGradient1 = Math.floor(parallelComponent["resultData"]["xGradient1"]);
-                    // let yGradient1 = Math.floor(parallelComponent["resultData"]["yGradient1"]);
-                    // if(xGradient1>0 || yGradient1>0) {
-
-                    // }
- 
-                }
-            }
-
-            //second gradient
-            for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
-                for(var imgX=0; imgX < this.imageWidth; imgX+=1) {     
-                    let left = parallelComponent["resultData"]["xGradient1"][(imgX-1) + (imgY)*this.imageWidth]
-                    let right = parallelComponent["resultData"]["xGradient1"][(imgX+1) + (imgY)*this.imageWidth]
-                    let top = parallelComponent["resultData"]["yGradient1"][(imgX) + (imgY-1)*this.imageWidth]
-                    let bottom = parallelComponent["resultData"]["yGradient1"][(imgX) + (imgY+1)*this.imageWidth]
-                   
-                    if(imgX==0 || imgX==this.imageWidth-1) { left = 0;  right = 0; }
-                    if(imgY==0 || imgY==this.imageHeight-1) { top = 0;  bottom = 0; }
-
-                    parallelComponent["resultData"]["xGradient2"].push((left-right));
-                    parallelComponent["resultData"]["yGradient2"].push((top-bottom));
+                    //2nd order gradient (Laplacian)
                     
-                    let magGrad = Math.sqrt((top-bottom)*(top-bottom) + (left-right)*(left-right))
-                    let theta = Math.atan((top-bottom)/(left-right))
-                    let slopeRateX2 = magGrad*Math.cos(theta);
-                    let slopeRateY2 = magGrad*Math.sin(theta)
-                    parallelComponent["resultData"]["magGradient2"].push(magGrad);
-                    parallelComponent["resultData"]["thetaGradient2"].push(theta);
-                    parallelComponent["resultData"]["slopeRateX2"].push(slopeRateX2) //measure of horizontal-ness
-                    parallelComponent["resultData"]["slopeRateY2"].push(slopeRateY2) //measure of vertical-ness
+                    for(let ky=-1; ky<= 1; ++ky) {
+                        for(let kx=-1; kx<= 1; ++kx) {
 
-                    // nLoG is ???
-                    //parallelComponent["resultData"]["nLoG"].push(parallelComponent["component"].sig*parallelComponent["component"].sig*((left-right)+(top-bottom)))
+                            let value = LaplacianKernel[ky+1][kx+1];
+                            
+                            let laplacian = parallelComponent["resultData"]["mags"][((imgX-kx) + (imgY-ky)*this.imageWidth)]*value;
+                            parallelComponent["resultData"]["laplacian"].push(laplacian)
+                        }
+                    }
+
                 }
             }
+
+            // https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
+            // https://mathinsight.org/directional_derivative_gradient_introduction
+
+            var maxEigenValue = 0
+            var minEigenValue = 99;
+            var corners =0;
+            var leastDiff = 999999999999;
 
             // Harris corner detector
             for(var imgY=windowR; imgY < this.imageHeight-windowR; imgY+=1) {      
                 for(var imgX=windowR; imgX < this.imageWidth-windowR; imgX+=1) {   
-                    let Ixx = [];
-                    let Iyy = [];
-                    let Ixy = [];
+                    // let Ixx = [];
+                    // let Iyy = [];
+                    // let Ixy = [];
+                    // let centerMag  = parallelComponent["resultData"]["magGradient1"][((imgX) + (imgY)*this.imageWidth)];
+                    // let isLocalPeak = true;   //meaning, the center pixel in the window is the maximum in the window
+                    //if(Math.floor(centerMag) ==0 && parallelComponent["resultData"]["magGradient1"][((imgX) + (imgY)*this.imageWidth)]==0) { continue;}
+                    // for(var kY=-windowR; kY <= windowR; ++kY) {  
+                    //     var xRow = [];
+                    //     var yRow = [];
+                    //     var xyRow = [];
+                    //     for(var kX=-windowR; kX <= windowR; ++kX) {   
+                    //         if(parallelComponent["resultData"]["magGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)] > centerMag) {
+                    //             isLocalPeak = false;
+                    //             break;
+                    //         }
+                    //         let xComp = parallelComponent["resultData"]["xGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
+                    //         let yComp = parallelComponent["resultData"]["yGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
+                    //         xRow.push(xComp*xComp)
+                    //         xyRow.push(xComp*yComp)
+                    //         yRow.push(yComp*yComp)
+                    //     }
+                    //     if(!isLocalPeak) break;
 
-                    let Ixx2 = [];
-                    let Iyy2 = [];
-                    let Ixy2 = [];
-                    let centerMag  = parallelComponent["resultData"]["magGradient2"][((imgX) + (imgY)*this.imageWidth)];
-                    let isLocalPeak = true;   //meaning, the center pixel in the window is the maximum in the window
-                    for(var kY=-windowR; kY <= windowR; ++kY) {  
-                        var xRow = [];
-                        var yRow = [];
-                        var xyRow = [];
-                        var xRow2 = [];
-                        var yRow2 = [];
-                        var xyRow2 = [];
-                        for(var kX=-windowR; kX <= windowR; ++kX) {   
-                            if(parallelComponent["resultData"]["magGradient2"][((imgX-kX) + (imgY-kY)*this.imageWidth)] > centerMag) {
-                                isLocalPeak = false;
-                                break;
-                            }
-                            let xComp = parallelComponent["resultData"]["xGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
-                            let yComp = parallelComponent["resultData"]["yGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
-                            let xComp2 = parallelComponent["resultData"]["xGradient2"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
-                            let yComp2 = parallelComponent["resultData"]["yGradient2"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
-                            
-                            if((xComp!=0 || yComp!=0) && (xComp2==0 && yComp2==0)) {
-                                parallelComponent["resultData"]["zeroPoints"].push({x:imgX, y:imgY})
-                            }
-                            xRow.push(xComp*xComp)
-                            xyRow.push(xComp*yComp)
-                            yRow.push(yComp*yComp)
+                    //     Ixx.push(xRow);
+                    //     Ixy.push(xyRow);
+                    //     Iyy.push(yRow);
 
-                            xRow2.push(xComp2*xComp2)
-                            xyRow2.push(xComp2*yComp2)
-                            yRow2.push(yComp2*yComp2)
-                        }
-                        if(!isLocalPeak) break;
-                        Ixx.push(xRow);
-                        Ixy.push(xyRow);
-                        Iyy.push(yRow);
-
-                        Ixx2.push(xRow2);
-                        Ixy2.push(xyRow2);
-                        Iyy2.push(yRow2);
-                    }
-
-                    if(!isLocalPeak) continue;
-
-                    Ixx = new Matrix(Ixx);
-                    Ixy = new Matrix(Ixy);
-                    Iyy = new Matrix(Iyy);
-
-                    //these are second gradient, for building Hessian Matrix
-                    Ixx2 = new Matrix(Ixx2);
-                    Ixy2 = new Matrix(Ixy2);
-                    Iyy2 = new Matrix(Iyy2);
-                    
+                    // }
 
                     
+                    // if(!isLocalPeak) {continue;}
+                    // Ixx = new Matrix(Ixx);
+                    // Ixy = new Matrix(Ixy);
+                    // Iyy = new Matrix(Iyy);
+
+                    
+
+                    //this gives more weight to the pixels closer to the center pixel
                     // Ixx = Ixx.mmul(gaussKernel);
                     // Ixy = Ixy.mmul(gaussKernel);
                     // Iyy = Iyy.mmul(gaussKernel);
-                    // let Sxx = Ixx.sum()
-                    // let Sxy =Ixy.sum();
-                    // let Syy =Iyy.sum();
-                    // if(Sxx==0 && Sxy==0 && Syy==0) continue;
-                    // let det = (Sxx*Syy) - (Sxy*Sxy);
-                    // let trace = Sxx + Syy;
-                    // var harrisResponse = det - k*(trace*trace);
-                    // parallelComponent["resultData"]["harrisResponse"].push({x:imgX, y:imgY, R:harrisResponse});
-                    // if(harrisResponse >0) {
-                    //     //is a corner
-                    //     var pixelIdx = parallelComponent["resultData"]["xGradient2"].length-1;
-                    //     parallelComponent["resultData"]["cornerLocations"].push({x:imgX, y:imgY, pixelIdx:pixelIdx});
-                    // }
-                    // else if(harrisResponse < 0) {}  // is an edge
-                        
-                    
-                    let det = Matrix.sub(Ixx.mmul(Iyy),  Ixy.mmul(Ixy));
-                    let trace = Matrix.add(Ixx, Iyy);
 
-                    var harrisResponse = Matrix.sub(det,  Matrix.mul(trace.mmul(trace), k))
-                    //parallelComponent["resultData"]["harrisResponse"].push(harrisResponse);
-                    
-                    for(let row=0; row < harrisResponse.rows;++row) {
-                        let determined=false;
-                        for(let col=0; col < harrisResponse.columns; ++col) {
-                            if(harrisResponse.get(row,col) > 75) {       //75
-                                //is a corner
-                                parallelComponent["resultData"]["classification"].push("corner")
-                                var pixelIdx = ((imgX) + (imgY)*this.imageWidth);
-                                lastCornerDetected = {x:imgX, y:imgY, pixelIdx:pixelIdx};
-                                parallelComponent["resultData"]["cornerLocations"].push({x:imgX, y:imgY, pixelIdx:pixelIdx});
-                                
-                                //use Hessian Matrix, page 39 here https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
-                                determined=true;
-                                break;
-                            }
-                            else if(harrisResponse.get(row,col) < 0) {
-                                // is an edge
-                                parallelComponent["resultData"]["classification"].push("edge")
-                               
-                                //parallelComponent["resultData"]["edgeData"].push({x:imgX, y:imgY, pixelIdx:pixelIdx});
+                    // let det = Matrix.sub(Ixx.mmul(Iyy),  Ixy.mmul(Ixy));
+                    // let trace = Matrix.add(Ixx, Iyy);
+                    // var harrisResponse = Matrix.sub(det,  Matrix.mul(trace.mmul(trace), k))
 
-                                //use theta of pixel to determine which "direction" the edge is ( add 90deg since theta is normal), move a window in that direction and keep doing it till you reach another corner
-                                
-                                //ACTUALLY, use Hessian Matrix, page 39 here https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
-                                determined=true;
-                                break;
-                            }
-                            else parallelComponent["resultData"]["classification"].push("flat")
-                                
+                    
+                    
+                    let xComp = parallelComponent["resultData"]["xGradient1"][((imgX) + (imgY)*this.imageWidth)];
+                    let yComp = parallelComponent["resultData"]["yGradient1"][((imgX) + (imgY)*this.imageWidth)];
+                    let Ixx = xComp*xComp;
+                    let Ixy = xComp*yComp;
+                    let Iyy = yComp*yComp;
+
+                    var M = new Matrix([[Ixx, Ixy], [Ixy, Iyy]]);
+                    
+                    var det = (Ixx*Iyy) - (Ixy*Ixy)
+                    var trace = Ixx + Iyy;
+                    
+
+
+                    var eigs = new EigenvalueDecomposition(M);
+                    var real = eigs.realEigenvalues;
+                    var imaginary = eigs.imaginaryEigenvalues;
+                    var vectors = eigs.eigenvectorMatrix;
+
+
+                    var R = det - k*(trace*trace);      //measure of corner response
+
+
+                 
+
+                    if(real[0] > maxEigenValue) maxEigenValue = real[0];
+                    if(real[1] > maxEigenValue) maxEigenValue = real[1];
+                    if(real[0] < minEigenValue) minEigenValue = real[0];
+                    if(real[1] < minEigenValue) minEigenValue = real[1];
+                    
+                    if(R>0) {
+                        real.sort(function(a,b){return a-b})
+                        if(Math.abs(real[1]-real[0])<leastDiff)  {
+                            // if(corners < 1000) {
+                            //     var pixelIdx = ((imgX) + (imgY)*this.imageWidth);
+                            //     parallelComponent["resultData"]["cornerLocations"].push({x:imgX, y:imgY, pixelIdx:pixelIdx});
+                            // }
+                            leastDiff = Math.abs(real[1]-real[0])
+                            
                         }
-                        if(determined) break;
+                        ++corners;
                     }
+                   
+                    
+                    // parallelComponent["resultData"]["harrisResponse"].push(harrisResponse);
+                    // var determined=false;
+                    // for(let row=0; row < harrisResponse.rows;++row) {
+                        
+                    //     for(let col=0; col < harrisResponse.columns; ++col) {
+                    //         if(harrisResponse.get(row,col) > 0) {       //75
+                    //             //is a corner
+                    //             parallelComponent["resultData"]["classification"].push("corner")
+                    //             var pixelIdx = ((imgX) + (imgY)*this.imageWidth);
+                    //             // lastCornerDetected = {x:imgX, y:imgY, pixelIdx:pixelIdx};
+                    //             parallelComponent["resultData"]["cornerLocations"].push({x:imgX, y:imgY, pixelIdx:pixelIdx});
+                                
+                    //             //use Hessian Matrix, page 39 here https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
+                    //             determined=true;
+                    //             break;
+                    //         }
+                    //         else if(harrisResponse.get(row,col) < 0) {
+                    //             // is an edge
+                    //             parallelComponent["resultData"]["classification"].push("edge")
+                    //             //ACTUALLY, use Hessian Matrix, page 39 here https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
+                    //             determined=true;
+                    //             break;
+                    //         }
+                    //         else parallelComponent["resultData"]["classification"].push("flat")
+                    //     }
+                    //     if(determined) break;
+                    // }
                 }
                 console.log("iter completed")
             }
+            console.log("minEigenValue", minEigenValue, "maxEigenValue", maxEigenValue, "corners", corners);
+            console.log("leastDiff", leastDiff)
             var cornerLocations = parallelComponent["resultData"]["cornerLocations"];
             var cornerData = [];
             for(let c=0; c < cornerLocations.length; ++c) {
@@ -459,8 +450,7 @@ export class ImageScan {
             let closestPts = cornerData[p1].closestPts
             let cornerX1 = cornerData[p1].x
             let cornerY1 = cornerData[p1].y
-            // var nextTheta1 = layerData["resultData"]["thetaGradient1"][cornerIdx];
-            // var nextTheta2 = layerData["resultData"]["thetaGradient2"][cornerIdx];
+            
             for(let p2=0; p2 < closestPts.length; ++p2) {
                 var edgePts = []    //collection of coordinates under a SINGLE edge
                 let cornerX2 = cornerData[p2].x
@@ -715,8 +705,8 @@ export class ImageScan {
                 // let layerIndex =0
                 for(var imgY=0; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
                     for(var imgX=0; imgX < OBJ.imageWidth; imgX+=1) {       //increment by 4 because its RGBA xValues
-                        let mag = OBJ.imageLayers[layerIndex]["resultData"]["magGradient2"][imgX + (imgY*OBJ.imageWidth)];
-                        let theta = OBJ.imageLayers[layerIndex]["resultData"]["thetaGradient2"][imgX + (imgY*OBJ.imageWidth)];
+                        let mag = OBJ.imageLayers[layerIndex]["resultData"]["magGradient1"][imgX + (imgY*OBJ.imageWidth)];
+                        let theta = OBJ.imageLayers[layerIndex]["resultData"]["thetaGradient1"][imgX + (imgY*OBJ.imageWidth)];
                         let R = (mag*5)*Math.cos(theta)     //57.2958*
                         let G = 0
                         let B = (mag*5)*Math.sin(theta);
@@ -858,7 +848,7 @@ export class ImageScan {
             }
         }
         
-        let kernelObj = {kernel:kernel, kernelRadius:kernelRadius, sig:sig}
+        var kernelObj = {kernel:kernel, kernelRadius:kernelRadius, sig:sig}
         return kernelObj;
     }
        

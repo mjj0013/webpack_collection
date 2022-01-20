@@ -109,10 +109,10 @@ class FileManipPage extends React.Component {
         var x = e.layerX;
         var y = e.layerY;
         var idx = (x) + (y)*this.currentScanObj.imageWidth;
-        var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient2"][idx]
-        var theta = this.currentScanObj.imageLayers[0]["resultData"]["thetaGradient2"][idx]
+        // var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient2"][idx]
+        // var theta = this.currentScanObj.imageLayers[0]["resultData"]["thetaGradient2"][idx]
         // console.log("mag", Math.sqrt(mag*Math.cos(theta)*mag*Math.cos(theta) + mag*Math.sin(theta)*mag*Math.sin(theta)))
-        console.log('x,y:  ', this.currentScanObj.imageLayers[0]["resultData"]["xGradient2"][idx], this.currentScanObj.imageLayers[0]["resultData"]["yGradient2"][idx])
+       console.log('laplacian:  ', this.currentScanObj.imageLayers[0]["resultData"]["laplacian"][idx])
         
     }
 

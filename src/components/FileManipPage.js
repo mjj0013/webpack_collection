@@ -69,10 +69,7 @@ function traceEdges() {
         resultSVG.appendChild(C);
     }
 
-    morphErosion(canvas);
-        return new Promise((resolve,reject)=> {
-    })
-
+    
 }
 
 class FileManipPage extends React.Component {
@@ -89,6 +86,9 @@ class FileManipPage extends React.Component {
         this.drawBounds = this.drawBounds.bind(this);
         this.currentPts = [];
         this.curveObjs = [];
+
+
+        this.setImageLayers = this.setImageLayers.bind(this);
         this.mouseClickHandler = this.mouseClickHandler.bind(this);
     }
     mouseClickHandler(e) {
@@ -115,6 +115,7 @@ class FileManipPage extends React.Component {
        console.log('R:  ', this.currentScanObj.imageLayers[0]["resultData"]["harrisResponse"][idx], this.currentScanObj.imageLayers[0]["resultData"]["eigenVals"][idx])
         
     }
+    
 
     async loadText(e) {
         e.preventDefault();
@@ -202,6 +203,19 @@ class FileManipPage extends React.Component {
             document.getElementById("ptGroup").append(ptObj);
         }
     }
+    setImageLayers() {
+        
+        console.log("Inserting image layers into selector")
+        var selectFilter = document.getElementById("selectFilter");
+        var imageLayers = this.currentScanObj.imageLayers
+        for(let l =0; l < imageLayers.length; ++l) {
+            var layerName = `Layer ${l} | Sigma=${imageLayers[l]["component"].sig}`
+            // imageLayers[l]["resultData"][]
+            selectFilter.insertAdjacentHTML(`<option value="${l}">${layerName}</option>`, 'beforeend')
+            
+        }
+        return new Promise((resolve,reject)=> { resolve("here"); });
+    }
     
     async loadImage(e) {
         var filterInfo = [
@@ -215,17 +229,21 @@ class FileManipPage extends React.Component {
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
         ]
         this.currentScanObj = new ImageScan('testCanvas',filterInfo);
-        await this.currentScanObj.imageReader();
-        // scanObj = this.currentScanObj;
+       
+        const result1 = await new Promise((resolve) =>this.currentScanObj.imageReader()).then((resolve) => resolve(this.setImageLayers()));
+       
+
+       
+        
          
         document.getElementById("testCanvas").onmousemove = (e) => this.showSigmaLayersOnHover(e);
         this.selectedImage = this.currentScanObj.selectedFile;
         
-        setTimeout(()=> {
-            this.drawBounds();
-        }, 1000);
+        // setTimeout(()=> {
+        //     this.drawBounds();
+        // }, 1000);
 
-        return;
+        return
 	}
     drawBounds() {
         console.log("Drawing bounds on SVG...");
@@ -281,7 +299,7 @@ class FileManipPage extends React.Component {
                 <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
                 <select id="selectFilter" name="filterEffect" onChange={this.filterEffectChanged}>
                     
-                    <option value="edgeDetection">Edge Detection</option>
+                    
                     <option value="none">None</option>
                 </select>
                 <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"150vh",position:"absolute",display:"block", border:"1px solid black"}}>

@@ -118,9 +118,6 @@ export function getAvgRgbaOfImage(image_url) {
     
 
 }
-
-
-
 export function getRandomInt(min, max) {
     min = Math.ceil(min);
     max = Math.floor(max);

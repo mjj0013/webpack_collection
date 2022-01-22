@@ -105,6 +105,46 @@ class FileManipPage extends React.Component {
         ptObj.setAttribute("fill","black");
         document.getElementById("ptGroup").append(ptObj);
     }
+
+
+    filterEffectChanged(e) {
+        var canvas = document.getElementById("testCanvas");
+        var context = document.getElementById("testCanvas").getContext('2d');
+        
+        console.log("e.target.value",e.target.value) //[6]
+        var selectedIdx = e.target.value;
+        var selectedImageData = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["imageData"].data
+        console.log("selectedImageData", selectedImageData, typeof selectedImageData)
+        var currentImageData = context.getImageData(0,0, canvas.width, canvas.height)
+        var imageWidth = currentImageData.width
+        var imageHeight = currentImageData.height
+        for(var imgY=0; imgY < imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
+            for(var imgX=0; imgX < imageWidth; imgX+=1) {
+                
+                currentImageData.data[4*(imgY*imageWidth + imgX)] = selectedImageData[4*(imgY*imageWidth + imgX)];
+                currentImageData.data[4*(imgY*imageWidth + imgX) + 1] = selectedImageData[4*(imgY*imageWidth + imgX) + 1]
+                currentImageData.data[4*(imgY*imageWidth + imgX) + 2] = selectedImageData[4*(imgY*imageWidth + imgX) + 2]
+                currentImageData.data[4*(imgY*imageWidth + imgX) + 3] = selectedImageData[4*(imgY*imageWidth + imgX) + 3]
+            }
+        }
+        
+        context.putImageData(currentImageData, 0 , 0,)
+        // context.putImageData(selectedImageData,0,0);
+        // const reader = new FileReader();
+        // reader.addEventListener("load", 
+        //     function () {
+        //         const img = new Image();
+        //         img.onload = function() {
+        //             context.drawImage(img,0,0);
+        //             console.log("drawn image");
+        //         }
+        //         img.src = reader.result;
+        //     }
+        // , false);
+        // if (this.selectedImage) reader.readAsDataURL(this.selectedImage);
+        
+        
+    }
     showSigmaLayersOnHover(e) {
         var x = e.layerX;
         var y = e.layerY;
@@ -133,25 +173,7 @@ class FileManipPage extends React.Component {
 
     numOfPagesChanged(e) {    this.setState({num: e.target.value});  }
 
-    filterEffectChanged(e) {
-        var context = document.getElementById("testCanvas").getContext('2d');
-        if(e.target.value=="none") {
-            const reader = new FileReader();
-            reader.addEventListener("load", 
-                function () {
-                    const img = new Image();
-                    img.onload = function() {
-                        context.drawImage(img,0,0);
-                        console.log("drawn image");
-                    }
-                    img.src = reader.result;
-                }
-            , false);
-            if (this.selectedImage) reader.readAsDataURL(this.selectedImage);
-        }
-        else if(e.target.value=="edgeDetection") {  
-        }
-    }
+    
 
     componentDidMount() {
         //TESTING CURVE GENERATING
@@ -204,14 +226,13 @@ class FileManipPage extends React.Component {
         }
     }
     setImageLayers() {
-        
         console.log("Inserting image layers into selector")
+        console.log("this.currentScanObj.imageLayers",this.currentScanObj.imageLayers)
         var selectFilter = document.getElementById("selectFilter");
         var imageLayers = this.currentScanObj.imageLayers
         for(let l =0; l < imageLayers.length; ++l) {
             var layerName = `Layer ${l} | Sigma=${imageLayers[l]["component"].sig}`
-            // imageLayers[l]["resultData"][]
-            selectFilter.insertAdjacentHTML(`<option value="${l}">${layerName}</option>`, 'beforeend')
+            selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
             
         }
         return new Promise((resolve,reject)=> { resolve("here"); });
@@ -230,9 +251,10 @@ class FileManipPage extends React.Component {
         ]
         this.currentScanObj = new ImageScan('testCanvas',filterInfo);
        
-        const result1 = await new Promise((resolve) =>this.currentScanObj.imageReader()).then((resolve) => resolve(this.setImageLayers()));
-       
-
+        var imageReadPromise = this.currentScanObj.imageReader()
+        imageReadPromise.then(result => {this.setImageLayers()});
+    
+        
        
         
          
@@ -243,7 +265,7 @@ class FileManipPage extends React.Component {
         //     this.drawBounds();
         // }, 1000);
 
-        return
+        return;
 	}
     drawBounds() {
         console.log("Drawing bounds on SVG...");
@@ -300,7 +322,7 @@ class FileManipPage extends React.Component {
                 <select id="selectFilter" name="filterEffect" onChange={this.filterEffectChanged}>
                     
                     
-                    <option value="none">None</option>
+                    {/* <option value="none">None</option> */}
                 </select>
                 <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"150vh",position:"absolute",display:"block", border:"1px solid black"}}>
                     

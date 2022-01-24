@@ -199,7 +199,7 @@ export class Curve {
 
     //recursive helper function of optimizeCurve
     optimizeFunction(segmentRange, featureFocus="slope", numSegments=2,stdDevThreshold=1.5) {
-        console.log("here")
+       
         var segmentN = segmentRange[1];
         var thisSegment;
         if(featureFocus=="slope") {

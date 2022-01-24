@@ -68,8 +68,6 @@ function traceEdges() {
         C.setAttribute("fill","black");
         resultSVG.appendChild(C);
     }
-
-    
 }
 
 class FileManipPage extends React.Component {
@@ -81,7 +79,7 @@ class FileManipPage extends React.Component {
         this.loadImage = this.loadImage.bind(this);
         this.showSigmaLayersOnHover = this.showSigmaLayersOnHover.bind(this)
         this.imageScanInstances = [];
-        this.filterEffectChanged = this.filterEffectChanged.bind(this);
+        this.selectImageLayerToDisplay = this.selectImageLayerToDisplay.bind(this);
         this.selectedImage = null
         this.drawBounds = this.drawBounds.bind(this);
         this.currentPts = [];
@@ -107,14 +105,14 @@ class FileManipPage extends React.Component {
     }
 
 
-    filterEffectChanged(e) {
+    selectImageLayerToDisplay(e) {
         var canvas = document.getElementById("testCanvas");
         var context = document.getElementById("testCanvas").getContext('2d');
         
         console.log("e.target.value",e.target.value) //[6]
         var selectedIdx = e.target.value;
-        var selectedImageData = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["imageData"].data
-        console.log("selectedImageData", selectedImageData, typeof selectedImageData)
+        var selectedImageData = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["imageData"];
+        console.log("selectedImageData", selectedImageData)
         var currentImageData = context.getImageData(0,0, canvas.width, canvas.height)
         var imageWidth = currentImageData.width
         var imageHeight = currentImageData.height
@@ -128,31 +126,27 @@ class FileManipPage extends React.Component {
             }
         }
         
-        context.putImageData(currentImageData, 0 , 0,)
-        // context.putImageData(selectedImageData,0,0);
-        // const reader = new FileReader();
-        // reader.addEventListener("load", 
-        //     function () {
-        //         const img = new Image();
-        //         img.onload = function() {
-        //             context.drawImage(img,0,0);
-        //             console.log("drawn image");
-        //         }
-        //         img.src = reader.result;
-        //     }
-        // , false);
-        // if (this.selectedImage) reader.readAsDataURL(this.selectedImage);
+        context.putImageData(currentImageData, 0 , 0)
         
-        
+        var selectedCornerLocations = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"];
+        for(let c=0; c < selectedCornerLocations.length; ++c) {
+            context.beginPath();
+            context.arc(selectedCornerLocations[c].x, selectedCornerLocations[c].y, 1, 0, 2 * Math.PI)
+            context.fillStyle = "white"
+            context.fill()
+        }
+    
     }
     showSigmaLayersOnHover(e) {
         var x = e.layerX;
         var y = e.layerY;
         var idx = (x) + (y)*this.currentScanObj.imageWidth;
-        // var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient2"][idx]
-        // var theta = this.currentScanObj.imageLayers[0]["resultData"]["thetaGradient2"][idx]
+        var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient1"][idx]
+        // var mag = this.currentScanObj.imageLayers[0]["resultData"]["eigenVals"][idx]
+        var theta = this.currentScanObj.imageLayers[0]["resultData"]["thetaGradient1"][idx]
         // console.log("mag", Math.sqrt(mag*Math.cos(theta)*mag*Math.cos(theta) + mag*Math.sin(theta)*mag*Math.sin(theta)))
-       console.log('R:  ', this.currentScanObj.imageLayers[0]["resultData"]["harrisResponse"][idx], this.currentScanObj.imageLayers[0]["resultData"]["eigenVals"][idx])
+        console.log("theta", theta)
+    //    console.log('R:  ', this.currentScanObj.imageLayers[0]["resultData"]["harrisResponse"][idx], this.currentScanObj.imageLayers[0]["resultData"]["eigenVals"][idx])
         
     }
     
@@ -235,6 +229,39 @@ class FileManipPage extends React.Component {
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
             
         }
+        var pathAmount =0;
+        var grid = this.currentScanObj.imageGrid;
+        for(let gY=0; gY < grid.length; ++gY) {
+            for(let gX=0; gX < grid[gY].length; ++gX) {
+                var thisUniqueFeats = grid[gY][gX];
+                for(let feat=0; feat < thisUniqueFeats.length; ++feat) {
+                    
+                    var curveObj = new Curve(thisUniqueFeats[feat].pts,`${gY}${gX}_${feat}`)
+                  
+                    var curveData =curveObj.curveData;
+                    
+                    geval(curveData["equationStr"])
+                    var thisCurveFunc = geval(curveData.equationName)
+                    let xMin = curveObj.xRange[0];
+                    let xMax = curveObj.xRange[1];
+                    var d = `M${xMin},${thisCurveFunc(xMin)} `
+                    for(let x =xMin; x < xMax; ++x) {
+                        var y = thisCurveFunc(x)
+                        d+=`L${x},${y} `
+                    }
+                    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+                    path.setAttribute("d",d);
+                    path.setAttribute("stroke","black");
+                    path.setAttribute("fill","none");
+                    document.getElementById("curveGroup").append(path);
+                    ++pathAmount;
+                }
+            }
+        }
+        console.log("number of paths: ", pathAmount )
+
+
+
         return new Promise((resolve,reject)=> { resolve("here"); });
     }
     
@@ -317,14 +344,14 @@ class FileManipPage extends React.Component {
                 </Container>
                 
                 <svg id="mainSVG" style={{display:"none"}} width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"></svg>
-                <div id="windowTest" style={{backgroundColor:'black', top:'100px', left:'30px', width:25, height:25} } />
+                <div id="windowTest" style={{backgroundColor:'black', top:'100px', left:'30px', width:100, height:100} } />
                 <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
-                <select id="selectFilter" name="filterEffect" onChange={this.filterEffectChanged}>
+                <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}>
                     
                     
                     {/* <option value="none">None</option> */}
                 </select>
-                <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"150vh",position:"absolute",display:"block", border:"1px solid black"}}>
+                <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"100vh",position:"absolute",display:"block", border:"1px solid black"}}>
                     
                     <g id="curveGroup"></g>
                     <g id="ptGroup"></g>

@@ -123,7 +123,6 @@ export class Curve {
         this.rangeQueryDBSCAN = this.rangeQueryDBSCAN.bind(this);
         this.rangeQueryABCA = this.rangeQueryABCA.bind(this);
        
-
         this.equationId = equationId;
         this.subCurves = [];
         this.pts = pts;
@@ -139,8 +138,11 @@ export class Curve {
         this.currentEquationStr = this.curveData.equationStr;       //you would call geval/eval on this variable in another module
         this.currentEquationName = this.curveData.equationName;
         this.equationOrder = this.curveData.equationOrder;
-        this.curveData = this.fitCurveToPts();
+        //this.curveData = [];
         //this.optimizeCurve();
+        
+        this.dbClusters = this.formClusters()
+        this.curveData = this.dbClusters.map(cluster=> this.fitCurveToPts(cluster))
         
     }
     rangeQueryABCA = (cluster, ptIdx, ep) => {
@@ -168,13 +170,9 @@ export class Curve {
         //then, norm-vector-based clusters (theta in pixel gradients)
         //for this to be possible, may need to remove 'corner' regions for this part
 
-
-
-
         return dbClusters;
     }
     ABCA(clusterData, tolerance=.01) {     //cluster data based on their normal vector (theta)
-        
         var labeledPts = []     //holds indices of points that are already processed
         for(let c=0; c < clusterData.length; ++c) {
             labeledPts.push(Array(clusterData[c].length).fill(-1));
@@ -272,9 +270,7 @@ export class Curve {
             }
         }
         var clusters=[];
-        for(let c=0; c < clusterIter+1; ++c) {
-            clusters.push([]);
-        }
+        for(let c=0; c < clusterIter+1; ++c) clusters.push([]);
         
         for(let p=0; p < labeledPts.length; ++p) {
             if(labeledPts[p] !="noise") clusters[labeledPts[p]].push(this.pts[p]);
@@ -285,18 +281,18 @@ export class Curve {
         return clusters;        //a list of clusters (cluster = list of points)
     }
 
-    fitCurveToPts(order=2) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
+    fitCurveToPts(clusterPts, order=2) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
         //https://www.youtube.com/watch?v=-UJr1XjyfME&ab_channel=Civillearningonline
         
-        var n = this.pts.length;
-        var xVals = this.pts.map(a=>a.x);
-        var yVals = this.pts.map(a=>a.y);
-        var xyVals = this.pts.map(a=>a.x*a.y);
-        var xxyVals = this.pts.map(a=>a.x*a.x*a.y);
+        var n = clusterPts.length;
+        var xVals = clusterPts.map(a=>a.x);
+        var yVals = clusterPts.map(a=>a.y);
+        var xyVals = clusterPts.map(a=>a.x*a.y);
+        var xxyVals = clusterPts.map(a=>a.x*a.x*a.y);
         
-        var xxVals = this.pts.map(a=>a.x*a.x);
-        var xxxVals = this.pts.map(a=>a.x*a.x*a.x);
-        var xxxxVals = this.pts.map(a=>a.x*a.x*a.x*a.x);
+        var xxVals = clusterPts.map(a=>a.x*a.x);
+        var xxxVals = clusterPts.map(a=>a.x*a.x*a.x);
+        var xxxxVals = clusterPts.map(a=>a.x*a.x*a.x*a.x);
         
         var xSum = xVals.reduce(function(a, b) { return a + b; }, 0);
         var ySum = yVals.reduce(function(a, b) { return a + b; }, 0);
@@ -312,10 +308,10 @@ export class Curve {
             Y = Matrix.columnVector([ySum, xySum, xxySum]);
         }
         else if(order==3) { // fits CUBIC curve to data. i.e d*x^3 + c*x^2 + b*x + a
-            var xxxyVals = this.pts.map(a=>a.x*a.x*a.x*a.y);
+            var xxxyVals = clusterPts.map(a=>a.x*a.x*a.x*a.y);
             var xxxySum = xxxyVals.reduce(function(a, b) { return a + b; }, 0);
-            var xxxxxVals = this.pts.map(a=>a.x*a.x*a.x*a.x*a.x);
-            var xxxxxxVals = this.pts.map(a=>a.x*a.x*a.x*a.x*a.x*a.x);
+            var xxxxxVals = clusterPts.map(a=>a.x*a.x*a.x*a.x*a.x);
+            var xxxxxxVals = clusterPts.map(a=>a.x*a.x*a.x*a.x*a.x*a.x);
             var xxxxxSum =  xxxxxVals.reduce(function(a, b) { return a + b; }, 0);
             var xxxxxxSum = xxxxxxVals.reduce(function(a, b) { return a + b; }, 0);
             X = new Matrix([[n, xSum, xxSum, xxxSum] , [xSum, xxSum, xxxSum, xxxxSum], [xxSum, xxxSum, xxxxSum,xxxxxSum], [xxxSum, xxxxSum, xxxxxSum,xxxxxxSum]]);
@@ -527,8 +523,8 @@ export class Curve {
     }
 
     getXRange(range) {
-        var xMin=99;
-        var xMax = 0;
+        var xMin=999999;
+        var xMax = -999999;
         for(let x=range[0]; x < range[1]; ++x) {
             if(this.xVals[x] > xMax) xMax = this.xVals[x];
             if(this.xVals[x] < xMin) xMin = this.xVals[x];

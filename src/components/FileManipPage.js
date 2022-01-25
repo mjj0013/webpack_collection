@@ -81,10 +81,8 @@ class FileManipPage extends React.Component {
         this.imageScanInstances = [];
         this.selectImageLayerToDisplay = this.selectImageLayerToDisplay.bind(this);
         this.selectedImage = null
-        this.drawBounds = this.drawBounds.bind(this);
         this.currentPts = [];
         this.curveObjs = [];
-
         this.setImageLayers = this.setImageLayers.bind(this);
         this.mouseClickHandler = this.mouseClickHandler.bind(this);
     }
@@ -93,7 +91,6 @@ class FileManipPage extends React.Component {
         const rect = resultSVG.getBoundingClientRect();
         const x = e.clientX - rect.left
         const y = e.clientY - rect.top
-        
         this.currentPts.push({x:x, y:y});
         var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
         ptObj.setAttribute("cx",x);
@@ -156,8 +153,6 @@ class FileManipPage extends React.Component {
 
     numOfPagesChanged(e) {    this.setState({num: e.target.value});  }
 
-    
-
     componentDidMount() {
         //TESTING CURVE GENERATING
         var resultSVG = document.getElementById("resultSVG")
@@ -182,7 +177,6 @@ class FileManipPage extends React.Component {
                         ptObj.setAttribute("fill",color);
                         document.getElementById("ptGroup").append(ptObj);
                     }
-                    
                 }
             }
             
@@ -212,9 +206,6 @@ class FileManipPage extends React.Component {
                 }
                 return;
             }
-
-
-
           }, false);
         resultSVG.addEventListener("click", this.mouseClickHandler, false);
         var numPoints = 3;
@@ -235,16 +226,54 @@ class FileManipPage extends React.Component {
     }
     setImageLayers() {
         console.log("Inserting image layers into selector")
-        console.log("this.currentScanObj.imageLayers",this.currentScanObj.imageLayers)
+        
         var selectFilter = document.getElementById("selectFilter");
         var imageLayers = this.currentScanObj.imageLayers
         for(let l =0; l < imageLayers.length; ++l) {
             var layerName = `Layer ${l} | Sigma=${imageLayers[l]["component"].sig}`
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
-            
         }
-        // var pathAmount =0;
-        // var grid = this.currentScanObj.imageGrid;
+        var pathAmount =0;
+        var grid = this.currentScanObj.imageGrid.grid;
+        var window = {w:this.currentScanObj.imageGrid.windowWidth, h:this.currentScanObj.imageGrid.windowHeight}
+        var boxX = 4;
+        var boxY = 2;
+        var thisUniqueFeats = grid[boxY][boxX];
+        
+        var canvas = document.getElementById("testCanvas");
+        var context = canvas.getContext("2d");
+        context.rect(boxX*window.w, boxY*window.h, window.w, window.h)
+        context.strokeStyle = "white"
+        context.stroke();
+        // for(let feat=0; feat < thisUniqueFeats.length; ++feat) {
+        var curveObj = new Curve(thisUniqueFeats,`${5}${5}_${0}`)
+        
+        for(let curve=0; curve < curveObj.curveData.length; ++curve) {
+            var curveData = curveObj.curveData[curve];
+            console.log("curveData",curveData);
+            geval(curveData["equationStr"])
+            var thisCurveFunc = geval(curveData.equationName)
+
+            // let xMin = curveObj.xRange[0];
+            // let xMax = curveObj.xRange[1];
+            let xMin = 0
+            let xMax = 1
+
+            var d = `M${boxX*window.w},${boxY*window.h} `
+            for(let x =xMin; x <= xMax; x+=.001) {
+                var y = thisCurveFunc(x) 
+                // d+=`L${x+ curveObj.xRange[0]},${y+boxY*window.h} `
+                d+=`L${x+ curveObj.xRange[0]},${y+boxY*window.h} `
+            }
+            var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+            path.setAttribute("d",d);
+            path.setAttribute("stroke","black");
+            path.setAttribute("fill","none");
+            document.getElementById("curveGroup").append(path);
+            ++pathAmount;
+        }
+            
+        // }
         // for(let gY=0; gY < grid.length; ++gY) {
         //     for(let gX=0; gX < grid[gY].length; ++gX) {
         //         var thisUniqueFeats = grid[gY][gX];
@@ -272,7 +301,7 @@ class FileManipPage extends React.Component {
         //         }
         //     }
         // }
-        // console.log("number of paths: ", pathAmount )
+        console.log("number of paths: ", pathAmount )
 
 
 
@@ -294,59 +323,15 @@ class FileManipPage extends React.Component {
        
         var imageReadPromise = this.currentScanObj.imageReader()
         imageReadPromise.then(result => {this.setImageLayers()});
-    
-        
-       
-        
+
          
         document.getElementById("testCanvas").onmousemove = (e) => this.showSigmaLayersOnHover(e);
         this.selectedImage = this.currentScanObj.selectedFile;
         
-        // setTimeout(()=> {
-        //     this.drawBounds();
-        // }, 1000);
-
+      
         return;
 	}
-    drawBounds() {
-        console.log("Drawing bounds on SVG...");
-        var polyData = this.currentScanObj.lagrangePolys;
-        console.log("polyData.length", polyData.length)
-        var resultSVG = document.getElementById("resultSVG");
-
-        for(let curve=0; curve < polyData.length; ++curve) {
-            console.log("polyData[curve]", polyData[curve])
-            //var funcStr = this.currentScanObj.generateLagrangePolyString(polyData[curve], curve);
-            geval(polyData[curve]["equationStr"])
-            
-            var thisCurveFunc = geval(polyData[curve].equationName)
-        
-            let xMin = polyData[curve].xRange[0];
-            let xMax = polyData[curve].xRange[1];
-            // for(let x =xMin; x < xMax; ++x) {
-            //     var y = thisCurveFunc(x)
-            //     var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
-            //     ptObj.setAttribute("cx",x);
-            //     ptObj.setAttribute("cy",y);
-            //     ptObj.setAttribute("r",.75);
-            //     ptObj.setAttribute("fill","black");
-            //     resultSVG.append(ptObj);
-            // }
-            let y = thisCurveFunc(xMin)
-            var d = `M${xMin},${y} `
-            if(isNaN(y)) continue;
-            console.log("curve drawn")
-            for(let X=xMin; X < xMax;X+=.5) {
-                let y = thisCurveFunc(X)
-                if(!isNaN(y)) d+=`L${X},${-y} `
-            }
-            var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-            path.setAttribute("d",d);
-            path.setAttribute("stroke","black");
-            path.setAttribute("fill","none");
-            resultSVG.append(path);
-        }
-    }
+    
 
     render() {
         return (

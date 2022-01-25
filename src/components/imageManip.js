@@ -74,7 +74,7 @@ export class ImageScan {
         If gradient continues in a direction, update its  with newly discovered part. 
         *********************************************************************************************************************************************/
 
-        var foundBlobs = []        //temporary place to store region data
+        
             // regions will have objects w/ format:     
             //{top:.., left:.., width:.., height:.., leftMost:[], rightMost:[], topMost:[], bottomMost:[], topLeftMost:[], topRightMost:[], bottomLeftMost:[], bottomRightMost:[]  }
 
@@ -91,7 +91,7 @@ export class ImageScan {
             var resultData = Layer["resultData"];
             for(var imgY=windowHeight; imgY < this.imageHeight-windowHeight; imgY+=windowHeight) { 
                 for(var imgX=windowWidth; imgX < this.imageWidth-windowWidth; imgX+=windowWidth) {              
-                    var uniqueFeats = []     // will be objects w/ format: {mag:.., pts:[], avgMag:..[]}  , mag is the mag that all the pts are close to
+                    var interestPts = []     // will be objects w/ format: {mag:.., pts:[], avgMag:..[]}  , mag is the mag that all the pts are close to
                     
                     //moving window so that image is scanned in grid-like way, NOT a convolution
                     for(var kY=-windowHeight; kY < windowHeight; ++kY) {
@@ -101,66 +101,18 @@ export class ImageScan {
                             var thisMagGradient = resultData["magGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
                             var thisTheta = resultData["thetaGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
                             var distMultiplier = 1;
+                            
 
                             if(thisMagGradient >=100) {
-                                var withinARange = false;
-                                var closestPt = {pIdx:null,mIdx:null, dist:null};      //dist is distance^2
-                                if(uniqueFeats.length<5) {
-                                    uniqueFeats.push({thetaHistogram:{thisTheta:1}, avgTheta: thisTheta, avgMag:thisMagGradient, pts:[{theta:thisTheta, mag:thisMagGradient, x:thisX, y: thisY}]})
-                                   
-                                }
-                                else {
-                                    var feature = -1;
-                                    for(let m=0; m < uniqueFeats.length; ++m) {
-                                        var pts = uniqueFeats[m].pts;
-                                        feature = uniqueFeats[m];
-                                        for(let p=0; p < pts.length; ++p) {
-                                            let distSquared = (pts[p].x-thisX)*(pts[p].x-thisX) + (pts[p].y-thisY)*(pts[p].y-thisY);
-                                            
-                                            if(distSquared <= distThreshold) {
-                                                if(closestPt.mIdx==null) {
-                                                    closestPt = {pIdx:p, dist:distSquared, mIdx:m}
-                                                    feature = uniqueFeats[m];
-                                                    distMultiplier = distThreshold/distSquared;
-                                                }
-                                                else if(closestPt.dist > distSquared){
-                                                    closestPt = {pIdx:p, dist:distSquared, mIdx:m}
-                                                    feature = uniqueFeats[m];
-                                                    distMultiplier = distThreshold/distSquared;
-                                                }
-                                            }
-                                        }
-                                    }
-                                    // if(closestPt.idx==null) continue;
-                                    // !! IMPORTANT: the farther a pixel is from a target pixel, the more narrow the tolerance is for the magnitude to be equal to target pixel's magnitude
-                                    console.log(uniqueFeats)
-                                    
-                                    if(numberInRange(thisTheta, feature["avgTheta"], .005) && numberInRange(thisMagGradient, feature["avgMag"], 20*distMultiplier)) {    //within +/- 10*distMultiplier of target
-                                        
-                                        feature["pts"].push({theta: thisTheta, mag:thisMagGradient, x:thisX, y: thisY})
-    
-                                        let newAvg = 0;
-                                        for(let i=0; i <feature.pts.length; ++i ) newAvg += feature.pts[i].mag
-                                        newAvg /= feature.pts.length;
-                                        feature["avgMag"] = newAvg
-    
-                                        newAvg = 0;
-                                        for(let i=0; i < feature.pts.length; ++i ) newAvg += feature.pts[i].theta
-                                        newAvg /= feature.pts.length;
-                                        feature["avgTheta"] = newAvg
-    
-    
-                                        withinARange = true;
-                                        break;
-                                    } 
-                                    if(!withinARange) uniqueFeats.push({thetaHistogram:{thisTheta:1}, avgTheta: thisTheta, avgMag:thisMagGradient, pts:[{theta:thisTheta, mag:thisMagGradient, x:thisX, y: thisY}]})
-                                }
                                 
+                               
+                                var thisSlope = resultData["slopeRateY1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]/resultData["slopeRateX1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
+                                interestPts.push({x:thisX, y:thisY, slope:thisSlope})
                             }
                         }
                     }
                     
-                    grid[gridY][gridX] = uniqueFeats.filter(a=> {return a.pts.length > 5});
+                    grid[gridY][gridX] = interestPts;
                     ++gridX;
                 }
                 ++gridY;
@@ -168,7 +120,7 @@ export class ImageScan {
 
         }
         console.log("grid", grid)
-        this.imageGrid = grid;
+        this.imageGrid = {grid:grid, windowHeight:windowHeight, windowWidth:windowWidth};
         return;
 
     }
@@ -552,7 +504,7 @@ export class ImageScan {
                     }
                     context.putImageData(OBJ.imageData, 0,0);
                     OBJ.detectBlobs();          //detects blobs on each layer
-                    //OBJ.processBlobs();
+                    OBJ.processBlobs();
                     for(let layer=0; layer < OBJ.imageLayers.length; ++layer) {
                         let dataCopy = JSON.parse(JSON.stringify(OBJ.imageData.data));
                         let layerIndex = layer;

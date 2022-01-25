@@ -85,7 +85,6 @@ class FileManipPage extends React.Component {
         this.currentPts = [];
         this.curveObjs = [];
 
-
         this.setImageLayers = this.setImageLayers.bind(this);
         this.mouseClickHandler = this.mouseClickHandler.bind(this);
     }
@@ -108,26 +107,20 @@ class FileManipPage extends React.Component {
     selectImageLayerToDisplay(e) {
         var canvas = document.getElementById("testCanvas");
         var context = document.getElementById("testCanvas").getContext('2d');
-        
-        console.log("e.target.value",e.target.value) //[6]
         var selectedIdx = e.target.value;
         var selectedImageData = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["imageData"];
-        console.log("selectedImageData", selectedImageData)
         var currentImageData = context.getImageData(0,0, canvas.width, canvas.height)
         var imageWidth = currentImageData.width
         var imageHeight = currentImageData.height
         for(var imgY=0; imgY < imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
             for(var imgX=0; imgX < imageWidth; imgX+=1) {
-                
                 currentImageData.data[4*(imgY*imageWidth + imgX)] = selectedImageData[4*(imgY*imageWidth + imgX)];
                 currentImageData.data[4*(imgY*imageWidth + imgX) + 1] = selectedImageData[4*(imgY*imageWidth + imgX) + 1]
                 currentImageData.data[4*(imgY*imageWidth + imgX) + 2] = selectedImageData[4*(imgY*imageWidth + imgX) + 2]
                 currentImageData.data[4*(imgY*imageWidth + imgX) + 3] = selectedImageData[4*(imgY*imageWidth + imgX) + 3]
             }
         }
-        
         context.putImageData(currentImageData, 0 , 0)
-        
         var selectedCornerLocations = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"];
         for(let c=0; c < selectedCornerLocations.length; ++c) {
             context.beginPath();
@@ -141,16 +134,12 @@ class FileManipPage extends React.Component {
         var x = e.layerX;
         var y = e.layerY;
         var idx = (x) + (y)*this.currentScanObj.imageWidth;
-        var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient1"][idx]
-        // var mag = this.currentScanObj.imageLayers[0]["resultData"]["eigenVals"][idx]
+        var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient1"][idx]   
         var theta = this.currentScanObj.imageLayers[0]["resultData"]["thetaGradient1"][idx]
-        // console.log("mag", Math.sqrt(mag*Math.cos(theta)*mag*Math.cos(theta) + mag*Math.sin(theta)*mag*Math.sin(theta)))
-        console.log("theta", theta)
-    //    console.log('R:  ', this.currentScanObj.imageLayers[0]["resultData"]["harrisResponse"][idx], this.currentScanObj.imageLayers[0]["resultData"]["eigenVals"][idx])
-        
+        var ratio =  this.currentScanObj.imageLayers[0]["resultData"]["slopeRateY1"][idx] /this.currentScanObj.imageLayers[0]["resultData"]["slopeRateX1"][idx] 
+        console.log("ratio", ratio)        
     }
     
-
     async loadText(e) {
         e.preventDefault();
         const reader = new FileReader();
@@ -174,13 +163,35 @@ class FileManipPage extends React.Component {
         var resultSVG = document.getElementById("resultSVG")
         document.addEventListener('keydown', (event) => {
             const keyName = event.key;
+            console.log("keyName",keyName)
+
+            if(keyName==' ') {
+                var curveObj = new Curve(this.currentPts,'0')
+                var clusters = curveObj.formClusters();
+                
+                var ptGroup =document.getElementById("ptGroup")
+                while (ptGroup.firstChild) ptGroup.removeChild(ptGroup.firstChild);
+                
+                for(let i =0; i < clusters.length; ++i) {
+                    var color = `rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`
+                    for(let p=0; p < clusters[i].length; ++p) {
+                        var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");         
+                        ptObj.setAttribute("cx",clusters[i][p].x);
+                        ptObj.setAttribute("cy",clusters[i][p].y);
+                        ptObj.setAttribute("r",5);
+                        ptObj.setAttribute("fill",color);
+                        document.getElementById("ptGroup").append(ptObj);
+                    }
+                    
+                }
+            }
+            
             if (keyName === 'Enter') {
                 var curveGroup =document.getElementById("curveGroup")
                 while (curveGroup.firstChild) curveGroup.removeChild(curveGroup.firstChild);
                 this.curveObjs = [];
                 var curveObj = new Curve(this.currentPts,'0')
                 this.curveObjs.push(curveObj);
-                console.log("curveObj",curveObj)
                 for(let curve=0; curve < this.curveObjs.length; ++curve) {
                     var curveData = this.curveObjs[curve].curveData;
                     console.log("curveData", curveData)
@@ -201,6 +212,9 @@ class FileManipPage extends React.Component {
                 }
                 return;
             }
+
+
+
           }, false);
         resultSVG.addEventListener("click", this.mouseClickHandler, false);
         var numPoints = 3;
@@ -229,36 +243,36 @@ class FileManipPage extends React.Component {
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
             
         }
-        var pathAmount =0;
-        var grid = this.currentScanObj.imageGrid;
-        for(let gY=0; gY < grid.length; ++gY) {
-            for(let gX=0; gX < grid[gY].length; ++gX) {
-                var thisUniqueFeats = grid[gY][gX];
-                for(let feat=0; feat < thisUniqueFeats.length; ++feat) {
+        // var pathAmount =0;
+        // var grid = this.currentScanObj.imageGrid;
+        // for(let gY=0; gY < grid.length; ++gY) {
+        //     for(let gX=0; gX < grid[gY].length; ++gX) {
+        //         var thisUniqueFeats = grid[gY][gX];
+        //         for(let feat=0; feat < thisUniqueFeats.length; ++feat) {
                     
-                    var curveObj = new Curve(thisUniqueFeats[feat].pts,`${gY}${gX}_${feat}`)
+        //             var curveObj = new Curve(thisUniqueFeats[feat].pts,`${gY}${gX}_${feat}`)
                   
-                    var curveData =curveObj.curveData;
+        //             var curveData =curveObj.curveData;
                     
-                    geval(curveData["equationStr"])
-                    var thisCurveFunc = geval(curveData.equationName)
-                    let xMin = curveObj.xRange[0];
-                    let xMax = curveObj.xRange[1];
-                    var d = `M${xMin},${thisCurveFunc(xMin)} `
-                    for(let x =xMin; x < xMax; ++x) {
-                        var y = thisCurveFunc(x)
-                        d+=`L${x},${y} `
-                    }
-                    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-                    path.setAttribute("d",d);
-                    path.setAttribute("stroke","black");
-                    path.setAttribute("fill","none");
-                    document.getElementById("curveGroup").append(path);
-                    ++pathAmount;
-                }
-            }
-        }
-        console.log("number of paths: ", pathAmount )
+        //             geval(curveData["equationStr"])
+        //             var thisCurveFunc = geval(curveData.equationName)
+        //             let xMin = curveObj.xRange[0];
+        //             let xMax = curveObj.xRange[1];
+        //             var d = `M${xMin},${thisCurveFunc(xMin)} `
+        //             for(let x =xMin; x < xMax; ++x) {
+        //                 var y = thisCurveFunc(x)
+        //                 d+=`L${x},${y} `
+        //             }
+        //             var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+        //             path.setAttribute("d",d);
+        //             path.setAttribute("stroke","black");
+        //             path.setAttribute("fill","none");
+        //             document.getElementById("curveGroup").append(path);
+        //             ++pathAmount;
+        //         }
+        //     }
+        // }
+        // console.log("number of paths: ", pathAmount )
 
 
 

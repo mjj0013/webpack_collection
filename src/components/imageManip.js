@@ -32,6 +32,7 @@ export class ImageScan {
         this.processBlobs = this.processBlobs.bind(this);
 
         this.imageLayers = [];
+        this.imageGrid = []
         this.mappedCurves = []
         this.selectedImage = null
     }
@@ -551,7 +552,7 @@ export class ImageScan {
                     }
                     context.putImageData(OBJ.imageData, 0,0);
                     OBJ.detectBlobs();          //detects blobs on each layer
-                    OBJ.processBlobs();
+                    //OBJ.processBlobs();
                     for(let layer=0; layer < OBJ.imageLayers.length; ++layer) {
                         let dataCopy = JSON.parse(JSON.stringify(OBJ.imageData.data));
                         let layerIndex = layer;

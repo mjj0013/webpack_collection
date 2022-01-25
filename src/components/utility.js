@@ -37,3 +37,8 @@ export function getRandomInt(min, max) {
 export function numberInRange(number, target, degreeOfTolerance) {
     return (number>=(target-degreeOfTolerance) && number<=(target+degreeOfTolerance)); 
 }
+
+
+export function distance(A,B) {
+    return Math.sqrt((A.x - B.x)*(A.x - B.x) + (A.y - B.y)*(A.y - B.y))
+}

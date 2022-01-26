@@ -244,100 +244,76 @@ class FileManipPage extends React.Component {
         var window = {w:this.currentScanObj.combinedGrid.windowWidth, h:this.currentScanObj.combinedGrid.windowHeight}
         var boxX = 1;   //4 when 100 
         var boxY = 1;   //2 when 100
-        var thisUniqueFeats = grid[boxY][boxX];
-        
-        var canvas = document.getElementById("testCanvas");
-        var context = canvas.getContext("2d");
-        context.rect(boxX*window.w, boxY*window.h, window.w, window.h)
-        context.strokeStyle = "white"
-        context.stroke();
-        
-        console.log('thisUniqueFeats',thisUniqueFeats)
+
+        for(let gY=0; gY < grid.length; ++gY) {
+            for(let gX=0; gX < grid[gY].length; ++gX) {
+                var thisUniqueFeats = grid[gY][gX];
+                
+                var canvas = document.getElementById("testCanvas");
+                var context = canvas.getContext("2d");
+                context.rect(boxX*window.w, boxY*window.h, window.w, window.h)
+                context.strokeStyle = "white"
+                context.stroke();
+                
+                console.log('thisUniqueFeats',thisUniqueFeats)
 
 
-        var clusterObj = new Cluster(thisUniqueFeats);
-        console.log('clusterObj.subClusters',clusterObj.subClusters)
+                var clusterObj = new Cluster(thisUniqueFeats);
+                console.log('clusterObj.subClusters',clusterObj.subClusters)
 
-        // for(let pt=0; pt < thisUniqueFeats.length; ++pt) {
-        //     var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        //     circle.setAttribute('cx', thisUniqueFeats[pt].x)
-        //     circle.setAttribute('cy', thisUniqueFeats[pt].y)
-        //     circle.setAttribute('r', ".5px")
-        //     // path.setAttribute("stroke","black");
-        //     circle.setAttribute("fill","black");
-        //     document.getElementById("ptGroup").append(circle);
-        // }
+                // for(let pt=0; pt < thisUniqueFeats.length; ++pt) {
+                //     var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+                //     circle.setAttribute('cx', thisUniqueFeats[pt].x)
+                //     circle.setAttribute('cy', thisUniqueFeats[pt].y)
+                //     circle.setAttribute('r', ".5px")
+                //     // path.setAttribute("stroke","black");
+                //     circle.setAttribute("fill","black");
+                //     document.getElementById("ptGroup").append(circle);
+                // }
 
-        // if(thisUniqueFeats.length <4) {
-        //     console.log("!!! not enough points in thisUniqueFeats");
-        //     return;
-        // }
-        
-        var curveObjs = [];
-        for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
-            var curve = new Curve(clusterObj.subClusters[cl],`${5}${5}_${cl}`);
-            if(curve.pts.length ==0) continue;
-            curveObjs.push(curve)
-        }
-       
-        
-        for(let curve=0; curve < curveObjs.length; ++curve) {
-            var curveObj = curveObjs[curve];
-            console.log("curveObj",curveObj);
-            geval(curveObj["currentEquationStr"])
-            var thisCurveFunc = geval(curveObj.currentEquationName)
-
-            let xMin = curveObj.xRange[0];
-            let xMax = curveObj.xRange[1];
-            // let xMin = 0
-            // let xMax = 1
+                // if(thisUniqueFeats.length <4) {
+                //     console.log("!!! not enough points in thisUniqueFeats");
+                //     return;
+                // }
+                
+                var curveObjs = [];
+                for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
+                    var curve = new Curve(clusterObj.subClusters[cl],`${5}${5}_${cl}`);
+                    if(curve.pts.length ==0) continue;
+                    curveObjs.push(curve)
+                }
             
-            var d = `M${xMin},${thisCurveFunc(xMin) } `
+                
+                for(let curve=0; curve < curveObjs.length; ++curve) {
+                    var curveObj = curveObjs[curve];
+                    console.log("curveObj",curveObj);
+                    geval(curveObj["currentEquationStr"])
+                    var thisCurveFunc = geval(curveObj.currentEquationName)
+
+                    let xMin = curveObj.xRange[0];
+                    let xMax = curveObj.xRange[1];
+                    // let xMin = 0
+                    // let xMax = 1
+                    
+                    var d = `M${xMin},${thisCurveFunc(xMin) } `
+                    
+                    for(let x =xMin; x <= xMax; x+=.5) {
+                        var y = thisCurveFunc(x) 
+                        d+=`L${x},${y} `
+                    }
+                    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+                    path.setAttribute("d",d);
+                    path.setAttribute("stroke","black");
+                    path.setAttribute("fill","none");
+                    document.getElementById("curveGroup").append(path);
+                    ++pathAmount;
+                }
+                    
             
-            for(let x =xMin; x <= xMax; x+=.5) {
-                var y = thisCurveFunc(x) 
-                d+=`L${x},${y} `
+                console.log("number of paths: ", pathAmount )
             }
-            var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-            path.setAttribute("d",d);
-            path.setAttribute("stroke","black");
-            path.setAttribute("fill","none");
-            document.getElementById("curveGroup").append(path);
-            ++pathAmount;
+
         }
-            
-       
-        // for(let gY=0; gY < grid.length; ++gY) {
-        //     for(let gX=0; gX < grid[gY].length; ++gX) {
-        //         var thisUniqueFeats = grid[gY][gX];
-        //         for(let feat=0; feat < thisUniqueFeats.length; ++feat) {
-                    
-        //             var curveObj = new Curve(thisUniqueFeats[feat].pts,`${gY}${gX}_${feat}`)
-                  
-        //             var curveData =curveObj.curveData;
-                    
-        //             geval(curveData["equationStr"])
-        //             var thisCurveFunc = geval(curveData.equationName)
-        //             let xMin = curveObj.xRange[0];
-        //             let xMax = curveObj.xRange[1];
-        //             var d = `M${xMin},${thisCurveFunc(xMin)} `
-        //             for(let x =xMin; x < xMax; ++x) {
-        //                 var y = thisCurveFunc(x)
-        //                 d+=`L${x},${y} `
-        //             }
-        //             var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-        //             path.setAttribute("d",d);
-        //             path.setAttribute("stroke","black");
-        //             path.setAttribute("fill","none");
-        //             document.getElementById("curveGroup").append(path);
-        //             ++pathAmount;
-        //         }
-        //     }
-        // }
-        console.log("number of paths: ", pathAmount )
-
-
-
         return new Promise((resolve,reject)=> { resolve("here"); });
     }
     

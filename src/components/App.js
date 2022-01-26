@@ -5,7 +5,7 @@ import React from 'react';
 import { Switch, BrowserRouter, Route } from 'react-router-dom';
 
 import FileManipPage from './FileManipPage'; 
-import {Database} from './Database';
+
 import GraphicsPage from './GraphicsPage';
 
 //import Loading from './Loading';
@@ -26,7 +26,7 @@ function App() {
 				<Switch>
 					<Route path="/fileload" component={FileManipPage} />
 					<Route path="/animation" component={GraphicsPage} />
-					<Route path="/database" component={Database} />
+					
 					<Route  path="/" component={Home} />
 				</Switch>
 			</div>

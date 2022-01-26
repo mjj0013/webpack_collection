@@ -105,26 +105,24 @@ function getStdDev(allItems) {
     return Math.sqrt(summation/(totalNum-1));
 }
 export class Curve {
-    constructor(pts,equationId) {
+    constructor(pts,equationId,order=2) {
         
         this.testPtsOnCurve = this.testPtsOnCurve.bind(this);
         this.testLagrangePolyString = this.testLagrangePolyString.bind(this);
         this.optimizeFunction = this.optimizeFunction.bind(this);
         
-        this.getPointData = this.getPointData.bind(this);
+        
         this.fitCurveToPts = this.fitCurveToPts.bind(this);
         
         this.getXRange = this.getXRange.bind(this);
-        this.optimizeCurve = this.optimizeCurve.bind(this);
 
-        this.formClusters = this.formClusters.bind(this);
-        this.ABCA = this.ABCA.bind(this);         //Angular-Based Clustering of Applications (custom)
-        this.DBSCAN = this.DBSCAN.bind(this);       //Density-Based Spatial Clustering of Applications with Noise
-        this.rangeQueryDBSCAN = this.rangeQueryDBSCAN.bind(this);
-        this.rangeQueryABCA = this.rangeQueryABCA.bind(this);
-       
+        //******************************************************** */
+        //these are for dividing a curve into more segments (NOT USED)
+        this.optimizeCurve = this.optimizeCurve.bind(this);
+        this.getPointData = this.getPointData.bind(this);
+        //******************************************************** */
+
         this.equationId = equationId;
-        this.subCurves = [];
         this.pts = pts;
         this.N = this.pts.length;
         this.xVals = this.pts.map(a=>a.x);
@@ -134,151 +132,16 @@ export class Curve {
         this.xMin = this.xRange[0];
         this.xMax = this.xRange[1];
 
-        this.curveData = this.testLagrangePolyString();
+        // this.curveData = this.testLagrangePolyString();
+        this.curveData = this.fitCurveToPts(pts,order);
         this.currentEquationStr = this.curveData.equationStr;       //you would call geval/eval on this variable in another module
         this.currentEquationName = this.curveData.equationName;
         this.equationOrder = this.curveData.equationOrder;
-        //this.curveData = [];
+        // this.curveData = [];
         //this.optimizeCurve();
         
-        this.dbClusters = this.formClusters()
-        this.curveData = this.dbClusters.map(cluster=> this.fitCurveToPts(cluster))
-        
-    }
-    rangeQueryABCA = (cluster, ptIdx, ep) => {
-        let neighbors = [];
-        for(let p=0; p < cluster.length; ++p) {
-            if(ptIdx==p) continue;
-            if(numberInRange(cluster[ptIdx].gradientSlope,ep)) neighbors.push(p);
-        }
-        return neighbors;
-    }
-    rangeQueryDBSCAN = (ptIdx, ep) => {
-        let neighbors = [];
-        for(let p=0; p < this.pts.length; ++p) {
-            if(ptIdx==p) continue;
-            if(distance(this.pts[ptIdx],this.pts[p]) <= ep) neighbors.push(p);
-        }
-        return neighbors;
-    }
-    formClusters(additionalDims=null) {
-        //additionalDims contains names of additional dimensions to be factored in
-        var dbClusters = this.DBSCAN(); //density-based clusters
-
-        //var abClusters = this.ABCA(dbClusters, .2); 
-        //angular based clustering
-        //then, norm-vector-based clusters (theta in pixel gradients)
-        //for this to be possible, may need to remove 'corner' regions for this part
-
-        return dbClusters;
-    }
-    ABCA(clusterData, tolerance=.01) {     //cluster data based on their normal vector (theta)
-        var labeledPts = []     //holds indices of points that are already processed
-        for(let c=0; c < clusterData.length; ++c) {
-            labeledPts.push(Array(clusterData[c].length).fill(-1));
-        }
-        var allSubClusters = []
-        for(let c=0; c < clusterData.length; ++c) {
-            var clusterIter = -1;
-            for(let p=0; p < clusterData[c].length; ++p) {
-                if(labeledPts[c][p]!=-1) continue; // point has already been processed
-                var neighbors = this.rangeQueryABCA(clusterData[c], p, tolerance);
-                if(neighbors.length < minPts) {
-                    labeledPts[c][p] = 'noise';
-                    continue;
-                }
-                ++clusterIter;
-                labeledPts[c][p] = clusterIter;
-                for(let neighP=0; neighP < neighbors.length; ++neighP) {
-                    if(labeledPts[c][neighbors[neighP]]=='noise') labeledPts[c][neighbors[neighP]]=clusterIter;
-                    if(labeledPts[c][neighbors[neighP]]!=-1) continue;
-                    labeledPts[c][neighbors[neighP]]=clusterIter;
-                    var otherNeighbors = this.rangeQueryABCA(clusterData[c], neighbors[neighP], tolerance);
-                    if(otherNeighbors.length >= minPts) {
-                        neighbors = [...new Set([...neighbors, ...otherNeighbors])]
-                    }
-                }
-            }
-            var subClusters=[];
-            for(let c=0; c < clusterIter+1; ++c) subClusters.push([]);
-            for(let p=0; p < labeledPts.length; ++p) {
-                if(labeledPts[p] !="noise") subClusters[labeledPts[p]].push(this.pts[p]);
-            }
-            console.log('labeledPts', labeledPts)
-            console.log('subClusters', subClusters)
-            allSubClusters.push(subClusters)
-        }
-
         
         
-        
-        
-        
-        
-        return subClusters;        //a list of clusters (cluster = list of points)
-    }
-    DBSCAN(epsilon=null, minPts=3) {    //Density-Based Spatial Clustering of Applications with Noise
-        //https://en.wikipedia.org/wiki/DBSCAN
-        //also try clustering points based on their theta (from detectBlobs in imageManip); factor in the xGradient, yGradient, thetaGradient for each point
-
-        // minPts --> must be at least 3 (if minPts<=2, result will be same as hierarchial clustering) 
-        //           can be derived from # of dimensions of data set D.. minPts >=D+1 or minPts=D*2
-        // epsilon --> calculated with https://towardsdatascience.com/machine-learning-clustering-dbscan-determine-the-optimal-value-for-epsilon-eps-python-example-3100091cfbc
-
-        //calculate best epsilon by finding distances b/w all points, sorting those distances, then finding where the greatest change in distance occurs 
-        if(epsilon==null) {
-            var allDists = []
-            for(let p=0; p < this.pts.length; ++p) {
-                var thisDists = []
-                for(let p2=0; p2 < this.pts.length; ++p2) {
-                    if(p==p2) continue;
-                    let d= distance(this.pts[p], this.pts[p2]);
-                    thisDists.push(d);
-                }
-                thisDists.sort(function(a,b){return a-b});
-                allDists.push(thisDists.slice(0,3));
-            }
-            allDists = allDists.flat()
-            allDists.sort(function(a,b){return a-b});
-            var distDeltas = [];
-            for(let D=1; D < allDists.length; ++D) {
-                distDeltas.push([ allDists[D]-allDists[D-1], allDists[D], allDists[D-1] ])  //[deltaAB, A, B]
-            }
-            distDeltas.sort(function(a,b){return b[0]-a[0]});
-            epsilon = (distDeltas[0][2] + distDeltas[0][1])/2;
-        }
-       
-        var clusterIter = -1;
-        var labeledPts = Array(this.pts.length).fill(-1)     //holds indices of points that are already processed
-        for(let p=0; p < this.pts.length; ++p) {
-            if(labeledPts[p]!=-1) continue; // point has already been processed
-            var neighbors = this.rangeQueryDBSCAN(p, epsilon);
-            if(neighbors.length < minPts) {
-                labeledPts[p] = 'noise';
-                continue;
-            }
-            ++clusterIter;
-            labeledPts[p] = clusterIter;
-            for(let neighP=0; neighP < neighbors.length; ++neighP) {
-                if(labeledPts[neighbors[neighP]]=='noise') labeledPts[neighbors[neighP]]=clusterIter;
-                if(labeledPts[neighbors[neighP]]!=-1) continue;
-                labeledPts[neighbors[neighP]]=clusterIter;
-                var otherNeighbors = this.rangeQueryDBSCAN(neighbors[neighP], epsilon);
-                if(otherNeighbors.length >= minPts) {
-                    neighbors = [...new Set([...neighbors, ...otherNeighbors])]
-                }
-            }
-        }
-        var clusters=[];
-        for(let c=0; c < clusterIter+1; ++c) clusters.push([]);
-        
-        for(let p=0; p < labeledPts.length; ++p) {
-            if(labeledPts[p] !="noise") clusters[labeledPts[p]].push(this.pts[p]);
-        }
-        console.log('labeledPts', labeledPts)
-        console.log('clusters', clusters)
-        
-        return clusters;        //a list of clusters (cluster = list of points)
     }
 
     fitCurveToPts(clusterPts, order=2) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
@@ -318,7 +181,6 @@ export class Curve {
             Y = Matrix.columnVector([ySum, xySum, xxySum, xxxySum]);
         }
         else return -1;
-        
         var coeffs = solve(X,Y,true);
         let a = coeffs.get(0,0);
         let b = coeffs.get(1,0);
@@ -329,7 +191,6 @@ export class Curve {
         if(order==3) terms.push(`(${coeffs.get(3,0)}*x*x*x)`)
         
         var equation = `var curvePoly${this.equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
-        
         return {xRange:this.xRange,equationOrder:3, equationStr:equation, equationName:`curvePoly${this.equationId.toString()}`};
     }
 

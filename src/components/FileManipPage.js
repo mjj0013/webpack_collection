@@ -6,6 +6,7 @@ import "regenerator-runtime/runtime";
 // import { documentElement } from 'min-document';
 import {ImageScan} from './imageManip.js'
 import {Curve} from './Curve.js'
+import {Cluster} from './Cluster.js';
 // var globalImageData;
 var geval =eval;
 
@@ -134,7 +135,7 @@ class FileManipPage extends React.Component {
         var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient1"][idx]   
         var theta = this.currentScanObj.imageLayers[0]["resultData"]["thetaGradient1"][idx]
         var ratio =  this.currentScanObj.imageLayers[0]["resultData"]["slopeRateY1"][idx] /this.currentScanObj.imageLayers[0]["resultData"]["slopeRateX1"][idx] 
-        console.log("ratio", ratio)        
+        console.log("mag", mag)        
     }
     
     async loadText(e) {
@@ -161,6 +162,8 @@ class FileManipPage extends React.Component {
             console.log("keyName",keyName)
 
             if(keyName==' ') {
+                var clusterObj = new Cluster(this.currentPts,'0');
+
                 var curveObj = new Curve(this.currentPts,'0')
                 var clusters = curveObj.formClusters();
                 
@@ -208,21 +211,21 @@ class FileManipPage extends React.Component {
             }
           }, false);
         resultSVG.addEventListener("click", this.mouseClickHandler, false);
-        var numPoints = 3;
-        for(let p=0; p < numPoints; ++p) {
-            let x = getRandomInt(0,900)
-            let y = getRandomInt(200,300)
-            this.currentPts.push({x:x,y:y})
-        }
+        // var numPoints = 3;
+        // for(let p=0; p < numPoints; ++p) {
+        //     let x = getRandomInt(0,900)
+        //     let y = getRandomInt(200,300)
+        //     this.currentPts.push({x:x,y:y})
+        // }
 
-        for(let i =0; i < this.currentPts.length; ++i) {
-            var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");         
-            ptObj.setAttribute("cx",this.currentPts[i].x);
-            ptObj.setAttribute("cy",this.currentPts[i].y);
-            ptObj.setAttribute("r",5);
-            ptObj.setAttribute("fill","black");
-            document.getElementById("ptGroup").append(ptObj);
-        }
+        // for(let i =0; i < this.currentPts.length; ++i) {
+        //     var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");         
+        //     ptObj.setAttribute("cx",this.currentPts[i].x);
+        //     ptObj.setAttribute("cy",this.currentPts[i].y);
+        //     ptObj.setAttribute("r",5);
+        //     ptObj.setAttribute("fill","black");
+        //     document.getElementById("ptGroup").append(ptObj);
+        // }
     }
     setImageLayers() {
         console.log("Inserting image layers into selector")
@@ -234,10 +237,10 @@ class FileManipPage extends React.Component {
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
         }
         var pathAmount =0;
-        var grid = this.currentScanObj.imageGrid.grid;
-        var window = {w:this.currentScanObj.imageGrid.windowWidth, h:this.currentScanObj.imageGrid.windowHeight}
-        var boxX = 4;
-        var boxY = 2;
+        var grid = this.currentScanObj.combinedGrid.grid;
+        var window = {w:this.currentScanObj.combinedGrid.windowWidth, h:this.currentScanObj.combinedGrid.windowHeight}
+        var boxX = 1;   //4 when 100 
+        var boxY = 2;   //2 when 100
         var thisUniqueFeats = grid[boxY][boxX];
         
         var canvas = document.getElementById("testCanvas");
@@ -245,25 +248,46 @@ class FileManipPage extends React.Component {
         context.rect(boxX*window.w, boxY*window.h, window.w, window.h)
         context.strokeStyle = "white"
         context.stroke();
-        // for(let feat=0; feat < thisUniqueFeats.length; ++feat) {
-        var curveObj = new Curve(thisUniqueFeats,`${5}${5}_${0}`)
         
-        for(let curve=0; curve < curveObj.curveData.length; ++curve) {
-            var curveData = curveObj.curveData[curve];
-            console.log("curveData",curveData);
-            geval(curveData["equationStr"])
-            var thisCurveFunc = geval(curveData.equationName)
+        console.log('thisUniqueFeats',thisUniqueFeats)
+        // for(let pt=0; pt < thisUniqueFeats.length; ++pt) {
+           
+        //     var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+            
+        //     circle.setAttribute('cx', thisUniqueFeats[pt].x)
+        //     circle.setAttribute('cy', thisUniqueFeats[pt].y)
+        //     circle.setAttribute('r', ".5px")
+        //     // path.setAttribute("stroke","black");
+        //     circle.setAttribute("fill","black");
+        //     document.getElementById("ptGroup").append(circle);
+           
+        // }
+        // if(thisUniqueFeats.length==0) 
+        var clusterObj = new Cluster(thisUniqueFeats);
+        console.log('clusterObj.subClusters',clusterObj.subClusters)
+        var curveObjs = [];
+        for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
+            var curve = new Curve(clusterObj.subClusters[cl],`${5}${5}_${cl}`);
+            curveObjs.push(curve)
+        }
+       
+        
+        for(let curve=0; curve < curveObjs.length; ++curve) {
+            var curveObj = curveObjs[curve];
+            console.log("curveObj",curveObj);
+            geval(curveObj["currentEquationStr"])
+            var thisCurveFunc = geval(curveObj.currentEquationName)
 
-            // let xMin = curveObj.xRange[0];
-            // let xMax = curveObj.xRange[1];
-            let xMin = 0
-            let xMax = 1
-
-            var d = `M${boxX*window.w},${boxY*window.h} `
-            for(let x =xMin; x <= xMax; x+=.001) {
+            let xMin = curveObj.xRange[0];
+            let xMax = curveObj.xRange[1];
+            // let xMin = 0
+            // let xMax = 1
+            
+            var d = `M${xMin},${thisCurveFunc(xMin) } `
+            
+            for(let x =xMin; x <= xMax; x+=.5) {
                 var y = thisCurveFunc(x) 
-                // d+=`L${x+ curveObj.xRange[0]},${y+boxY*window.h} `
-                d+=`L${x+ curveObj.xRange[0]},${y+boxY*window.h} `
+                d+=`L${x},${y} `
             }
             var path = document.createElementNS("http://www.w3.org/2000/svg","path");
             path.setAttribute("d",d);
@@ -273,7 +297,7 @@ class FileManipPage extends React.Component {
             ++pathAmount;
         }
             
-        // }
+       
         // for(let gY=0; gY < grid.length; ++gY) {
         //     for(let gX=0; gX < grid[gY].length; ++gX) {
         //         var thisUniqueFeats = grid[gY][gX];

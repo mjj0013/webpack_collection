@@ -86,13 +86,14 @@ class FileManipPage extends React.Component {
         this.curveObjs = [];
         this.setImageLayers = this.setImageLayers.bind(this);
         this.mouseClickHandler = this.mouseClickHandler.bind(this);
+        this.keyMag = 2;
     }
     mouseClickHandler(e) {
         var resultSVG = document.getElementById("resultSVG");
         const rect = resultSVG.getBoundingClientRect();
         const x = e.clientX - rect.left
         const y = e.clientY - rect.top
-        this.currentPts.push({x:x, y:y});
+        this.currentPts.push({x:x, y:y, magGradient:this.keyMag});
         var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
         ptObj.setAttribute("cx",x);
         ptObj.setAttribute("cy",y);
@@ -164,8 +165,8 @@ class FileManipPage extends React.Component {
             if(keyName==' ') {
                 var clusterObj = new Cluster(this.currentPts,'0');
 
-                var curveObj = new Curve(this.currentPts,'0')
-                var clusters = curveObj.formClusters();
+               
+                var clusters = clusterObj.subClusters;
                 
                 var ptGroup =document.getElementById("ptGroup")
                 while (ptGroup.firstChild) ptGroup.removeChild(ptGroup.firstChild);
@@ -182,7 +183,9 @@ class FileManipPage extends React.Component {
                     }
                 }
             }
-            
+            if(['1','2','3','4','5','6','7','8','9'].includes(keyName)) {
+                this.keyMag = parseInt(keyName);
+            }
             if (keyName === 'Enter') {
                 var curveGroup =document.getElementById("curveGroup")
                 while (curveGroup.firstChild) curveGroup.removeChild(curveGroup.firstChild);
@@ -236,11 +239,11 @@ class FileManipPage extends React.Component {
             var layerName = `Layer ${l} | Sigma=${imageLayers[l]["component"].sig}`
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
         }
-        var pathAmount =0;
+        var pathAmount = 0;
         var grid = this.currentScanObj.combinedGrid.grid;
         var window = {w:this.currentScanObj.combinedGrid.windowWidth, h:this.currentScanObj.combinedGrid.windowHeight}
         var boxX = 1;   //4 when 100 
-        var boxY = 2;   //2 when 100
+        var boxY = 1;   //2 when 100
         var thisUniqueFeats = grid[boxY][boxX];
         
         var canvas = document.getElementById("testCanvas");
@@ -250,24 +253,30 @@ class FileManipPage extends React.Component {
         context.stroke();
         
         console.log('thisUniqueFeats',thisUniqueFeats)
+
+
+        var clusterObj = new Cluster(thisUniqueFeats);
+        console.log('clusterObj.subClusters',clusterObj.subClusters)
+
         // for(let pt=0; pt < thisUniqueFeats.length; ++pt) {
-           
         //     var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-            
         //     circle.setAttribute('cx', thisUniqueFeats[pt].x)
         //     circle.setAttribute('cy', thisUniqueFeats[pt].y)
         //     circle.setAttribute('r', ".5px")
         //     // path.setAttribute("stroke","black");
         //     circle.setAttribute("fill","black");
         //     document.getElementById("ptGroup").append(circle);
-           
         // }
-        // if(thisUniqueFeats.length==0) 
-        var clusterObj = new Cluster(thisUniqueFeats);
-        console.log('clusterObj.subClusters',clusterObj.subClusters)
+
+        // if(thisUniqueFeats.length <4) {
+        //     console.log("!!! not enough points in thisUniqueFeats");
+        //     return;
+        // }
+        
         var curveObjs = [];
         for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
             var curve = new Curve(clusterObj.subClusters[cl],`${5}${5}_${cl}`);
+            if(curve.pts.length ==0) continue;
             curveObjs.push(curve)
         }
        

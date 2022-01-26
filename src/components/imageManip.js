@@ -61,7 +61,7 @@ export class ImageScan {
         return equation; 
     }
 
-    async processBlobs(windowHeight=100, windowWidth=250) {
+    async processBlobs(windowHeight=100, windowWidth=100) {
         /********************************************************************************************************************************************* 
         For edge detection... simply find the distinct slopes in the image and their locations. 
         If points are very close in their gradient values and are local to each other(in a window), consider them members of the same curve/line 
@@ -74,7 +74,6 @@ export class ImageScan {
         If gradient continues in a direction, update its  with newly discovered part. 
         *********************************************************************************************************************************************/
 
-        
             // regions will have objects w/ format:     
             //{top:.., left:.., width:.., height:.., leftMost:[], rightMost:[], topMost:[], bottomMost:[], topLeftMost:[], topRightMost:[], bottomLeftMost:[], bottomRightMost:[]  }
 
@@ -83,33 +82,35 @@ export class ImageScan {
             windowHeight = this.imageHeight%windowHeight!=0? windowHeight+(this.imageHeight - (this.imageHeight%windowHeight)): windowHeight;
             windowWidth = this.imageWidth%windowWidth!=0? windowWidth+(this.imageWidth - (this.imageWidth%windowWidth)): windowWidth;
             console.log(windowHeight, windowWidth)
-        
-            // var distThreshold = windowHeight>=windowWidth? windowHeight/8 : windowWidth/8;
             var grid = Array(this.imageHeight/windowHeight).fill(Array(this.imageWidth/windowWidth).fill([]))
-            var gridY = 0, gridX=0;
-            // for(let layer=0; layer < this.imageLayers.length; ++layer) {
-                var Layer = this.imageLayers[0]
+            var gridY = 0, gridX=0;         //these are ITERS
+            for(let layer=0; layer < this.imageLayers.length; ++layer) {
+                var Layer = this.imageLayers[layer]
                 var resultData = Layer["resultData"];
                 for(var imgY=windowHeight; imgY < this.imageHeight-windowHeight; imgY+=windowHeight) { 
                     for(var imgX=windowWidth; imgX < this.imageWidth-windowWidth; imgX+=windowWidth) {              
                         var interestPts = []     // will be objects w/ format: {mag:.., pts:[], avgMag:..[]}  , mag is the mag that all the pts are close to
                         
+                        //Below, Trying to normalize data so its scaled to [0,1],  https://en.wikipedia.org/wiki/Feature_scaling#Rescaling_(min-max_normalization)
+                        // for(var kY=-windowHeight; kY < windowHeight; ++kY) {
+                        //     for(var kX=-windowWidth; kX < windowWidth; ++kX) { 
+                        //         var thisMagGradient = resultData["magGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
+                        //     }
+                        // }
+
                         //moving window so that image is scanned in grid-like way, NOT a convolution
                         for(var kY=-windowHeight; kY < windowHeight; ++kY) {
                             for(var kX=-windowWidth; kX < windowWidth; ++kX) { 
                                 var svgX = imgX-kX;
                                 var svgY = imgY-kY;
-                                
                                 var thisMagGradient = resultData["magGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
                                 var thisTheta = resultData["thetaGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
 
-                                
-                                
-                                if(thisMagGradient >=100) {
+                                if(thisMagGradient >=50) {
                                     var thisXGradient = resultData["xGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
                                     var thisYGradient = resultData["yGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
                                     var thisSlope = resultData["slopeRateY1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]/resultData["slopeRateX1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-                                    interestPts.push({x:svgX, y:svgY, slope:thisSlope, theta:thisTheta, xGradient:thisXGradient, yGradient:thisYGradient})
+                                    interestPts.push({x:svgX, y:svgY, slope:thisSlope, theta:thisTheta, magGradient:thisMagGradient, xGradient:thisXGradient, yGradient:thisYGradient})
                                 }
                             }
                         }
@@ -118,11 +119,10 @@ export class ImageScan {
                     }
                     ++gridY;
                 }
-
-            // }
+            }
             console.log("grid", grid)
             this.combinedGrid = {grid:grid, windowHeight:windowHeight, windowWidth:windowWidth};
-            resolve(this.combinedGrid);
+            resolve();
         })
 
     }
@@ -205,9 +205,7 @@ export class ImageScan {
 
             for(let c=0; c < layerStack.length; ++c) {
                 var parallelComponent = layerStack[c];
-
                 console.log(`Starting Layer #${c} of ${layerStack.length}`)
-                
                 for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
                     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {   
                         var sobelX1 = 0, sobelY1=0, laplacian=0;
@@ -216,14 +214,11 @@ export class ImageScan {
                                 for(let kx=-1; kx<= 1; ++kx) {
                                     let mag = parallelComponent["resultData"]["mags"][((imgX-kx) + (imgY-ky)*this.imageWidth)]
                                     //1st order gradient (Sobel)
-                                    let sX1 = SobelKernelX[ky+1][kx+1];
-                                    sobelX1 += mag*sX1;   
-                                    let sY1 = SobelKernelY[ky+1][kx+1];
-                                    sobelY1 += mag*sY1;
+                                    sobelX1 += mag*SobelKernelX[ky+1][kx+1];   
+                                    sobelY1 += mag*SobelKernelY[ky+1][kx+1];
 
                                     //2nd order gradient (Laplacian)
-                                    let laplaceVal = LaplacianKernel[ky+1][kx+1];
-                                    laplacian += mag*laplaceVal;
+                                    laplacian += mag*LaplacianKernel[ky+1][kx+1];
                                 }
                             }
                         }
@@ -233,12 +228,12 @@ export class ImageScan {
 
                         let magGrad = Math.sqrt((sobelY1*sobelY1) + (sobelX1*sobelX1))
                         let theta = sobelY1==0||sobelX1==0? 0:Math.atan((sobelY1)/(sobelX1));
-                        let slopeRateX1 = magGrad*Math.cos(theta);
-                        let slopeRateY1 = magGrad*Math.sin(theta)
+                        let slopeRate1 = {x:magGrad*Math.cos(theta), y:magGrad*Math.sin(theta)}
+                      
                         parallelComponent["resultData"]["magGradient1"].push(magGrad);
                         parallelComponent["resultData"]["thetaGradient1"].push(theta); 
-                        parallelComponent["resultData"]["slopeRateX1"].push(slopeRateX1) //measure of horizontal-ness
-                        parallelComponent["resultData"]["slopeRateY1"].push(slopeRateY1) //measure of vertical-ness
+                        parallelComponent["resultData"]["slopeRateX1"].push(slopeRate1.x) //measure of horizontal-ness
+                        parallelComponent["resultData"]["slopeRateY1"].push(slopeRate1.y) //measure of vertical-ness
                     }
                 }
 
@@ -359,9 +354,9 @@ export class ImageScan {
         return [newR, newG, newB, newA];
     }
 
-    colorGammaTransferComponent(inColor, amplitude, exponent, offset, isAlpha=false) {
-        return amplitude*Math.pow(inColor,exponent) + offset;
-    }
+    colorGammaTransferComponent(inColor, amplitude, exponent, offset, isAlpha=false) {    return amplitude*Math.pow(inColor,exponent) + offset;}
+
+
     async imageReader(addr=null) {
         return new Promise((resolve,reject)=> {
             var canvas = document.getElementById(this.canvasId)
@@ -508,9 +503,11 @@ export class ImageScan {
                     var detectBlobPromise =  OBJ.detectBlobs();      //detects blobs on each layer
                     detectBlobPromise.then(result => {
                         OBJ.processBlobs().then(result2=> {
-                        OBJ.saveLayerImageData(context); 
-                        resolve();           //this resolve() is for the promise of ImageReader
-                    })})        
+                            OBJ.saveLayerImageData(context); 
+                            resolve();           //this resolve() is for the promise of ImageReader
+                        })
+                        
+                    })        
 
                     
                 }

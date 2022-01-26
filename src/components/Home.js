@@ -1,23 +1,10 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+// import { Link } from 'react-router-dom';
 
 import Layout from './Layout';
 import {Menu,Accordion,Card,Segment,Button, Header, Container, Divider, Icon } from 'semantic-ui-react';
 
 import './layout.css';
-
-import PropTypes from 'prop-types';
-
-
-
-
-// import bg_image1 from "../img/pine_tree.jpeg";
-// import bg_image2 from "../img/high_res_grass.jpeg";
-// import bg_image3 from "../img/IMG_2313.jpg";
-
-
-
-
 
 class Home extends React.Component {
 	constructor(props) {
@@ -56,15 +43,7 @@ class Home extends React.Component {
 		  );
 	}
 }
-/*<img src="" height="200" alt="Image preview..."></img>*/
 
-/* <CalculatorModal id="cm" toggleSettings={this.toggleSettings}/>
-<SettingsModal id='calcSettingsModal'/> */
-// Home.childContextTypes = {
-// 	toggleSettings: PropTypes.func,
-
-// }
-//<button id="calculatorButton">Calculator</button>
 
 export default Home;
 

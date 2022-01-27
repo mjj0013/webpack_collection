@@ -130,7 +130,7 @@ export class Cluster {
                 var temp = []
                 for(let c=0; c < allClusters.length; ++c) {
                     if(allClusters[c].length==0) continue;
-                    temp = temp.concat(this.ABCAN1D(allClusters[c],clusteringOrder[op].epsilonMultiplier,clusteringOrder[op].minPts, 'magGradient'))   
+                    temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'magGradient'))   
                 }
                 allClusters = [...temp];
             }
@@ -138,7 +138,7 @@ export class Cluster {
                 var temp = []
                 for(let c=0; c < allClusters.length; ++c) {
                     if(allClusters[c].length==0) continue;
-                    temp = temp.concat(this.ABCAN1D(allClusters[c],clusteringOrder[op].epsilonMultiplier,clusteringOrder[op].minPts, 'thetaGradient'))    
+                    temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'thetaGradient'))    
                 }
                 allClusters = [...temp];
             }
@@ -146,7 +146,7 @@ export class Cluster {
                 var temp = []
                 for(let c=0; c < allClusters.length; ++c) { //1 Dimensional Attribute-Based Clustering
                     if(allClusters[c].length==0) continue;
-                    temp = temp.concat(this.ABCAN1D(allClusters[c],clusteringOrder[op].epsilonMultiplier,clusteringOrder[op].minPts, 'slope'))    
+                    temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'slope'))    
                 }
                 allClusters = [...temp];
             }

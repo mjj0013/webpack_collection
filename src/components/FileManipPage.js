@@ -120,13 +120,24 @@ class FileManipPage extends React.Component {
             }
         }
         context.putImageData(currentImageData, 0 , 0)
-        var selectedCornerLocations = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"];
-        for(let c=0; c < selectedCornerLocations.length; ++c) {
-            context.beginPath();
-            context.arc(selectedCornerLocations[c].x, selectedCornerLocations[c].y, 1, 0, 2 * Math.PI)
-            context.fillStyle = "white"
-            context.fill()
+        // var selectedCornerLocations = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"];
+        var cornerClusters = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerClusters"].subClusters;
+        for(let cluster=0; cluster < cornerClusters.length; ++cluster) {
+            var color = `rgb(${getRandomInt(0,255)},${getRandomInt(0,255)},${getRandomInt(0,255)} )`
+            for(let pt=0; pt < cornerClusters[cluster].length; ++pt) {
+                context.beginPath();
+                context.arc(cornerClusters[cluster][pt].x, cornerClusters[cluster][pt].y, 1, 0, 2 * Math.PI)
+                context.fillStyle = color
+                context.fill();
+            }
+            
         }
+        // for(let c=0; c < selectedCornerLocations.length; ++c) {
+        //     context.beginPath();
+        //     context.arc(selectedCornerLocations[c].x, selectedCornerLocations[c].y, 1, 0, 2 * Math.PI)
+        //     context.fillStyle = "white"
+        //     context.fill()
+        // }
     
     }
     showSigmaLayersOnHover(e) {
@@ -164,10 +175,7 @@ class FileManipPage extends React.Component {
 
             if(keyName==' ') {
                 var clusterObj = new Cluster(this.currentPts,'0');
-
-               
                 var clusters = clusterObj.subClusters;
-                
                 var ptGroup =document.getElementById("ptGroup")
                 while (ptGroup.firstChild) ptGroup.removeChild(ptGroup.firstChild);
                 
@@ -245,75 +253,75 @@ class FileManipPage extends React.Component {
         var boxX = 1;   //4 when 100 
         var boxY = 1;   //2 when 100
 
-        for(let gY=0; gY < grid.length; ++gY) {
-            for(let gX=0; gX < grid[gY].length; ++gX) {
-                var thisUniqueFeats = grid[gY][gX];
+        // for(let gY=0; gY < grid.length; ++gY) {
+        //     for(let gX=0; gX < grid[gY].length; ++gX) {
+        //         var thisUniqueFeats = grid[gY][gX];
                 
-                var canvas = document.getElementById("testCanvas");
-                var context = canvas.getContext("2d");
-                context.rect(boxX*window.w, boxY*window.h, window.w, window.h)
-                context.strokeStyle = "white"
-                context.stroke();
+        //         var canvas = document.getElementById("testCanvas");
+        //         var context = canvas.getContext("2d");
+        //         context.rect(boxX*window.w, boxY*window.h, window.w, window.h)
+        //         context.strokeStyle = "white"
+        //         context.stroke();
                 
-                console.log('thisUniqueFeats',thisUniqueFeats)
+        //         console.log('thisUniqueFeats',thisUniqueFeats)
 
 
-                var clusterObj = new Cluster(thisUniqueFeats);
-                console.log('clusterObj.subClusters',clusterObj.subClusters)
+        //         var clusterObj = new Cluster(thisUniqueFeats);
+        //         console.log('clusterObj.subClusters',clusterObj.subClusters)
 
-                // for(let pt=0; pt < thisUniqueFeats.length; ++pt) {
-                //     var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-                //     circle.setAttribute('cx', thisUniqueFeats[pt].x)
-                //     circle.setAttribute('cy', thisUniqueFeats[pt].y)
-                //     circle.setAttribute('r', ".5px")
-                //     // path.setAttribute("stroke","black");
-                //     circle.setAttribute("fill","black");
-                //     document.getElementById("ptGroup").append(circle);
-                // }
+        //         // for(let pt=0; pt < thisUniqueFeats.length; ++pt) {
+        //         //     var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        //         //     circle.setAttribute('cx', thisUniqueFeats[pt].x)
+        //         //     circle.setAttribute('cy', thisUniqueFeats[pt].y)
+        //         //     circle.setAttribute('r', ".5px")
+        //         //     // path.setAttribute("stroke","black");
+        //         //     circle.setAttribute("fill","black");
+        //         //     document.getElementById("ptGroup").append(circle);
+        //         // }
 
-                // if(thisUniqueFeats.length <4) {
-                //     console.log("!!! not enough points in thisUniqueFeats");
-                //     return;
-                // }
+        //         // if(thisUniqueFeats.length <4) {
+        //         //     console.log("!!! not enough points in thisUniqueFeats");
+        //         //     return;
+        //         // }
                 
-                var curveObjs = [];
-                for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
-                    var curve = new Curve(clusterObj.subClusters[cl],`${5}${5}_${cl}`);
-                    if(curve.pts.length ==0) continue;
-                    curveObjs.push(curve)
-                }
+        //         var curveObjs = [];
+        //         for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
+        //             var curve = new Curve(clusterObj.subClusters[cl],`${5}${5}_${cl}`);
+        //             if(curve.pts.length ==0) continue;
+        //             curveObjs.push(curve)
+        //         }
             
                 
-                for(let curve=0; curve < curveObjs.length; ++curve) {
-                    var curveObj = curveObjs[curve];
-                    console.log("curveObj",curveObj);
-                    geval(curveObj["currentEquationStr"])
-                    var thisCurveFunc = geval(curveObj.currentEquationName)
+        //         for(let curve=0; curve < curveObjs.length; ++curve) {
+        //             var curveObj = curveObjs[curve];
+        //             console.log("curveObj",curveObj);
+        //             geval(curveObj["currentEquationStr"])
+        //             var thisCurveFunc = geval(curveObj.currentEquationName)
 
-                    let xMin = curveObj.xRange[0];
-                    let xMax = curveObj.xRange[1];
-                    // let xMin = 0
-                    // let xMax = 1
+        //             let xMin = curveObj.xRange[0];
+        //             let xMax = curveObj.xRange[1];
+        //             // let xMin = 0
+        //             // let xMax = 1
                     
-                    var d = `M${xMin},${thisCurveFunc(xMin) } `
+        //             var d = `M${xMin},${thisCurveFunc(xMin) } `
                     
-                    for(let x =xMin; x <= xMax; x+=.5) {
-                        var y = thisCurveFunc(x) 
-                        d+=`L${x},${y} `
-                    }
-                    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-                    path.setAttribute("d",d);
-                    path.setAttribute("stroke","black");
-                    path.setAttribute("fill","none");
-                    document.getElementById("curveGroup").append(path);
-                    ++pathAmount;
-                }
+        //             for(let x =xMin; x <= xMax; x+=.5) {
+        //                 var y = thisCurveFunc(x) 
+        //                 d+=`L${x},${y} `
+        //             }
+        //             var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+        //             path.setAttribute("d",d);
+        //             path.setAttribute("stroke","black");
+        //             path.setAttribute("fill","none");
+        //             document.getElementById("curveGroup").append(path);
+        //             ++pathAmount;
+        //         }
                     
             
-                console.log("number of paths: ", pathAmount )
-            }
+        //         console.log("number of paths: ", pathAmount )
+        //     }
 
-        }
+        // }
         return new Promise((resolve,reject)=> { resolve("here"); });
     }
     

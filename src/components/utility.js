@@ -23,6 +23,13 @@ export function partitionItems(items,k,remPos = 0) {
     return segments;
 }
 
+
+export function objExistsInArray(array, obj, attrs=['x','y']) {
+    return array.some(function(el) {
+      return el[attrs[0]] === obj[attrs[0]] && el[attrs[1]]===obj[attrs[1]];
+    }); 
+}
+
 export function loadTextFile(e) {
     const txt_file=document.getElementById('paragraph');
     txt_file.src = URL.createObjectURL(e.target.files[0]);

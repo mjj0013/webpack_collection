@@ -9,7 +9,7 @@ import {Curve} from './Curve.js'
 import {Cluster} from './Cluster.js';
 import {getRandomInt} from './utility.js'
 // var globalImageData;
-var geval =eval;
+var geval = eval;
 
 class FileManipPage extends React.Component {
     constructor(props) {
@@ -27,16 +27,16 @@ class FileManipPage extends React.Component {
         this.setImageLayers = this.setImageLayers.bind(this);
         this.mouseClickHandler = this.mouseClickHandler.bind(this);
         this.keyMag = 2;
+        this.currentImageLayerIdx = 0;
     }
     mouseClickHandler(e) {
         var resultSVG = document.getElementById("resultSVG");
         const rect = resultSVG.getBoundingClientRect();
-        const x = e.clientX - rect.left
-        const y = e.clientY - rect.top
-        this.currentPts.push({x:x, y:y, magGradient:this.keyMag});
+        var svgMouseClick = {x: e.clientX - rect.left, y: e.clientY - rect.top, magGradient:this.keyMag}
+        this.currentPts.push(svgMouseClick);
         var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        ptObj.setAttribute("cx",x);
-        ptObj.setAttribute("cy",y);
+        ptObj.setAttribute("cx",svgMouseClick.x);
+        ptObj.setAttribute("cy",svgMouseClick.y);
         ptObj.setAttribute("r",5);
         ptObj.setAttribute("fill","black");
         document.getElementById("ptGroup").append(ptObj);
@@ -45,6 +45,7 @@ class FileManipPage extends React.Component {
         var canvas = document.getElementById("testCanvas");
         var context = document.getElementById("testCanvas").getContext('2d');
         var selectedIdx = e.target.value;
+        this.currentImageLayerIdx = selectedIdx
         var selectedImageData = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["imageData"];
         var currentImageData = context.getImageData(0,0, canvas.width, canvas.height)
         var imageWidth = currentImageData.width
@@ -57,9 +58,13 @@ class FileManipPage extends React.Component {
                 currentImageData.data[4*(imgY*imageWidth + imgX) + 3] = selectedImageData[4*(imgY*imageWidth + imgX) + 3]
             }
         }
+
+
+        
+     
         context.putImageData(currentImageData, 0 , 0)
         // var selectedCornerLocations = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"];
-        var cornerClusters = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerClusters"].subClusters;
+        var cornerClusters = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"].subClusters;
         for(let cluster=0; cluster < cornerClusters.length; ++cluster) {
             var color = `rgb(${getRandomInt(0,255)},${getRandomInt(0,255)},${getRandomInt(0,255)} )`
             for(let pt=0; pt < cornerClusters[cluster].length; ++pt) {
@@ -75,10 +80,13 @@ class FileManipPage extends React.Component {
         var y = e.layerY;
         var idx = (x) + (y)*this.currentScanObj.imageWidth;
         if(this.currentScanObj.imageLayers.length==0) return;
-        var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient1"][idx]   
-        var theta = this.currentScanObj.imageLayers[0]["resultData"]["thetaGradient1"][idx]
-        var ratio =  this.currentScanObj.imageLayers[0]["resultData"]["slopeRateY1"][idx] /this.currentScanObj.imageLayers[0]["resultData"]["slopeRateX1"][idx] 
-        console.log("mag", mag)        
+        var mag = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["magGradient1"][idx]  
+      
+        var laplacian =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["laplacian"][idx]  
+        // var theta = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["thetaGradient1"][idx]
+        // var ratio =  this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateY1"][idx] /this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateX1"][idx] 
+        var R = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["harrisResponse"][idx]   
+        console.log("laplacian", laplacian)        
     }
     
     async loadText(e) {
@@ -105,7 +113,7 @@ class FileManipPage extends React.Component {
             console.log("keyName",keyName)
 
             if(keyName==' ') {
-                var clusterObj = new Cluster(this.currentPts,'0');
+                var clusterObj = new Cluster(this.currentPts);
                 var clusters = clusterObj.subClusters;
                 var ptGroup =document.getElementById("ptGroup")
                 while (ptGroup.firstChild) ptGroup.removeChild(ptGroup.firstChild);
@@ -122,9 +130,8 @@ class FileManipPage extends React.Component {
                     }
                 }
             }
-            if(['1','2','3','4','5','6','7','8','9'].includes(keyName)) {
-                this.keyMag = parseInt(keyName);
-            }
+            if(['1','2','3','4','5','6','7','8','9'].includes(keyName))   this.keyMag = parseInt(keyName);
+            
             if (keyName === 'Enter') {
                 var curveGroup =document.getElementById("curveGroup")
                 while (curveGroup.firstChild) curveGroup.removeChild(curveGroup.firstChild);
@@ -177,12 +184,73 @@ class FileManipPage extends React.Component {
         for(let l =0; l < imageLayers.length; ++l) {
             var layerName = `Layer ${l} | Sigma=${imageLayers[l]["component"].sig}`
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
+            console.log("preClusteringGroups of "+ l, imageLayers[l]["resultData"]["preClusteringGroups"])
         }
         var pathAmount = 0;
-        var grid = this.currentScanObj.combinedGrid.grid;
-        var window = {w:this.currentScanObj.combinedGrid.windowWidth, h:this.currentScanObj.combinedGrid.windowHeight}
-        var boxX = 1;   //4 when 100 
-        var boxY = 1;   //2 when 100
+
+        var clusterOperations = [
+            // {name:'density', minPts:4, epsilonMultiplier:sigStack[c]/cornerLocations.length},
+            // {name:'magGradient', minPts:2, epsilonMultiplier:sigStack[c]} ///cornerLocations.length
+            {name:'density', minPts:3, epsilonMultiplier:.125},
+            //  {name:'thetaGradient', minPts:3, epsilonMultiplier:8} ///cornerLocations.length
+            // {name:'magGradient', minPts:2, epsilonMultiplier:8} ///cornerLocations.length
+        ]
+
+        var preClusteringGroups = imageLayers[0]["resultData"]["preClusteringGroups"]
+        var H = preClusteringGroups.length
+        var W = preClusteringGroups[0].length
+        console.log("W,H", W, H)
+        var windowR = 0;
+        
+        for(let j=windowR; j < H-windowR; ++j) {
+            for(let i=windowR; i < W-windowR; ++i) {
+                // for(let wY=-windowR; wY <=windowR; ++wY) {
+                //     for(let wX=-windowR; wX <=windowR; ++wX) {
+                        
+                //     }
+                // }
+                if(preClusteringGroups[j][i]['150,300'].length==0) continue;
+                var clusterObj = new Cluster(preClusteringGroups[j][i]['150,300'], clusterOperations);
+                var curveObjs = [];
+                for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
+                    var curve = new Curve(clusterObj.subClusters[cl],`${j}${i}_${cl}`,2);
+                    if(curve.pts.length ==0) continue;
+                    curveObjs.push(curve)
+                }
+                for(let curve=0; curve < curveObjs.length; ++curve) {
+                    var curveObj = curveObjs[curve];
+                    console.log("curveObj",curveObj);
+                    geval(curveObj["currentEquationStr"])
+                    var thisCurveFunc = geval(curveObj.currentEquationName)
+
+                    let xMin = curveObj.xRange[0];
+                    let xMax = curveObj.xRange[1];
+                   
+                    var F0 = {x:xMin, y:thisCurveFunc(xMin)}
+                    var d = `M${xMin},${thisCurveFunc(xMin) } `
+                    
+                    for(let x =xMin; x <= xMax; x+=.5) {
+                        var y = thisCurveFunc(x) 
+                        d+=`L${x},${y} `
+                    }
+
+                   
+                    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+                    path.setAttribute("id",`curve${curve}${xMin}`)
+                    path.setAttribute("d",d);
+                    path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
+                    path.setAttribute("fill","none");
+                    path.insertAdjacentHTML('beforeend', `<animateTransform xlink:href="#curve${curve}${xMin}" id="pathAnimate${curve}${xMin}" attributeName="transform" attributeType="XML" type="rotate" dur="3s" begin="indefinite"  repeatCount="indefinite"
+                    values="rotate(60,${F0.x}, ${F0.y}); rotate(120,${F0.x}, ${F0.y})" 
+                    ></animateTransform>`)
+                    document.getElementById("curveGroup").append(path);
+                    ++pathAmount;
+                }
+                
+            }
+        }
+
+
 
         // for(let gY=0; gY < grid.length; ++gY) {
         //     for(let gX=0; gX < grid[gY].length; ++gX) {
@@ -247,8 +315,6 @@ class FileManipPage extends React.Component {
         //             document.getElementById("curveGroup").append(path);
         //             ++pathAmount;
         //         }
-                    
-            
         //         console.log("number of paths: ", pathAmount )
         //     }
 
@@ -277,7 +343,7 @@ class FileManipPage extends React.Component {
     render() {
         return (
             <Layout title="File Loading Page" description="Description about file">
-                <Container id="imageFileLoader" style={{top:"40%", position:"absolute"}}>
+                <Container id="imageFileLoader" style={{top:"50%", position:"absolute"}}>
                     <label htmlFor="imgFile">Choose image file: </label>
                     <input type="file" id="imgFile" onChange={this.loadImage}></input>
                 </Container>
@@ -286,7 +352,7 @@ class FileManipPage extends React.Component {
                 <div id="windowTest" style={{backgroundColor:'black', top:'100px', left:'30px', width:100, height:100} } />
                 <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
                 <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}></select>
-                <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"100vh",position:"absolute",display:"block", border:"1px solid black"}}>
+                <svg id="resultSVG" width={1000} height={500} style={{left:"50vw",top:"60vh",position:"absolute",display:"block", border:"1px solid black"}}>
                     <g id="curveGroup"></g>
                     <g id="ptGroup"></g>
                 </svg>

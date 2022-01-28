@@ -18,7 +18,7 @@ export class Cluster {
         this.clusteringOrder = clusteringOrder;
         this.subClusters = this.findSubClusters(clusteringOrder)
     }
-    ABCAN1D(clusterData,epsilonMultiplier, minPts,attribute ) {     //Attribute-Based Clustering of Applications with Noise, 1 Dimensional (i.e magntiude, theta)
+    ABCAN1D(clusterData, epsilonMultiplier, minPts, attribute ) {     //Attribute-Based Clustering of Applications with Noise, 1 Dimensional (i.e magntiude, theta)
         
         // Calculate the best epsilon by finding differences b/w all points' attributes, sorting them, then finding where the greatest change occurs 
 
@@ -42,7 +42,9 @@ export class Cluster {
         for(let D=1; D < allDiffs.length; ++D) diffDeltas.push([ allDiffs[D]-allDiffs[D-1], allDiffs[D], allDiffs[D-1] ])  //[deltaAB, A, B]
         
         diffDeltas.sort(function(a,b){return b[0]-a[0]});
+        
         var epsilon = (diffDeltas[0][2] + diffDeltas[0][1])/2; 
+        
         epsilon*=epsilonMultiplier;
 
         

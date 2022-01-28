@@ -15,27 +15,22 @@ import Home from './Home';
 window.addEventListener('beforeunload', event => {
 	event.preventDefault();
 	window.localStorage.clear();	
-	
 });
 
 function App() {
-
 	return(
 		<BrowserRouter>
 			<div>
 				<Switch>
 					<Route path="/fileload" component={FileManipPage} />
 					<Route path="/animation" component={GraphicsPage} />
-					
 					<Route  path="/" component={Home} />
 				</Switch>
 			</div>
-			
 		</BrowserRouter>
 	);
 }
 
-//export default hot(App);
 export default App;
 
 

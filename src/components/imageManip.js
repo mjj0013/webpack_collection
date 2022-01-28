@@ -159,9 +159,8 @@ export class ImageScan {
                 var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
                 var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
                 layerStack.push({"component":component, "resultData":{"RGB":data.map((x)=>x),"imageData":null, "mags":[],"yGradient1":[], "xGradient1":[],
-                "magGradient1":[],"thetaGradient1":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[],"cornerLocations":[], "interestRegions":[], "laplacian":[], "eigenVals":[]}});
+                "magGradient1":[],"thetaGradient1":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[],"cornerLocations":[], "laplacian":[], "eigenVals":[]}});
             }
-            //"interestRegions" will have rectangles with format -> {top:.., left:.., width:.., height:..}
             
             var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
             for(let c=0; c < layerStack.length; ++c) {
@@ -231,8 +230,8 @@ export class ImageScan {
                       
                         parallelComponent["resultData"]["magGradient1"].push(magGrad);
                         parallelComponent["resultData"]["thetaGradient1"].push(theta); 
-                        parallelComponent["resultData"]["slopeRateX1"].push(slopeRate1.x) //measure of horizontal-ness
-                        parallelComponent["resultData"]["slopeRateY1"].push(slopeRate1.y) //measure of vertical-ness
+                        parallelComponent["resultData"]["slopeRateX1"].push(slopeRate1.x)       //measure of horizontal-ness
+                        parallelComponent["resultData"]["slopeRateY1"].push(slopeRate1.y)       //measure of vertical-ness
                     }
                 }
 
@@ -360,7 +359,7 @@ export class ImageScan {
         return [newR, newG, newB, newA];
     }
 
-    colorGammaTransferComponent(inColor, amplitude, exponent, offset, isAlpha=false) {    return amplitude*Math.pow(inColor,exponent) + offset;}
+    colorGammaTransferComponent(inColor, amplitude, exponent, offset, isAlpha=false) { return amplitude*Math.pow(inColor,exponent) + offset; }
 
 
     async imageReader(addr=null) {

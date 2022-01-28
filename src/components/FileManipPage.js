@@ -7,69 +7,9 @@ import "regenerator-runtime/runtime";
 import {ImageScan} from './imageManip.js'
 import {Curve} from './Curve.js'
 import {Cluster} from './Cluster.js';
+import {getRandomInt} from './utility.js'
 // var globalImageData;
 var geval =eval;
-
-function getRandomInt(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
-}
-
-function traceEdges() {
-    console.log("starting scanning")
-    var mappedEdges = [];   //right now, just append x,y
-    /*
-    will contain objects of form 
-    {
-        pts:[{x:x, y:y}, ...],
-        id:"",
-    }
-    */
-    var canvas = document.getElementById("testCanvas");
-    var imageData = canvas.getContext("2d").getImageData(0,0, 1000, 500);
-    console.log("imageData",imageData)
-    // var imageData = context.getImageData(50, 50, img.width, img.height);
-    var imageWidth = imageData.width;
-    var imageHeight = imageData.height;
-    var data = imageData.data
-    let frameRadius = 2;    
-    //looks at each pixel at (x,y)
-   
-    // ******* try scanning with recursive boxes to look for patterns (lines, polygons) in the image
-
-    var whiteDensityInKernel = 0;
-    var highestDensity = 0;
-    for(let imgY=frameRadius; imgY < imageHeight; imgY+=1) {       
-        for(let imgX=frameRadius; imgX < imageWidth; imgX+=1) {       
-      
-            for(let kY=-frameRadius; kY < frameRadius; kY+=1) {       //increment by 4 because its RGBA values
-                for(let kX=-frameRadius; kX < frameRadius; kX+=1) {       //increment by 4 because its RGBA values 
-                    if(data[4*((imgX-kX) + (imgY-kY)*imageWidth)]>=225 && data[4*((imgX-kX) + (imgY-kY)*imageWidth) + 1]>=225 && data[4*((imgX-kX) + (imgY-kY)*imageWidth)+2]>=225) {
-                        ++whiteDensityInKernel; 
-                    }
-                }
-            }
-            if(whiteDensityInKernel>=5)    mappedEdges.push({x:imgX, y:imgY});
-            
-            if(whiteDensityInKernel > highestDensity) highestDensity = whiteDensityInKernel;
-            whiteDensityInKernel = 0;
-        }
-    }   
-    console.log("done scanning");
-    console.log("mappedEdges.length", mappedEdges.length)
-    console.log("highestDensity",highestDensity)
-    
-    var resultSVG = document.getElementById("resultSVG");
-    for(let i =0; i < mappedEdges.length; ++i) {
-        var C = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        C.setAttribute("cx", mappedEdges[i].x);
-        C.setAttribute("cy", mappedEdges[i].y);
-        C.setAttribute("r", ".5px");
-        C.setAttribute("fill","black");
-        resultSVG.appendChild(C);
-    }
-}
 
 class FileManipPage extends React.Component {
     constructor(props) {
@@ -101,8 +41,6 @@ class FileManipPage extends React.Component {
         ptObj.setAttribute("fill","black");
         document.getElementById("ptGroup").append(ptObj);
     }
-
-
     selectImageLayerToDisplay(e) {
         var canvas = document.getElementById("testCanvas");
         var context = document.getElementById("testCanvas").getContext('2d');
@@ -129,21 +67,14 @@ class FileManipPage extends React.Component {
                 context.arc(cornerClusters[cluster][pt].x, cornerClusters[cluster][pt].y, 1, 0, 2 * Math.PI)
                 context.fillStyle = color
                 context.fill();
-            }
-            
+            }   
         }
-        // for(let c=0; c < selectedCornerLocations.length; ++c) {
-        //     context.beginPath();
-        //     context.arc(selectedCornerLocations[c].x, selectedCornerLocations[c].y, 1, 0, 2 * Math.PI)
-        //     context.fillStyle = "white"
-        //     context.fill()
-        // }
-    
     }
     showSigmaLayersOnHover(e) {
         var x = e.layerX;
         var y = e.layerY;
         var idx = (x) + (y)*this.currentScanObj.imageWidth;
+        if(this.currentScanObj.imageLayers.length==0) return;
         var mag = this.currentScanObj.imageLayers[0]["resultData"]["magGradient1"][idx]   
         var theta = this.currentScanObj.imageLayers[0]["resultData"]["thetaGradient1"][idx]
         var ratio =  this.currentScanObj.imageLayers[0]["resultData"]["slopeRateY1"][idx] /this.currentScanObj.imageLayers[0]["resultData"]["slopeRateX1"][idx] 
@@ -329,7 +260,6 @@ class FileManipPage extends React.Component {
         var filterInfo = [
             // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
-
             // {type:"gaussBlur", kernelLength:7, sig:4000}
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.5,.9,1.0]},
             // {type:"edgeDetect", kernelLength:7,middleValue:20, fillValue:-1, cornerValue:-1},
@@ -337,38 +267,26 @@ class FileManipPage extends React.Component {
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
         ]
         this.currentScanObj = new ImageScan('testCanvas',filterInfo);
-       
         var imageReadPromise = this.currentScanObj.imageReader()
         imageReadPromise.then(result => {this.setImageLayers()});
-
-         
         document.getElementById("testCanvas").onmousemove = (e) => this.showSigmaLayersOnHover(e);
         this.selectedImage = this.currentScanObj.selectedFile;
-        
-      
         return;
 	}
     
-
     render() {
         return (
             <Layout title="File Loading Page" description="Description about file">
                 <Container id="imageFileLoader" style={{top:"40%", position:"absolute"}}>
                     <label htmlFor="imgFile">Choose image file: </label>
                     <input type="file" id="imgFile" onChange={this.loadImage}></input>
-                    <button onClick={traceEdges}>Trace Edges</button>
                 </Container>
                 
                 <svg id="mainSVG" style={{display:"none"}} width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"></svg>
                 <div id="windowTest" style={{backgroundColor:'black', top:'100px', left:'30px', width:100, height:100} } />
                 <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
-                <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}>
-                    
-                    
-                    {/* <option value="none">None</option> */}
-                </select>
+                <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}></select>
                 <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"100vh",position:"absolute",display:"block", border:"1px solid black"}}>
-                    
                     <g id="curveGroup"></g>
                     <g id="ptGroup"></g>
                 </svg>

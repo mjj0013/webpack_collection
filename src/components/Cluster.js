@@ -1,47 +1,36 @@
-import { Matrix, solve } from 'ml-matrix';
+// import { Matrix, solve } from 'ml-matrix';
 import {distance, numberInRange} from './utility.js'
 
 
 export class Cluster {
     constructor(pts, clusteringOrder=[{name:'density', epsilonMultiplier:1, minPts:3}, {name:'magGradient', epsilonMultiplier:1, minPts:2}]) {
-        this.clusteringOrder = clusteringOrder;
-        // this.testPtsOnCurve = this.testPtsOnCurve.bind(this);
-        // this.getPointData = this.getPointData.bind(this);
-        // this.fitCurveToPts = this.fitCurveToPts.bind(this);
         
         this.findSubClusters = this.findSubClusters.bind(this);
-        //this.ABCA = this.ABCA.bind(this);         //Angular-Based Clustering of Applications (custom)
-        this.ABCAN1D =  this.ABCAN1D.bind(this);         //Gradient-Based Clustering of Applications (custom)
         this.DBSCAN = this.DBSCAN.bind(this);       //Density-Based Spatial Clustering of Applications with Noise
+        this.ABCAN1D =  this.ABCAN1D.bind(this);         //1D Attribute-Based Clustering of Applications with Noise  (custom)
         this.rangeQueryDBSCAN = this.rangeQueryDBSCAN.bind(this);
-        
         this.rangeQueryABCAN1D = this.rangeQueryABCAN1D.bind(this);
 
         this.pts = pts;
         this.N = this.pts.length;
         this.xVals = this.pts.map(a=>a.x);
         this.yVals = this.pts.map(a=>a.y);
-       
-        // this.xRange = this.getXRange([0,this.pts.length]);
-        // this.xMin = this.xRange[0];
-        // this.xMax = this.xRange[1];
-        //this.subClusters =[pts]
+        this.clusteringOrder = clusteringOrder;
         this.subClusters = this.findSubClusters(clusteringOrder)
-        
-        
     }
     ABCAN1D(clusterData,epsilonMultiplier, minPts,attribute ) {     //Attribute-Based Clustering of Applications with Noise, 1 Dimensional (i.e magntiude, theta)
         
+        // Calculate the best epsilon by finding differences b/w all points' attributes, sorting them, then finding where the greatest change occurs 
+
         var allDiffs = []
         for(let p=0; p < clusterData.length; ++p) {
             var thisDiffs = []
             for(let p2=0; p2 < clusterData.length; ++p2) {
+                let cluster1 = clusterData[p];
+                let cluster2 = clusterData[p2];
                 if(p==p2) continue;
-                let d;
-                if(clusterData[p][attribute] > clusterData[p2][attribute]  ) {
-                    d = clusterData[p][attribute]-clusterData[p2][attribute] 
-                }
-                else d = clusterData[p2][attribute]-clusterData[p][attribute]    
+                let d = cluster1[attribute] > cluster2[attribute]? cluster1[attribute]-cluster2[attribute] : cluster2[attribute]-cluster1[attribute]; 
+
                 thisDiffs.push(d);
             }
             thisDiffs.sort(function(a,b){return a-b});
@@ -50,9 +39,8 @@ export class Cluster {
         allDiffs = allDiffs.flat()
         allDiffs.sort(function(a,b){return a-b});
         var diffDeltas = [];
-        for(let D=1; D < allDiffs.length; ++D) {
-            diffDeltas.push([ allDiffs[D]-allDiffs[D-1], allDiffs[D], allDiffs[D-1] ])  //[deltaAB, A, B]
-        }
+        for(let D=1; D < allDiffs.length; ++D) diffDeltas.push([ allDiffs[D]-allDiffs[D-1], allDiffs[D], allDiffs[D-1] ])  //[deltaAB, A, B]
+        
         diffDeltas.sort(function(a,b){return b[0]-a[0]});
         var epsilon = (diffDeltas[0][2] + diffDeltas[0][1])/2; 
         epsilon*=epsilonMultiplier;
@@ -111,49 +99,37 @@ export class Cluster {
     findSubClusters(clusteringOrder) {
         //clusteringOrder --> clustering operations will execute in the order specified from this variable. Default: only density based clustering
 
-        //additionalDims contains names of additional dimensions to be factored in
-        
         var allClusters = [this.pts];
-
         for(let op=0; op < clusteringOrder.length; ++op) {
-            if(clusteringOrder[op].name=='density') {
-                var temp = []
+            var temp = []
+            if(clusteringOrder[op].name=='density') {               //Density-Based Clustering
                 for(let c=0; c < allClusters.length; ++c) {
                     if(allClusters[c].length==0) continue;
-                    temp = temp.concat(              //density-based clusters
-                        this.DBSCAN(allClusters[c],clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts)
-                        );
+                    temp = temp.concat( this.DBSCAN(allClusters[c],clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts) );   
                 }
-                allClusters = [...temp];
             }
             else if(clusteringOrder[op].name=='magGradient') {       //1 Dimensional Attribute-Based Clustering
-                var temp = []
                 for(let c=0; c < allClusters.length; ++c) {
                     if(allClusters[c].length==0) continue;
                     temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'magGradient'))   
                 }
-                allClusters = [...temp];
             }
             else if(clusteringOrder[op].name=='thetaGradient') {    //1 Dimensional Attribute-Based Clustering
-                var temp = []
                 for(let c=0; c < allClusters.length; ++c) {
                     if(allClusters[c].length==0) continue;
                     temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'thetaGradient'))    
                 }
-                allClusters = [...temp];
             }
-            else if(clusteringOrder[op].name=='slope') {
-                var temp = []
-                for(let c=0; c < allClusters.length; ++c) { //1 Dimensional Attribute-Based Clustering
+            else if(clusteringOrder[op].name=='slope') {             //1 Dimensional Attribute-Based Clustering
+                for(let c=0; c < allClusters.length; ++c) {
                     if(allClusters[c].length==0) continue;
                     temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'slope'))    
-                }
-                allClusters = [...temp];
+                } 
             }
+            else return -1;
+            allClusters = [...temp];
         }
         console.log('allClusters',allClusters)
-        
-      
         return allClusters;
     }
     
@@ -166,9 +142,8 @@ export class Cluster {
         // epsilon --> calculated with https://towardsdatascience.com/machine-learning-clustering-dbscan-determine-the-optimal-value-for-epsilon-eps-python-example-3100091cfbc
 
         //calculate best epsilon by finding distances b/w all points, sorting those distances, then finding where the greatest change in distance occurs 
-        // if(epsilon==null) {
+       
         var allDists = []
-        
         for(let p=0; p < clusterData.length; ++p) {
             var thisDists = []
             for(let p2=0; p2 < clusterData.length; ++p2) {
@@ -188,9 +163,8 @@ export class Cluster {
         }
         distDeltas.sort(function(a,b){return b[0]-a[0]});
         var epsilon = (distDeltas[0][2] + distDeltas[0][1])/2;
-            
-        // }
-        epsilon *=epsilonMultiplier;
+
+        epsilon *=epsilonMultiplier;        
         console.log('epsilon',epsilon)
         var clusterIter = -1;
         var labeledPts = Array(clusterData.length).fill(-1)     //holds indices of points that are already processed

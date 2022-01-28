@@ -1,119 +1,12 @@
 import { Matrix, solve } from 'ml-matrix';
-import {distance, numberInRange} from './utility.js'
-var preCalcFactorials = [1,1,2,6,24,120, 720, 5040, 40320, 362880,39916800, 479001600, 6227020800, 87178291200]
-function binomialCoeff(n,i) {
-    if(n > 13 || i > 13) return -1;
-    var nFact = preCalcFactorials[n];
-    var iFact = preCalcFactorials[i];
-    var diffFact = preCalcFactorials[n-i];
-    return nFact/(iFact*diffFact);
-}
+import {getStdDev, partitionItems, binomialCoeff} from './utility.js'           //distance, numberInRange, 
 
-//NOTE: BEZIER PARAMETRIC FUNCTIONS BELOW ARE NOT THE SAME AS THE LAGRANGE POLYNOMIAL!!
-function getBezierParametricFunctions(order) {
-    //returns {xFunc:x(t), yFunc: y(t)}
-    // https://stackoverflow.com/questions/5634460/quadratic-b%c3%a9zier-curve-calculate-points
-    //For calculating point on Cubic bezier x(t) and y(t), 0 <= t <= 1 :
-        //  x(t) = (1-t)*(1-t)*(1-t)*p[0].x + 3*(1-t)*(1-t)*t*p[1].x + 3*(1-t)*t*t*p[2].x + t*t*t*p[3].x
-        //  y(t) = (1-t)*(1-t)*(1-t)*p[0].y + 3*(1-t)*(1-t)*t*p[1].y + 3*(1-t)*t*t*p[2].y + t*t*t*p[3].y
-        //p[0] --> starting point
-        //p[1] --> control point
-        //p[2] --> control point
-        //p[3] --> end point
-    var xTerms = [];
-    var yTerms = [];
-    for(let i=0; i < order+1; ++i) {
-        let thisBinomCoeff = binomialCoeff(order,i);
-        let currentTerm = `(${thisBinomCoeff}*(1-t)`
-        let repeatingFactors = order-i;
-        if(repeatingFactors==0) currentTerm=`(${thisBinomCoeff}`;
-        else {
-            for(let fact=1; fact < repeatingFactors; ++fact) {currentTerm += `*(1-t)`}
-        }
-        if(i == 0) currentTerm+=`*1`
-        else {
-            currentTerm+=`*t`
-            for(let tFact=1; tFact < i; ++tFact) {currentTerm+=`*t` }
-            
-        }
-        currentTerm+=`*pts[${i}]`
-        xTerms.push(currentTerm+`.x)`);
-        yTerms.push(currentTerm+`.y)`);
-
-    }
-    eval(`var bezierParametric${order} = (t, pts) => {
-        let xVal = ${xTerms.join(` + `)};
-        let yVal = ${yTerms.join(` + `)};
-        return {x:xVal, y:yVal}
-    }`)
-    return {func:`bezierParametric${order}`, order: order};
-}
-
-function partitionItems(items,k,remPos = 0) {
-    //splits items into k segments and returns array of partitions
-    //if there's a remainder, there is option to adjust where the remainder will be placed in the partitions.
-    var segments = []
-    var N = items.length;
-    var segmentLen = Math.floor(N/k)
-    if(N%k!=0) {
-        var rem = N%k;
-        var remAdded = false;
-        for(let d=0; d<k; ++d) {
-            if(d==remPos) {
-                remAdded = true;
-                segments.push({
-                    indexRange:[d*segmentLen, rem+ segmentLen*(d+1)],
-                    vals:items.slice(d*segmentLen, rem+ segmentLen*(d+1))
-                });
-            }
-            else {
-                if(remAdded) {
-                    segments.push({
-                        indexRange:[d*segmentLen+rem,segmentLen*(d+1)+rem],
-                        vals:items.slice(d*segmentLen+rem, segmentLen*(d+1)+rem)
-                    });
-                }
-                else {
-                    segments.push({
-                        indexRange:[d*segmentLen, segmentLen*(d+1)],
-                        vals:items.slice( d*segmentLen, segmentLen*(d+1) )
-                    });
-                }   
-            }
-        } 
-    }
-    else {
-        for(let d=0; d<k; ++d) {
-            segments.push({
-                indexRange:[d*segmentLen, segmentLen*(d+1)],
-                vals:items.slice(d*segmentLen,segmentLen*(d+1))
-            });
-        }   
-    }
-    return segments;
-}
-
-function getStdDev(allItems) {
-    var totalNum = allItems.length;
-    var total = 0
-    for(let i =0; i < allItems.length; ++i) total+=allItems[i];
-    var average = total/totalNum;
-    var summation = 0
-    for(let i =0; i < allItems.length; ++i) {
-        summation += (allItems[i]-average)*(allItems[i]-average)
-    }
-    return Math.sqrt(summation/(totalNum-1));
-}
 export class Curve {
     constructor(pts,equationId,order=2) {
-        
         this.testPtsOnCurve = this.testPtsOnCurve.bind(this);
         this.testLagrangePolyString = this.testLagrangePolyString.bind(this);
         this.optimizeFunction = this.optimizeFunction.bind(this);
-        
-        
         this.fitCurveToPts = this.fitCurveToPts.bind(this);
-        
         this.getXRange = this.getXRange.bind(this);
 
         //******************************************************** */
@@ -121,7 +14,6 @@ export class Curve {
         this.optimizeCurve = this.optimizeCurve.bind(this);
         this.getPointData = this.getPointData.bind(this);
         //******************************************************** */
-
         this.equationId = equationId;
         this.pts = pts;
         this.N = this.pts.length;
@@ -132,16 +24,11 @@ export class Curve {
         this.xMin = this.xRange[0];
         this.xMax = this.xRange[1];
 
-        // this.curveData = this.testLagrangePolyString();
         this.curveData = this.fitCurveToPts(pts,order);
         this.currentEquationStr = this.curveData.equationStr;       //you would call geval/eval on this variable in another module
         this.currentEquationName = this.curveData.equationName;
         this.equationOrder = this.curveData.equationOrder;
-        // this.curveData = [];
-        //this.optimizeCurve();
-        
-        
-        
+
     }
 
     fitCurveToPts(clusterPts, order=2) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
@@ -214,41 +101,24 @@ export class Curve {
         }
         else if(segmentN % numSegments==0) {           //segments are divided perfectly
             var segments = partitionItems(thisSegment, numSegments) //segments is an array of partitions of the curve's slopes (still in order)
-            var segmentResults = [];
-            var optimalSegments = []
-
+            var segmentResults = [], optimalSegments = [];
             for(let seg = 0; seg < segments.length; ++seg) {
                 let stdDev = getStdDev(segments[seg].vals)
                 let subIsOptimal = false;
                 if(stdDev <= stdDevThreshold) subIsOptimal = true;
-                segmentResults.push({
-                    successRatio:stdDevThreshold/stdDev,
-                    status:subIsOptimal, 
-                    segment:segments[seg].vals, 
-                    indexRange:segments[seg].indexRange,
-                    stdDev:stdDev})
+                segmentResults.push({successRatio:stdDevThreshold/stdDev, status:subIsOptimal,  segment:segments[seg].vals,  indexRange:segments[seg].indexRange, stdDev:stdDev})
             }
             for(let resultSeg=0; resultSeg < segmentResults.length; ++resultSeg) {
-                if(segmentResults[resultSeg].status) {
-                    //save this segment since the stdDev of its slopes were below threshold
-                    optimalSegments.push({
-                        featureSegment:segmentResults[resultSeg].segment, 
-                        indexRange:segmentResults[resultSeg].indexRange, 
-                        stdDev:segmentResults[resultSeg].stdDev,
-                        successRatio:stdDevThreshold/segmentResults[resultSeg].stdDev})
+                if(segmentResults[resultSeg].status) {      //save this segment since the stdDev of its slopes were below threshold
+                    optimalSegments.push({ featureSegment:segmentResults[resultSeg].segment,  indexRange:segmentResults[resultSeg].indexRange,  stdDev:segmentResults[resultSeg].stdDev, successRatio:stdDevThreshold/segmentResults[resultSeg].stdDev})
                 }
                 else  {     //attempt to further divide this segment into more sub segments
                     let nextIterRange = segmentResults[resultSeg].indexRange.length;
-                    
                     if(nextIterRange > numSegments) {       //current segment can still be divided further
-                        optimalSegments.concat(this.optimizeFunction(segmentResults[resultSeg].indexRange,featureSlope,numSegments, stdDevThreshold))
+                        optimalSegments = optimalSegments.concat(this.optimizeFunction(segmentResults[resultSeg].indexRange,featureSlope,numSegments, stdDevThreshold))
                     }
                     else {      //current segment can no longer be divided
-                        optimalSegments.push({
-                            successRatio:stdDevThreshold/segmentResults[resultSeg].stdDev,
-                            featureSegment:segmentResults[resultSeg].segment, 
-                            indexRange:segmentResults[resultSeg].indexRange, 
-                            stdDev:segmentResults[resultSeg].stdDev})
+                        optimalSegments.push({ successRatio:stdDevThreshold/segmentResults[resultSeg].stdDev, featureSegment:segmentResults[resultSeg].segment,  indexRange:segmentResults[resultSeg].indexRange, stdDev:segmentResults[resultSeg].stdDev})
                     }
                 }
             }
@@ -260,39 +130,25 @@ export class Curve {
             var oddResults = []
             for(let remPos=0; remPos < numSegments; ++remPos) {
                 var segments = partitionItems(this.slopeSteps.slice(segmentRange[0], segmentRange[1]), numSegments,remPos)
-                var segmentResults = [];
-                var optimalSegments = []
+                var segmentResults = [], optimalSegments = []
 
                 for(let seg = 0; seg < segments.length; ++seg) {
                     let stdDev = getStdDev(segments[seg].vals)
                     let subIsOptimal = false;
                     if(stdDev <= stdDevThreshold) subIsOptimal = true;
-                    segmentResults.push({
-                        successRatio:stdDevThreshold/stdDev,
-                        status:subIsOptimal, 
-                        segment:segments[seg].vals, 
-                        indexRange:segments[seg].indexRange,
-                        stdDev:stdDev})
+                    segmentResults.push({ successRatio:stdDevThreshold/stdDev, status:subIsOptimal,  segment:segments[seg].vals, indexRange:segments[seg].indexRange, stdDev:stdDev})
                 }
                 for(let resultSeg=0; resultSeg < segmentResults.length; ++resultSeg) {
                     if(segmentResults[resultSeg].status) {      //save this segment since the stdDev of its slopes were below threshold
-                        optimalSegments.push({
-                            successRatio:stdDevThreshold/segmentResults[resultSeg].stdDev,
-                            featureSegment:segmentResults[resultSeg].segment, 
-                            indexRange:segmentResults[resultSeg].indexRange, 
-                            stdDev:segmentResults[resultSeg].stdDev})
+                        optimalSegments.push({ successRatio:stdDevThreshold/segmentResults[resultSeg].stdDev, featureSegment:segmentResults[resultSeg].segment,  indexRange:segmentResults[resultSeg].indexRange,  stdDev:segmentResults[resultSeg].stdDev})
                     }
                     else  {     //further divide this segment into more sub segments
                         let nextIterRange = segmentResults[resultSeg].indexRange.length;
                         if(nextIterRange > numSegments) {
-                            optimalSegments.concat(this.optimizeFunction(segmentResults[resultSeg].indexRange,featureSlope,numSegments, stdDevThreshold))
+                            optimalSegments = optimalSegments.concat(this.optimizeFunction(segmentResults[resultSeg].indexRange,featureSlope,numSegments, stdDevThreshold))
                         }
                         else {
-                            optimalSegments.push({
-                                successRatio:stdDevThreshold/segmentResults[resultSeg].stdDev,
-                                featureSegment:segmentResults[resultSeg].segment, 
-                                indexRange:segmentResults[resultSeg].indexRange, 
-                                stdDev:segmentResults[resultSeg].stdDev})
+                            optimalSegments.push({ successRatio:stdDevThreshold/segmentResults[resultSeg].stdDev, featureSegment:segmentResults[resultSeg].segment,  indexRange:segmentResults[resultSeg].indexRange,  stdDev:segmentResults[resultSeg].stdDev})
                         }
                     }
                 }
@@ -305,27 +161,16 @@ export class Curve {
             var bestSegmentResults = oddResults[0].result;
             
             for(let resultSeg=0; resultSeg < bestSegmentResults.length; ++resultSeg) {
-                if(bestSegmentResults[resultSeg].status) {
-                    //save this segment since the stdDev of its slopes were below threshold
-                    optimalSegments.push({
-                        featureSegment:bestSegmentResults[resultSeg].segment, 
-                        indexRange:bestSegmentResults[resultSeg].indexRange, 
-                        stdDev:bestSegmentResults[resultSeg].stdDev,
-                        successRatio:stdDevThreshold/bestSegmentResults[resultSeg].stdDev})
+                if(bestSegmentResults[resultSeg].status) {       //save this segment since the stdDev of its slopes were below threshold
+                    optimalSegments.push({ featureSegment:bestSegmentResults[resultSeg].segment,  indexRange:bestSegmentResults[resultSeg].indexRange,  stdDev:bestSegmentResults[resultSeg].stdDev, successRatio:stdDevThreshold/bestSegmentResults[resultSeg].stdDev})
                 }
-                else  {
-                    //attempt to further divide this segment into more sub segments
+                else  {      //attempt to further divide this segment into more sub segments
                     let nextIterRange = bestSegmentResults[resultSeg].indexRange.length;
-                    
                     if(nextIterRange > numSegments) {       //current segment can still be divided further
-                        optimalSegments.concat(this.optimizeFunction(bestSegmentResults[resultSeg].indexRange,featureSlope,numSegments, stdDevThreshold))
+                        optimalSegments = optimalSegments.concat(this.optimizeFunction(bestSegmentResults[resultSeg].indexRange,featureSlope,numSegments, stdDevThreshold))
                     }
                     else {      //current segment can no longer be divided
-                        optimalSegments.push({
-                            successRatio:stdDevThreshold/bestSegmentResults[resultSeg].stdDev,
-                            featureSegment:bestSegmentResults[resultSeg].segment, 
-                            indexRange:bestSegmentResults[resultSeg].indexRange, 
-                            stdDev:bestSegmentResults[resultSeg].stdDev})
+                        optimalSegments.push({ successRatio:stdDevThreshold/bestSegmentResults[resultSeg].stdDev, featureSegment:bestSegmentResults[resultSeg].segment,  indexRange:bestSegmentResults[resultSeg].indexRange,  stdDev:bestSegmentResults[resultSeg].stdDev})
                     }
                 }
             }
@@ -351,16 +196,11 @@ export class Curve {
         var optimalSegmentation = this.optimizeFunction(currentRange, "slope", numSegments, stdDevThreshold);
     }
 
-    getPointData() {
-        //gets distances, slopes, and slopeDeltas between each consecutive point
-        var dists = []
-        var slopes = [];
-        var mappedFunc = []
+    getPointData() {        //gets distances, slopes, and slopeDeltas between each consecutive point
+        var dists = [], slopes = [], mappedFunc = [];
         for(let x=0; x < this.xVals.length; ++x)  mappedFunc.push([this.xVals[x],this.yVals[x]])
-        
         var outputs = Object.fromEntries(mappedFunc);
         var sortedXVals = [...this.xVals].sort(function(a,b){return a-b});
-
         let lastX = 0, lastY = 0;
         
         for(let x=0; x < sortedXVals.length; ++x) {
@@ -375,7 +215,6 @@ export class Curve {
             let thisX = sortedXVals[x];
             let thisY = outputs[thisX];
             slopes.push((thisY-lastY)/(thisX-lastX))
-
             lastX = thisX;
             lastY = thisY;
         }
@@ -384,11 +223,10 @@ export class Curve {
     }
 
     getXRange(range) {
-        var xMin=999999;
-        var xMax = -999999;
+        var xMin=999999, xMax = -999999;
         for(let x=range[0]; x < range[1]; ++x) {
-            if(this.xVals[x] > xMax) xMax = this.xVals[x];
-            if(this.xVals[x] < xMin) xMin = this.xVals[x];
+            xMax = this.xVals[x] > xMax? this.xVals[x] : xMax;
+            xMin = this.xVals[x] < xMin? this.xVals[x] : xMin;
         }
         return [xMin, xMax]
     }

@@ -127,7 +127,6 @@ class FileManipPage extends React.Component {
                 }
             }
             if(['1','2','3','4','5','6','7','8','9'].includes(keyName))   this.keyMag = parseInt(keyName);
-            
             if (keyName === 'Enter') {
                 var curveGroup =document.getElementById("curveGroup")
                 while (curveGroup.firstChild) curveGroup.removeChild(curveGroup.firstChild);
@@ -160,7 +159,6 @@ class FileManipPage extends React.Component {
     }
     setImageLayers() {
         console.log("Inserting image layers into selector")
-        
         var selectFilter = document.getElementById("selectFilter");
         var imageLayers = this.currentScanObj.imageLayers
         for(let l =0; l < imageLayers.length; ++l) {
@@ -169,27 +167,17 @@ class FileManipPage extends React.Component {
             console.log("preClusteringGroups of "+ l, imageLayers[l]["resultData"]["preClusteringGroups"])
         }
         var pathAmount = 0;
-
-        
         var resultData = imageLayers[0]["resultData"]
         var preClusteringGroups = resultData["preClusteringGroups"]
         var H = preClusteringGroups.length
         var W = preClusteringGroups[0].length
         console.log("W,H", W, H)
         var windowR = 0;
-        
+        //try moving window starting from corners (lock the grid to the corders, start new grid every time so no overlapping occurs)
+
         for(let j=windowR; j < H-windowR; ++j) {
             for(let i=windowR; i < W-windowR; ++i) {
 
-                // // merge the preClusteringGroups of adjacent regions if their headPt/tailPt are close
-                // for(let wY=-windowR; wY <=windowR; ++wY) {
-                //     for(let wX=-windowR; wX <=windowR; ++wX) {
-                //         for(let key=0; key < rangeKeys.length; ++key) {
-                //             var thisTestCurve = new Curve(preClusteringGroups[j][i],`test${j}${i}`,2);
-                //             distance(testCurve)
-                //         }
-                //     }
-                // }
                 console.log("preClusteringGroups[j][i]", preClusteringGroups[j][i])
 
                 var rangeKeys = Object.keys(preClusteringGroups[j][i]);
@@ -201,12 +189,12 @@ class FileManipPage extends React.Component {
 
                 var clusterOperations = [
                     // {name:'density', minPts:3, epsilonMultiplier:.125},
-                    {name:'density', minPts:4, epsilonMultiplier:1}
+                    {name:'density', minPts:3, epsilonMultiplier:.5}
                 ]
-                // var numCornersInRegion  = groupInRegion(resultData.cornerLocations, {top:j, left:i, width:W, height:H})
-                // if(numCornersInRegion >0 ) {
-                //     clusterOperations.push({name:'thetaGradient', minPts:3, epsilonMultiplier:.125})
-                // }
+                var numCornersInRegion  = groupInRegion(resultData.cornerLocations, {top:j, left:i, width:W, height:H})
+                if(numCornersInRegion >0 ) {
+                    clusterOperations.push({name:'thetaGradient', minPts:3, epsilonMultiplier:.125})
+                }
                 
                 var clusterObj = new Cluster(preClusteringGroups[j][i][maxRangeKey], clusterOperations);
 
@@ -234,10 +222,6 @@ class FileManipPage extends React.Component {
                     var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
                     var d2 = `M${P1.x},${P1.y} Q${C.x+25},${C.y},${P2.x},${P2.y} `
                     var d3 = `M${P1.x},${P1.y} Q${C.x+25},${C.y+25},${P2.x},${P2.y} `
-                    // for(let x =xMin; x <= xMax; x+=.5) {
-                    //     var y = thisCurveFunc(x) 
-                    //     d+=`L${x},${y} `
-                    // }
 
                     var path = document.createElementNS("http://www.w3.org/2000/svg","path");
                     path.setAttribute("id",`curve${curve}${xMin}${xMax}`)

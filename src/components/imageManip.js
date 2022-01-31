@@ -142,7 +142,7 @@ export class ImageScan {
             this.originalData = this.originalImageData.data;
             var data = this.imageData.data;     //should normally be this.originalImageData.data;
             
-            var componentLength = 15;   //15 works good with space & rocket center, trying 7 for Red&Black checker board
+            var componentLength = 7;   //15 works good with space & rocket center, trying 7 for Red&Black checker board
             
             let sig0 = 1;
             var sigStack = []
@@ -365,10 +365,8 @@ export class ImageScan {
                 //     let topPts = closestPts.slice(0,maxNumClosest);
                 //     cornerClusters[p1].closestPts = topPts;   
                 // }
-                console.log('sigStack[c]',sigStack[c])
-               
+                console.log('sigStack[c]',sigStack[c])  
             }
-            
             this.imageLayers = layerStack;
             resolve();
         })
@@ -579,7 +577,7 @@ export class ImageScan {
         }
         let kernelRadius=Math.floor(kernelLength/2);
         
-        //sig = Math.max((kernelRadius / 2), sig)      //set minimum standard deviation as a baseline; link above says to scale sigma value in proportion to radius
+        sig = Math.max((kernelRadius / 2), sig)      //set minimum standard deviation as a baseline; link above says to scale sigma value in proportion to radius
         let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));
         let lowerExp = sig*sig*2;
         var sum = 0;

@@ -223,9 +223,6 @@ export class ImageScan {
             var SobelKernelY = [[1,2,1], [0,0,0], [-1,-2,-1]]
             //gaussKernel is multipled to every product of sum (Ixx, Ixy, Iyy)
 
-            
-
-
             for(let c=0; c < layerStack.length; ++c) {
                 var parallelComponent = layerStack[c];
                 console.log(`Starting Layer #${c} of ${layerStack.length}`)
@@ -439,7 +436,7 @@ export class ImageScan {
                         for(var imgY=kernelRadius; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
                             for(var imgX=kernelRadius; imgX < OBJ.imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
                                 if(component.type=="grayScale") {
-                                    let pixel = [OBJ.data[4*(imgY*OBJ.imageWidth + imgX)],OBJ.data[4*(imgY*OBJ.imageWidth + imgX)+1],OBJ.data[4*(imgY*OBJ.imageWidth + imgX)+2],OBJ.data[4*(imgY*OBJ.imageWidth + imgX)+3]]
+                                    let pixel = OBJ.data.slice(4*(imgY*OBJ.imageWidth + imgX),  4*(imgY*OBJ.imageWidth + imgX) + 4)     //array of 4 values (R,G,B,A) for 1 pixel
                                     var newRGBA = OBJ.simpleGrayscaleConvert(pixel,component.subType);
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = newRGBA[0];
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = newRGBA[1]
@@ -447,10 +444,7 @@ export class ImageScan {
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = newRGBA[3]
                                 }
                                 else if(component.type=="blackWhiteTransfer") {
-                                    let R = OBJ.data[4*(imgY*OBJ.imageWidth + imgX)];
-                                    let G = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +1];
-                                    let B = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +2];
-                                    let A = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +3];
+                                    let [R,G,B,A] = [...OBJ.data[4*(imgY*OBJ.imageWidth + imgX)]]
                                     var newRGBA = OBJ.colorBlackWhiteTransferComponent([R,G,B,A]);
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = newRGBA[0];
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = newRGBA[1]
@@ -458,38 +452,34 @@ export class ImageScan {
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = newRGBA[3]
                                 }
                                 else if(component.type=="gammaTransfer") {
-                                    let R = OBJ.data[4*(imgY*OBJ.imageWidth + imgX)];
-                                    let G = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +1];
-                                    let B = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +2];
-                                    let A = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +3];
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = component.applyTo.includes("R")? OBJ.colorGammaTransferComponent(R, component.amplitude, component.exponent, component.offset):R;
+                                    let [R,G,B,A] = [...OBJ.data[4*(imgY*OBJ.imageWidth + imgX)]]
+                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = component.applyTo.includes("R")?     OBJ.colorGammaTransferComponent(R, component.amplitude, component.exponent, component.offset):R;
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = component.applyTo.includes("G")? OBJ.colorGammaTransferComponent(G, component.amplitude, component.exponent, component.offset):G;
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 2] = component.applyTo.includes("B")? OBJ.colorGammaTransferComponent(B, component.amplitude, component.exponent, component.offset):B;
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = component.applyTo.includes("A")? OBJ.colorGammaTransferComponent(A, component.amplitude, component.exponent, component.offset):A;
                                 }
                                 else if(component.type=="discreteTransfer") {
-                                    let R = OBJ.data[4*(imgY*OBJ.imageWidth + imgX)];
-                                    let G = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +1];
-                                    let B = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +2];
-                                    let A = OBJ.data[4*(imgY*OBJ.imageWidth + imgX) +3];
+                                    let [R,G,B,A] = [...OBJ.data[4*(imgY*OBJ.imageWidth + imgX)]]
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = component.applyTo.includes("R")? OBJ.colorDiscreteTransferComponent(R, component.tableValues):R;
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = component.applyTo.includes("G")? OBJ.colorDiscreteTransferComponent(G, component.tableValues):G;
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 2] = component.applyTo.includes("B")? OBJ.colorDiscreteTransferComponent(B, component.tableValues):B;
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = component.applyTo.includes("A")? OBJ.colorDiscreteTransferComponent(A, component.tableValues):A;
                                 }
                                 else if(component.type=="gaussBlur" || component.type=="edgeDetect") {
-                                    let R = 0,G = 0,B = 0;
+                                    let R = 0,G = 0,B = 0, A=0;
                                     for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {       //increment by 4 because its RGBA values
                                         for(var kX=-kernelRadius; kX < kernelRadius; ++kX) {       //increment by 4 because its RGBA values
                                             let value = component.kernel[kY+kernelRadius][kX+kernelRadius];
                                             R += OBJ.data[4*((imgX-kX) + (imgY-kY)*OBJ.imageWidth)]*value;
                                             G += OBJ.data[4*((imgX-kX) + (imgY-kY)*OBJ.imageWidth)+1]*value;
                                             B += OBJ.data[4*((imgX-kX) + (imgY-kY)*OBJ.imageWidth)+2]*value;
+                                            A += OBJ.data[4*((imgX-kX) + (imgY-kY)*OBJ.imageWidth)+3]*value;
                                         }
                                     }
                                     OBJ.data[4*(imgX + imgY*OBJ.imageWidth)] = R;
                                     OBJ.data[4*(imgX + imgY*OBJ.imageWidth) + 1] = G;
                                     OBJ.data[4*(imgX + imgY*OBJ.imageWidth) + 2] = B;
+                                    OBJ.data[4*(imgX + imgY*OBJ.imageWidth) + 3] = A;
                                 }
                             }
                         }
@@ -497,41 +487,30 @@ export class ImageScan {
                     //calculating values and gradients of every pixel
                     for(var imgY=0; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
                         for(var imgX=0; imgX < OBJ.imageWidth; imgX+=1) {
-                            let thisR = OBJ.data[4*((imgX) + (imgY)*OBJ.imageWidth)];
-                            let thisG = OBJ.data[4*((imgX) + (imgY)*OBJ.imageWidth)+1];
-                            let thisB = OBJ.data[4*((imgX) + (imgY)*OBJ.imageWidth)+2];
+                            let [thisR,thisG,thisB,thisA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + imgX)]]
                             let leftVal=-1, rightVal=-1, topVal=-1, bottomVal=-1;
                             if(imgX>0) {
-                                let leftR = OBJ.data[4*((imgX-1) + (imgY)*OBJ.imageWidth)];
-                                let leftG = OBJ.data[4*((imgX-1) + (imgY)*OBJ.imageWidth)+1];
-                                let leftB = OBJ.data[4*((imgX-1) + (imgY)*OBJ.imageWidth)+2];
+                                let [leftR,leftG,leftB,leftA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + (imgX-1))]]
                                 leftVal = (leftR + leftG + leftB)/3;
                             }
                             if(imgX < OBJ.imageWidth-1) {
-                                let rightR = OBJ.data[4*((imgX+1) + (imgY)*OBJ.imageWidth)];
-                                let rightG = OBJ.data[4*((imgX+1) + (imgY)*OBJ.imageWidth)+1];
-                                let rightB = OBJ.data[4*((imgX+1) + (imgY)*OBJ.imageWidth)+2];
+                                let [rightR,rightG,rightB,rightA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + (imgX+1))]]
                                 rightVal = (rightR + rightG + rightB)/3;
                             }
                             if(imgY>0) {
-                                let topR = OBJ.data[4*((imgX) + (imgY-1)*OBJ.imageWidth)];
-                                let topG = OBJ.data[4*((imgX) + (imgY-1)*OBJ.imageWidth)+1];
-                                let topB = OBJ.data[4*((imgX) + (imgY-1)*OBJ.imageWidth)+2];
+                                let [topR,topG,topB,topA] = [...OBJ.data[4*((imgY-1)*OBJ.imageWidth + (imgX))]]
                                 topVal = (topR + topG + topB)/3;
                             }
                             if(imgY < OBJ.imageHeight-1) {
-                                let bottomR = OBJ.data[4*((imgX) + (imgY+1)*OBJ.imageWidth)];
-                                let bottomG = OBJ.data[4*((imgX) + (imgY+1)*OBJ.imageWidth)+1];
-                                let bottomB = OBJ.data[4*((imgX) + (imgY+1)*OBJ.imageWidth)+2];
+                                let [bottomR,bottomG,bottomB,bottomA] = [...OBJ.data[4*((imgY+1)*OBJ.imageWidth + (imgX))]]
                                 bottomVal = (bottomR + bottomG + bottomB)/3;
                             }
-                            OBJ.pixelData[imgY][imgX].mag = (thisR + thisG + thisB)/3;;
+                            OBJ.pixelData[imgY][imgX].mag = (thisR + thisG + thisB)/3;
                             OBJ.pixelData[imgY][imgX].gradientX = leftVal==-1||rightVal==-1?0:leftVal - rightVal;
                             OBJ.pixelData[imgY][imgX].gradientY = topVal==-1||bottomVal==-1?0:topVal - bottomVal;
                         }
                     }
                     context.putImageData(OBJ.imageData, 0,0);
-
                     var detectBlobPromise =  OBJ.detectBlobs();      //detects blobs on each layer
                     detectBlobPromise.then(result => {
                         OBJ.processBlobs().then(result2=> {
@@ -596,8 +575,8 @@ export class ImageScan {
         }
         let kernelRadius=Math.floor(kernelLength/2);
         //https://aryamansharda.medium.com/image-filters-gaussian-blur-eb36db6781b1 says to scale sigma value in proportion to radius
-        //set minimum standard deviation as a baseline
-        //sig = Math.max((kernelRadius / 2), sig)      
+        
+        sig = Math.max((kernelRadius / 2), sig)      //set minimum standard deviation as a baseline
         let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));
         let lowerExp = sig*sig*2;
         var sum = 0;

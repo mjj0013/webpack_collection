@@ -58,12 +58,7 @@ class FileManipPage extends React.Component {
                 currentImageData.data[4*(imgY*imageWidth + imgX) + 3] = selectedImageData[4*(imgY*imageWidth + imgX) + 3]
             }
         }
-
-
-        
-     
         context.putImageData(currentImageData, 0 , 0)
-        // var selectedCornerLocations = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"];
         var cornerClusters = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"].subClusters;
         for(let cluster=0; cluster < cornerClusters.length; ++cluster) {
             var color = `rgb(${getRandomInt(0,255)},${getRandomInt(0,255)},${getRandomInt(0,255)} )`
@@ -103,7 +98,7 @@ class FileManipPage extends React.Component {
         reader.readAsText(e.target.files[0]);
     }
 
-    numOfPagesChanged(e) {    this.setState({num: e.target.value});  }
+    numOfPagesChanged(e) { this.setState({num: e.target.value});  }
 
     componentDidMount() {
         //TESTING CURVE GENERATING

@@ -126,3 +126,50 @@ export function getBezierParametricFunctions(order) {
     eval(`var bezierParametric${order} = (t, pts) => { let xVal = ${xTerms.join(` + `)}; let yVal = ${yTerms.join(` + `)}; return {x:xVal, y:yVal} }`)
     return {func:`bezierParametric${order}`, order: order};
 }
+
+
+
+export function testPtsOnCurve(equationName,curveXRange,testPts, tolerance=5) {
+    //testPts is list of points to test if they intercept with the curve
+    //tolerance:     how many pixels away can a point be from the line to be valid
+    // attempt to do vote-process on what bezier curve has the most intercepts ( perhaps the # of intercepts has to be at least the distance b/w beginning and end) 
+    //for help: look at https://javascript.tutorialink.com/calculating-intersection-point-of-quadratic-bezier-curve/
+    let matchingPts = Array(testPts.length).fill(false);
+    var curveFunc = geval(equationName)
+    var successNum = 0;
+    var funcValPairs = []
+    for(let x =curveXRange[0]; x <= curveXRange[1]; ++x) {
+        var y = curveFunc(x)
+        funcValPairs.push({x:x, y:y})
+        var isFound = false;
+        for(let tp=0; tp < testPts.length; ++tp) {
+            if(testPts[tp].x==x && (testPts[tp].y==Math.floor(y) || testPts[tp].y==Math.ceil(y))) {
+                matchingPts[tp] = true;
+                isFound = true;
+                ++successNum;
+            }
+        }
+    }
+    if(matchingPts.includes(false)) {
+        for(let tp=0; tp < matchingPts.length; ++tp) {
+            if(matchingPts[tp]==false) {
+                var closestPt = null;
+                for(let i =0; i < funcValPairs.length; ++i) {
+                    if(funcValPairs[i].x==testPts[tp].x) {
+                        closestPt = funcValPairs[i];
+                        break;
+                    }
+                }
+                if(closestPt !=null) {
+                    let dist = Math.sqrt((testPts[tp].x-closestPt.x)*(testPts[tp].x-closestPt.x) + (testPts[tp].y-closestPt.y)*(testPts[tp].y-closestPt.y))
+                    if(dist <=tolerance) {
+                        ++successNum;
+                        matchingPts[tp] = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return successNum/testPts.length;
+}

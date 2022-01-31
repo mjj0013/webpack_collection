@@ -1,16 +1,13 @@
 // import { Matrix, solve } from 'ml-matrix';
 import {distance, numberInRange, itemCountInArray} from './utility.js'
 
-
 export class Cluster {
     constructor(pts, clusteringOrder=[{name:'density', epsilonMultiplier:1, minPts:3}, {name:'magGradient', epsilonMultiplier:1, minPts:2}]) {
-        
         this.findSubClusters = this.findSubClusters.bind(this);
         this.DBSCAN = this.DBSCAN.bind(this);       //Density-Based Spatial Clustering of Applications with Noise
         this.ABCAN1D =  this.ABCAN1D.bind(this);         //1D Attribute-Based Clustering of Applications with Noise  (custom)
         this.rangeQueryDBSCAN = this.rangeQueryDBSCAN.bind(this);
         this.rangeQueryABCAN1D = this.rangeQueryABCAN1D.bind(this);
-
         this.pts = pts;
         this.N = this.pts.length;
         this.xVals = this.pts.map(a=>a.x);
@@ -19,9 +16,7 @@ export class Cluster {
         this.subClusters = this.findSubClusters(clusteringOrder)
     }
     ABCAN1D(clusterData, epsilonMultiplier, minPts, attribute ) {     //Attribute-Based Clustering of Applications with Noise, 1 Dimensional (i.e magntiude, theta)
-        
         // Calculate the best epsilon by finding differences b/w all points' attributes, sorting them, then finding where the greatest change occurs 
-
         var allDiffs = []
         for(let p=0; p < clusterData.length; ++p) {
             var thisDiffs = []
@@ -30,7 +25,6 @@ export class Cluster {
                 let cluster2 = clusterData[p2];
                 if(p==p2) continue;
                 let d = cluster1[attribute] > cluster2[attribute]? cluster1[attribute]-cluster2[attribute] : cluster2[attribute]-cluster1[attribute]; 
-
                 thisDiffs.push(d);
             }
             thisDiffs.sort(function(a,b){return a-b});
@@ -42,12 +36,8 @@ export class Cluster {
         for(let D=1; D < allDiffs.length; ++D) diffDeltas.push([ allDiffs[D]-allDiffs[D-1], allDiffs[D], allDiffs[D-1] ])  //[deltaAB, A, B]
         
         diffDeltas.sort(function(a,b){return b[0]-a[0]});
-        
-        var epsilon = (diffDeltas[0][2] + diffDeltas[0][1])/2; 
-        
-        epsilon*=epsilonMultiplier;
+        var epsilon = epsilonMultiplier*(diffDeltas[0][2] + diffDeltas[0][1])/2; 
 
-        
         console.log(attribute+ ' epsilon: ',epsilon)
         var clusterIter = -1;
         var labeledPts = Array(clusterData.length).fill(-1)     //holds indices of points that are already processed
@@ -72,12 +62,11 @@ export class Cluster {
         }
         var clusters=[];
         for(let c=0; c < clusterIter+1; ++c) clusters.push([]);
-        
         for(let p=0; p < labeledPts.length; ++p) {
             if(labeledPts[p] !="noise") clusters[labeledPts[p]].push(clusterData[p]);
         }
-        console.log("number of noise pts = ",itemCountInArray(labeledPts,'noise'));
-        console.log("number of clusters = "+clusters.length)
+        console.log("Number of noise pts = ",itemCountInArray(labeledPts,'noise'));
+        console.log("Number of clusters = "+clusters.length)
         return clusters;        //a list of clusters (cluster = list of points)
     }
        
@@ -100,7 +89,6 @@ export class Cluster {
     }
     findSubClusters(clusteringOrder) {
         //clusteringOrder --> clustering operations will execute in the order specified from this variable. Default: only density based clustering
-
         var allClusters = [this.pts];
         for(let op=0; op < clusteringOrder.length; ++op) {
             var temp = []
@@ -135,16 +123,12 @@ export class Cluster {
         return allClusters;
     }
     
-    DBSCAN(clusterData,epsilonMultiplier=1, minPts=4) {    //Density-Based Spatial Clustering of Applications with Noise
-        //https://en.wikipedia.org/wiki/DBSCAN
-        //also try clustering points based on their theta (from detectBlobs in imageManip); factor in the xGradient, yGradient, thetaGradient for each point
-
-        // minPts --> must be at least 3 (if minPts<=2, result will be same as hierarchial clustering) 
-        //           can be derived from # of dimensions of data set D.. minPts >=D+1 or minPts=D*2
+    DBSCAN(clusterData,epsilonMultiplier=1, minPts=4) { 
+        //Density-Based Spatial Clustering of Applications with Noise     https://en.wikipedia.org/wiki/DBSCAN
+        // minPts --> must be at least 3 (if minPts<=2, result will be same as hierarchial clustering) ;  can be derived from # of dimensions of data set D.. minPts >=D+1 or minPts=D*2
         // epsilon --> calculated with https://towardsdatascience.com/machine-learning-clustering-dbscan-determine-the-optimal-value-for-epsilon-eps-python-example-3100091cfbc
 
         //calculate best epsilon by finding distances b/w all points, sorting those distances, then finding where the greatest change in distance occurs 
-       
         var allDists = []
         for(let p=0; p < clusterData.length; ++p) {
             var thisDists = []
@@ -164,9 +148,7 @@ export class Cluster {
             distDeltas.push([ allDists[D]-allDists[D-1], allDists[D], allDists[D-1] ])  //[deltaAB, A, B]
         }
         distDeltas.sort(function(a,b){return b[0]-a[0]});
-        var epsilon = (distDeltas[0][2] + distDeltas[0][1])/2;
-
-        epsilon *=epsilonMultiplier;        
+        var epsilon = epsilonMultiplier*(distDeltas[0][2] + distDeltas[0][1])/2;    
         console.log('epsilon',epsilon)
         var clusterIter = -1;
         var labeledPts = Array(clusterData.length).fill(-1)     //holds indices of points that are already processed
@@ -195,8 +177,8 @@ export class Cluster {
         for(let p=0; p < labeledPts.length; ++p) {
             if(labeledPts[p] !="noise") clusters[labeledPts[p]].push(clusterData[p]);
         }
-        console.log("number of noise pts = ",itemCountInArray(labeledPts,'noise'));
-        console.log("number of clusters = "+clusters.length)
+        console.log("Number of noise pts = ",itemCountInArray(labeledPts,'noise'));
+        console.log("Number of clusters = "+clusters.length)
         return clusters;        //a list of clusters (cluster = list of points)
     }
 }

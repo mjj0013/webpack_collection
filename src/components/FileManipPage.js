@@ -77,7 +77,6 @@ class FileManipPage extends React.Component {
         var idx = (x) + (y)*this.currentScanObj.imageWidth;
         if(this.currentScanObj.imageLayers.length==0) return;
         var mag = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["magGradient1"][idx]  
-      
         var laplacian =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["laplacian"][idx]  
         // var theta = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["thetaGradient1"][idx]
         // var ratio =  this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateY1"][idx] /this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateX1"][idx] 
@@ -188,14 +187,13 @@ class FileManipPage extends React.Component {
                 if(preClusteringGroups[j][i][maxRangeKey].length==0) continue;        //was formerly '150,300'
 
                 var clusterOperations = [
-                    // {name:'density', minPts:3, epsilonMultiplier:.125},
                     {name:'density', minPts:3, epsilonMultiplier:.5}
                 ]
                 var numCornersInRegion  = groupInRegion(resultData.cornerLocations, {top:j, left:i, width:W, height:H})
                 if(numCornersInRegion >0 ) {
                     clusterOperations.push({name:'thetaGradient', minPts:3, epsilonMultiplier:.125})
                 }
-                
+            
                 var clusterObj = new Cluster(preClusteringGroups[j][i][maxRangeKey], clusterOperations);
 
                 var curveObjs = [];
@@ -212,13 +210,11 @@ class FileManipPage extends React.Component {
 
                     let xMin = curveObj.xRange[0];
                     let xMax = curveObj.xRange[1];
-                   
 
                     var P1 = {x:xMin, y:thisCurveFunc(xMin)}
                     var P2 = {x:xMax, y:thisCurveFunc(xMax)}
                     var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
 
-                    
                     var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
                     var d2 = `M${P1.x},${P1.y} Q${C.x+25},${C.y},${P2.x},${P2.y} `
                     var d3 = `M${P1.x},${P1.y} Q${C.x+25},${C.y+25},${P2.x},${P2.y} `

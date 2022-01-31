@@ -1,24 +1,14 @@
 import React, {useRef} from 'react';
-
-import { List, Pagination, Header, Container, Divider, Icon } from 'semantic-ui-react';
+import { Header, Container, Divider } from 'semantic-ui-react';
 
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
-
-
-
-
-
 class GraphicsPage extends React.Component {
-    
-   
     constructor(props) {
         super(props);
-        
         this.blue = 0;
         this.red = 0;
         this.green= 0;
-        
         this.blueTarget = 255;
         this.greenTarget = 255;
         this.redTarget = 255;
@@ -27,86 +17,43 @@ class GraphicsPage extends React.Component {
         this.draw = this.draw.bind(this);
         this.moveCurves = this.moveCurves.bind(this);
         this.clearWorld = this.clearWorld.bind(this);
-
-        
         this.canvasRef = React.createRef();
-
-        this.redCurve = {
-            startDx:1, startDy:1, 
-            endDx:15, endDy:15, 
-            startX:100, startY:100, 
-            control1X:25, control1Y:75, 
-            control2X:50, control2Y:50, 
-            endX:10, endY:200
-        }
-        this.greenCurve = {startDx:0, startDy:0,
-            endDx:0, endDy:0,  startX:0, startY:0, control1X:0, control1Y:0, control2X:0, control2Y:0, endX:0, endY:0}
-        this.blueCurve = {
-            startDx:0, startDy:0,
-            endDx:0, endDy:0,  
-            startX:0, startY:0, 
-            control1X:0, control1Y:0, 
-            control2X:0, control2Y:0, 
-            endX:0, endY:0
-        }
-        
-
-        
-
-
+        this.redCurve = { startDx:1, startDy:1,  endDx:15, endDy:15,  startX:100, startY:100,  control1X:25, control1Y:75,  control2X:50, control2Y:50,  endX:10, endY:200}
+        this.greenCurve = {startDx:0, startDy:0, endDx:0, endDy:0,  startX:0, startY:0, control1X:0, control1Y:0, control2X:0, control2Y:0, endX:0, endY:0}
+        this.blueCurve = { startDx:0, startDy:0, endDx:0, endDy:0,  startX:0, startY:0, control1X:0, control1Y:0, control2X:0, control2Y:0, endX:0, endY:0}
     }
-    clearWorld = () => {
-        //this.canvasRef.current.getContext('2d').clearRect(0,0,this.canvasRef.current.width, this.canvasRef.current.height);
+    clearWorld = () => {        
         this.context.fillStyle = 'white'
         this.context.fillRect(0,0,this.canvasRef.current.width,this.canvasRef.current.height);
-
-
-        //this.contextRef.current.fillRect(0,0,1000,1000);
     }
     
-
     componentDidMount() {
         this.context = this.canvasRef.current.getContext('2d');   // use { alpha: false } to optimize
         setInterval(() => {
             this.clearWorld();
             this.moveColors();
             this.moveCurves();
-            
             this.draw();
-
         }, 1000/60);
-        
-        
-        
-        
     }
 
     moveCurves() {
-        
         if((this.redCurve.startX > this.canvasRef.current.width) || (this.redCurve.startX < 0)) {
             this.redCurve.startDx = -1*this.redCurve.startDx;
-             
         }
-        
-
         if((this.redCurve.startY > this.canvasRef.current.height) || (this.redCurve.startY < 0)) {
             this.redCurve.startDy = -1*this.redCurve.startDy;
         }
-
         if((this.redCurve.endX > this.canvasRef.current.width) || (this.redCurve.endX < 0)) {
             this.redCurve.endDx = -1*this.redCurve.endDx;
         }
         if((this.redCurve.endY > this.canvasRef.current.height) || (this.redCurve.endY < 0)) {
             this.redCurve.endDy = -1*this.redCurve.endDy;
         }
-
-
         this.redCurve.startX += this.redCurve.startDx;
         this.redCurve.startY += this.redCurve.startDy;
         this.redCurve.endX += this.redCurve.endDx;
-
         this.redCurve.endY += this.redCurve.endDy;
-
     }
     
     moveColors() {
@@ -168,19 +115,11 @@ class GraphicsPage extends React.Component {
         this.context.beginPath();
         this.context.strokeStyle = 'red';
         this.context.moveTo(this.redCurve.startX, this.redCurve.startY);
-        this.context.bezierCurveTo(this.redCurve.control1X, 
-                                    this.redCurve.control1Y, 
-                                    this.redCurve.control2X, 
-                                    this.redCurve.control2Y,
-                                    this.redCurve.endX,
-                                    this.redCurve.endY);
-        
+        this.context.bezierCurveTo(this.redCurve.control1X, this.redCurve.control1Y, this.redCurve.control2X,this.redCurve.control2Y,this.redCurve.endX, this.redCurve.endY);
         this.context.stroke();
     }
     
-
     render() {
-       
         return (
             <Layout title="Graphics Page" description="Welcome to the Graphics Page">
                 <Header as="h3">Graphics Header</Header>
@@ -202,7 +141,6 @@ class GraphicsPage extends React.Component {
                     <select id="drawSelect">
                         <option value="ColoredBox1">ColoredBox1</option>
                         <option value="Box1">Box1</option>
-                        
                     </select>
                     <button id="drawButton" onClick={this.draw}>Draw</button>
                 </Container>  
@@ -210,5 +148,4 @@ class GraphicsPage extends React.Component {
       );
     }
 }
-
 export default GraphicsPage;

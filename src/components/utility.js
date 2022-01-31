@@ -173,3 +173,25 @@ export function testPtsOnCurve(equationName,curveXRange,testPts, tolerance=5) {
     }
     return successNum/testPts.length;
 }
+
+
+export function ptInRegion(pt, region) {
+    // region is object => {top:.., left:.., width:.., height:..}
+    if((pt.x >= region.left && pt.x <= region.left+region.width) && ((pt.y >= region.top && pt.y <= region.top+region.height))) return true;
+    return false;
+}
+
+export function groupInRegion(pts, region) {
+    var containedPts = []
+    for(let p=0; p < pts.length; ++p) {
+        if(ptInRegion(pts[p],region)==true) containedPts.push(pts[p]);
+    }
+    return containedPts;
+}
+
+export function itemCountInArray(array,item) {
+    return array.reduce((total,x) => (x==item ? total+1 : total), 0)
+}
+
+
+

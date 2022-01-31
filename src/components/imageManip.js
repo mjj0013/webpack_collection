@@ -141,7 +141,8 @@ export class ImageScan {
         return new Promise((resolve,reject)=> {
             this.originalData = this.originalImageData.data;
             var data = this.imageData.data;     //should normally be this.originalImageData.data;
-            var componentLength = gaussLength;   //was 3
+            
+            var componentLength = 15;   //15 works good with space & rocket center, trying 7 for Red&Black checker board
             
             let sig0 = 1;
             var sigStack = []
@@ -154,12 +155,12 @@ export class ImageScan {
             // for(let s=sigExpMax;s>=0;s-=sigDelta)    sigStack.push(sig0*Math.pow(baseSig,s));
             var layerStack = [];
 
-            var preClusteringGridW = 25; //10
-            var preClusteringGridH = 25; //10
+            var preClusteringGridW = 25; //25
+            var preClusteringGridH = 25; //25
             var preClusteringRegion = {w:this.imageWidth/preClusteringGridW, h:this.imageHeight/preClusteringGridH}
 
-            var magRangeStart=150;
-            var magRangeEnd = 450;
+            var magRangeStart=100;
+            var magRangeEnd = 400;
             var magRangeSize = 150;
             
             //make stack of layers, which each have different sigma values
@@ -174,10 +175,6 @@ export class ImageScan {
             var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
             for(let c=0; c < layerStack.length; ++c) {
                 var parallelComponent = layerStack[c];
-                
-                // {...regionTemplate}
-                // parallelComponent["resultData"].preClusteringGroups
-                
                 for(var imgY=0; imgY < this.imageHeight; imgY+=1) { 
                     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {
 
@@ -187,6 +184,7 @@ export class ImageScan {
                             var regionTemplate = {}
                             for(let i =magRangeStart; i < magRangeEnd; i+=magRangeSize) regionTemplate[[i, i+magRangeSize]] = [];
                             parallelComponent["resultData"].preClusteringGroups[regionY][regionX] = regionTemplate;
+
                         }
 
                         let R=0, G=0, B=0;
@@ -229,7 +227,6 @@ export class ImageScan {
                 for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
                     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {   
                         var sobelX1 = 0, sobelY1=0, laplacian=0;
-
                         var regionX = Math.floor(imgX/preClusteringRegion.w)
                         var regionY = Math.floor(imgY/preClusteringRegion.h)
 
@@ -436,7 +433,7 @@ export class ImageScan {
                         for(var imgY=kernelRadius; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
                             for(var imgX=kernelRadius; imgX < OBJ.imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
                                 if(component.type=="grayScale") {
-                                    let pixel = OBJ.data.slice(4*(imgY*OBJ.imageWidth + imgX),  4*(imgY*OBJ.imageWidth + imgX) + 4)     //array of 4 values (R,G,B,A) for 1 pixel
+                                    var pixel = OBJ.data.slice(4*(imgY*OBJ.imageWidth + imgX),  4*(imgY*OBJ.imageWidth + imgX) + 4)     //array of 4 values (R,G,B,A) for 1 pixel
                                     var newRGBA = OBJ.simpleGrayscaleConvert(pixel,component.subType);
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = newRGBA[0];
                                     OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = newRGBA[1]
@@ -487,22 +484,28 @@ export class ImageScan {
                     //calculating values and gradients of every pixel
                     for(var imgY=0; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
                         for(var imgX=0; imgX < OBJ.imageWidth; imgX+=1) {
-                            let [thisR,thisG,thisB,thisA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + imgX)]]
+                            // var [thisR,thisG,thisB,thisA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + imgX)]]
+                            var [thisR,thisG,thisB,thisA] = OBJ.data.slice(4*(imgY*OBJ.imageWidth + imgX),4*(imgY*OBJ.imageWidth + imgX) + 4);
                             let leftVal=-1, rightVal=-1, topVal=-1, bottomVal=-1;
                             if(imgX>0) {
-                                let [leftR,leftG,leftB,leftA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + (imgX-1))]]
+                                
+                                // let [leftR,leftG,leftB,leftA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + (imgX-1))]]
+                                let [leftR,leftG,leftB,leftA] = OBJ.data.slice(4*(imgY*OBJ.imageWidth + (imgX-1)),4*(imgY*OBJ.imageWidth + (imgX-1)) + 4);
                                 leftVal = (leftR + leftG + leftB)/3;
                             }
                             if(imgX < OBJ.imageWidth-1) {
-                                let [rightR,rightG,rightB,rightA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + (imgX+1))]]
+                                //var [rightR,rightG,rightB,rightA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + (imgX+1))]]
+                                let [rightR,rightG,rightB,rightA] = OBJ.data.slice(4*(imgY*OBJ.imageWidth + (imgX+1)),4*(imgY*OBJ.imageWidth + (imgX+1)) + 4);
                                 rightVal = (rightR + rightG + rightB)/3;
                             }
                             if(imgY>0) {
-                                let [topR,topG,topB,topA] = [...OBJ.data[4*((imgY-1)*OBJ.imageWidth + (imgX))]]
+                                //var [topR,topG,topB,topA] = [...OBJ.data[4*((imgY-1)*OBJ.imageWidth + (imgX))]]
+                                let [topR,topG,topB,topA] = OBJ.data.slice(4*((imgY-1)*OBJ.imageWidth + (imgX)),4*((imgY-1)*OBJ.imageWidth + (imgX)) + 4);
                                 topVal = (topR + topG + topB)/3;
                             }
                             if(imgY < OBJ.imageHeight-1) {
-                                let [bottomR,bottomG,bottomB,bottomA] = [...OBJ.data[4*((imgY+1)*OBJ.imageWidth + (imgX))]]
+                                // let [bottomR,bottomG,bottomB,bottomA] = [...OBJ.data[4*((imgY+1)*OBJ.imageWidth + (imgX))]]
+                                let [bottomR,bottomG,bottomB,bottomA] = OBJ.data.slice(4*((imgY+1)*OBJ.imageWidth + (imgX)),4*((imgY+1)*OBJ.imageWidth + (imgX)) + 4);
                                 bottomVal = (bottomR + bottomG + bottomB)/3;
                             }
                             OBJ.pixelData[imgY][imgX].mag = (thisR + thisG + thisB)/3;
@@ -569,14 +572,14 @@ export class ImageScan {
     }
 
     gaussianBlurComponent(kernelLength=5,sig=1) {
+        //https://aryamansharda.medium.com/image-filters-gaussian-blur-eb36db6781b1 
         if(kernelLength%2!=1) {
             console.log("ERROR: kernelLength must be odd");
             return -1;
         }
         let kernelRadius=Math.floor(kernelLength/2);
-        //https://aryamansharda.medium.com/image-filters-gaussian-blur-eb36db6781b1 says to scale sigma value in proportion to radius
         
-        sig = Math.max((kernelRadius / 2), sig)      //set minimum standard deviation as a baseline
+        //sig = Math.max((kernelRadius / 2), sig)      //set minimum standard deviation as a baseline; link above says to scale sigma value in proportion to radius
         let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));
         let lowerExp = sig*sig*2;
         var sum = 0;
@@ -591,8 +594,7 @@ export class ImageScan {
         for(let x=0; x < kernelLength; ++x) {
             for(let y=0; y < kernelLength; ++y) kernel[x][y] /=sum;
         }
-        var kernelObj = {kernel:kernel, kernelRadius:kernelRadius, sig:sig}
-        return kernelObj;
+        return {kernel:kernel, kernelRadius:kernelRadius, sig:sig};
     }
   
     simpleGrayscaleConvert(pixel)  {

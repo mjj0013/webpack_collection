@@ -1,5 +1,5 @@
 // import { Matrix, solve } from 'ml-matrix';
-import {distance, numberInRange} from './utility.js'
+import {distance, numberInRange, itemCountInArray} from './utility.js'
 
 
 export class Cluster {
@@ -76,8 +76,8 @@ export class Cluster {
         for(let p=0; p < labeledPts.length; ++p) {
             if(labeledPts[p] !="noise") clusters[labeledPts[p]].push(clusterData[p]);
         }
-        console.log('labeledPts', labeledPts)
-        console.log('clusters', clusters)
+        console.log("number of noise pts = ",itemCountInArray(labeledPts,'noise'));
+        console.log("number of clusters = "+clusters.length)
         return clusters;        //a list of clusters (cluster = list of points)
     }
        
@@ -195,8 +195,8 @@ export class Cluster {
         for(let p=0; p < labeledPts.length; ++p) {
             if(labeledPts[p] !="noise") clusters[labeledPts[p]].push(clusterData[p]);
         }
-        console.log('labeledPts', labeledPts)
-        console.log('clusters', clusters)
+        console.log("number of noise pts = ",itemCountInArray(labeledPts,'noise'));
+        console.log("number of clusters = "+clusters.length)
         return clusters;        //a list of clusters (cluster = list of points)
     }
 }

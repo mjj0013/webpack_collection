@@ -3,11 +3,12 @@ import {getStdDev, partitionItems, binomialCoeff} from './utility.js'           
 
 export class Curve {
     constructor(pts,equationId,order=2) {
-        this.testPtsOnCurve = this.testPtsOnCurve.bind(this);
         this.testLagrangePolyString = this.testLagrangePolyString.bind(this);
-        this.optimizeFunction = this.optimizeFunction.bind(this);
+        
         this.fitCurveToPts = this.fitCurveToPts.bind(this);
         this.getXRange = this.getXRange.bind(this);
+
+        //this.currentDerivative = this.currentDerivative.bind(this);
 
         this.equationId = equationId;
         this.pts = pts;
@@ -24,7 +25,17 @@ export class Curve {
         this.currentEquationName = this.curveData.equationName;
         this.equationOrder = this.curveData.equationOrder;
 
+
+        this.currentCoeffs = [];
+        // 
+        // this.currentDerivativeStr
+        // this.currentDerivative();
     }
+    
+    // currentDerivative(x) {
+    //     //this.currentCoeffs .. the coefficients are in reverse [c+ b*x + a*x*x]
+    //     if(this.equationOrder==2) return (this.currentCoeffs[1] + 2*this.currentCoeffs[2]*x);
+    // }
 
     fitCurveToPts(clusterPts, order=2) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
         //https://www.youtube.com/watch?v=-UJr1XjyfME&ab_channel=Civillearningonline
@@ -68,12 +79,19 @@ export class Curve {
         let b = coeffs.get(1,0);
         let c = coeffs.get(2,0);
         var terms = [`(${a})`, `(${b}*x)`,`(${c}*x*x)`] //quadratic
-
+        this.currentCoeffs = [a,b,c]
+        this.currentDerivative = (x) =>{return b+2*c*x}
         //cubic
-        if(order==3) terms.push(`(${coeffs.get(3,0)}*x*x*x)`)
+        if(order==3) {
+            terms.push(`(${coeffs.get(3,0)}*x*x*x)`)
+            this.currentCoeffs.push(coeffs.get(3,0));
+        }
         
         var equation = `var curvePoly${this.equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
-        return {xRange:this.xRange,equationOrder:3, equationStr:equation, equationName:`curvePoly${this.equationId.toString()}`};
+        var curveObj = {xRange:this.xRange,equationOrder:order, equationStr:equation, equationName:`curvePoly${this.equationId.toString()}`}
+
+        
+        return curveObj;
     }
 
     getXRange(range) {

@@ -10,6 +10,9 @@ import {Cluster} from './Cluster.js';
 import {getRandomInt, distance, groupInRegion, itemCountInArray} from './utility.js'
 
 var geval = eval;
+import { Matrix, solve } from 'ml-matrix';
+
+
 
 class FileManipPage extends React.Component {
     constructor(props) {
@@ -21,6 +24,8 @@ class FileManipPage extends React.Component {
         this.showSigmaLayersOnHover = this.showSigmaLayersOnHover.bind(this)
         this.imageScanInstances = [];
         this.selectImageLayerToDisplay = this.selectImageLayerToDisplay.bind(this);
+        this.tracingWindow = this.tracingWindow.bind(this);
+        this.edgeTracer = this.edgeTracer.bind(this);
         this.selectedImage = null
         
         this.curveObjs = [];
@@ -78,10 +83,11 @@ class FileManipPage extends React.Component {
         if(this.currentScanObj.imageLayers.length==0) return;
         var mag = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["magGradient1"][idx]  
         var laplacian =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["laplacian"][idx]  
-        // var theta = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["thetaGradient1"][idx]
+        var harrisResponse =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["harrisResponse"][idx]      
+        var theta = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["thetaGradient1"][idx]         //subtract 90 degrees (1.570795 in radians) from this to get actual theta
         // var ratio =  this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateY1"][idx] /this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateX1"][idx] 
-        var R = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["harrisResponse"][idx]   
-        console.log("laplacian", laplacian)        
+
+        console.log("theta", theta,"mag",mag, "laplacian", laplacian, "harrisResponse", harrisResponse)        
     }
     
     async loadText(e) {
@@ -106,7 +112,6 @@ class FileManipPage extends React.Component {
         document.addEventListener('keydown', (event) => {
             const keyName = event.key;
             console.log("keyName",keyName)
-
             if(keyName==' ') {
                 var clusterObj = new Cluster(this.currentPts);
                 var clusters = clusterObj.subClusters;
@@ -154,8 +159,36 @@ class FileManipPage extends React.Component {
             }
           }, false);
         resultSVG.addEventListener("click", this.mouseClickHandler, false);
+    }
+
+    edgeTracer(resultData, currentPt) {
+        var cornerLocations = resultData["cornerLocations"];
+        let movWinRadius = 5;
+
+        // try moving window starting from corners (lock the grid to the corners, start new grid every time so no overlapping occurs)
+        for(let corn=0; corn < cornerLocations.length; ++corn) {
+            var currentCorner = cornerLocations[corn]
+            var idxMatrix = [];
+            this.tracingWindow
+        }
 
     }
+
+    tracingWindow(resultData) {
+       
+         //currentPt is object {x:..., y:...}
+         var currentIdx = currentPt.x + currentPt.y*this.imageWidth
+         var currentTheta = resultData["thetaGradient1"][currentIdx]
+         var idxMatrix=[]
+         for(let wY=-movWinRadius; wY < movWinRadius; ++wY) {
+             var row = [];
+             for(let wX=-movWinRadius; wX < movWinRadius; ++wX) {
+                 row.push(((currentCorner.x-wX) + (currentCorner.y-wY)*this.imageWidth))
+             }
+             idxMatrix.push(row);
+         }   
+    }
+
     setImageLayers() {
         console.log("Inserting image layers into selector")
         var selectFilter = document.getElementById("selectFilter");
@@ -165,71 +198,67 @@ class FileManipPage extends React.Component {
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
             console.log("preClusteringGroups of "+ l, imageLayers[l]["resultData"]["preClusteringGroups"])
         }
-        var pathAmount = 0;
-        var resultData = imageLayers[0]["resultData"]
-        var preClusteringGroups = resultData["preClusteringGroups"]
+        var pathAmount = 0, windowR = 0;
+        var resultData = imageLayers[0]["resultData"];
+        var preClusteringGroups = resultData["preClusteringGroups"];
+        var cornerLocations = resultData["cornerLocations"];
         var H = preClusteringGroups.length
-        var W = preClusteringGroups[0].length
-        console.log("W,H", W, H)
-        var windowR = 0;
-        //try moving window starting from corners (lock the grid to the corders, start new grid every time so no overlapping occurs)
+        var W = preClusteringGroups[0].length 
 
+        
         for(let j=windowR; j < H-windowR; ++j) {
             for(let i=windowR; i < W-windowR; ++i) {
-
-                console.log("preClusteringGroups[j][i]", preClusteringGroups[j][i])
-
                 var rangeKeys = Object.keys(preClusteringGroups[j][i]);
-                var maxRangeKey = rangeKeys[0]
-                for(let key=0; key < rangeKeys.length; ++key) {
-                    if(preClusteringGroups[j][i][rangeKeys[key]].length > preClusteringGroups[j][i][maxRangeKey].length) maxRangeKey = rangeKeys[key];
-                }
-                if(preClusteringGroups[j][i][maxRangeKey].length==0) continue;        //was formerly '150,300'
+                // for(let key=0; key < rangeKeys.length; ++key) {
+                    
+                    var maxRangeKey = rangeKeys[0];
+                    for(let key=0; key < rangeKeys.length; ++key) {
+                        if(preClusteringGroups[j][i][rangeKeys[key]].length > preClusteringGroups[j][i][maxRangeKey].length) maxRangeKey=rangeKeys[key];
+                    }
+                    if(preClusteringGroups[j][i][maxRangeKey].length==0) continue;        //was formerly '150,300'
 
-                var clusterOperations = [
-                    {name:'density', minPts:3, epsilonMultiplier:.5}
-                ]
-                var numCornersInRegion  = groupInRegion(resultData.cornerLocations, {top:j, left:i, width:W, height:H})
-                if(numCornersInRegion >0 ) {
-                    clusterOperations.push({name:'thetaGradient', minPts:3, epsilonMultiplier:.125})
-                }
-            
-                var clusterObj = new Cluster(preClusteringGroups[j][i][maxRangeKey], clusterOperations);
+                    var clusterOperations = [
+                        {name:'density', minPts:4, epsilonMultiplier:1}
+                    ]
+                    // var numCornersInRegion  = groupInRegion(resultData.cornerLocations, {top:j, left:i, width:W, height:H})
+                    // if(numCornersInRegion > 0) clusterOperations.push({name:'thetaGradient', minPts:3, epsilonMultiplier:.125})
+                    
+                    var clusterObj = new Cluster(preClusteringGroups[j][i][maxRangeKey], clusterOperations);
 
-                var curveObjs = [];
-                for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
-                    var curve = new Curve(clusterObj.subClusters[cl],`${j}${i}_${cl}`,2);
-                    if(curve.pts.length ==0) continue;
-                    curveObjs.push(curve)
-                }
-                for(let curve=0; curve < curveObjs.length; ++curve) {
-                    var curveObj = curveObjs[curve];
-                    console.log("curveObj",curveObj);
-                    geval(curveObj["currentEquationStr"])
-                    var thisCurveFunc = geval(curveObj.currentEquationName)
+                    var curveObjs = [];
+                    for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
+                        var curve = new Curve(clusterObj.subClusters[cl],`${j}${i}_${cl}`,2);
+                        if(curve.pts.length ==0) continue;
+                        curveObjs.push(curve)
+                    }
+                    for(let curve=0; curve < curveObjs.length; ++curve) {
+                        var curveObj = curveObjs[curve];
+                        console.log("curveObj",curveObj);
+                        geval(curveObj["currentEquationStr"])
+                        var thisCurveFunc = geval(curveObj.currentEquationName)
 
-                    let xMin = curveObj.xRange[0];
-                    let xMax = curveObj.xRange[1];
+                        let xMin = curveObj.xRange[0];
+                        let xMax = curveObj.xRange[1];
 
-                    var P1 = {x:xMin, y:thisCurveFunc(xMin)}
-                    var P2 = {x:xMax, y:thisCurveFunc(xMax)}
-                    var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
+                        var P1 = {x:xMin, y:thisCurveFunc(xMin)}
+                        var P2 = {x:xMax, y:thisCurveFunc(xMax)}
+                        var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
 
-                    var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
-                    var d2 = `M${P1.x},${P1.y} Q${C.x+25},${C.y},${P2.x},${P2.y} `
-                    var d3 = `M${P1.x},${P1.y} Q${C.x+25},${C.y+25},${P2.x},${P2.y} `
+                        var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
+                        var d2 = `M${P1.x},${P1.y} Q${C.x+25},${C.y},${P2.x},${P2.y} `
+                        var d3 = `M${P1.x},${P1.y} Q${C.x+25},${C.y+25},${P2.x},${P2.y} `
 
-                    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-                    path.setAttribute("id",`curve${curve}${xMin}${xMax}`)
-                    path.setAttribute("d",d);
-                    path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
-                    path.setAttribute("fill","none");
-                    // path.insertAdjacentHTML('beforeend', `<animate xlink:href="#curve${curve}${xMin}${xMax}" id="pathAnimate${curve}${xMin}${xMax}" attributeName="d" attributeType="XML" dur="3s" begin="0s"  repeatCount="indefinite"
-                    // values="${d}; ${d2}; ${d3}" 
-                    // ></animate>`)
-                    document.getElementById("curveGroup").append(path);
-                    ++pathAmount;
-                }
+                        var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+                        path.setAttribute("id",`curve${curve}_${j}_${i}`)
+                        path.setAttribute("d",d);
+                        path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
+                        path.setAttribute("fill","none");
+                        // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${j}_${i}" id="pathAnimate${curve}_${j}_${i}" attributeName="d" attributeType="XML" dur="3s" begin="0s" repeatCount="indefinite" values="${d}; ${d2}; ${d3}"></animate>`)
+                        document.getElementById("curveGroup").append(path);
+                        ++pathAmount;
+                    }
+
+                // }
                 
             }
         }
@@ -265,6 +294,11 @@ class FileManipPage extends React.Component {
                 <svg id="mainSVG" style={{display:"none"}} width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"></svg>
                 <div id="windowTest" style={{backgroundColor:'black', top:'100px', left:'30px', width:100, height:100} } />
 
+
+                {/* <svg id="eigenVectors" width="200" height="200" xmlns="http://www.w3.org/2000/svg" style={{left:"80vw", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}}>
+                    <line id='e1' x1="100" y1="100" x2="100" y2="0" stroke="red" />
+                    <line id='e2' x1="100" y1="100" x2="100" y2="0" stroke="blue" />
+                </svg> */}
                 <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
                 <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}></select>
                 <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"110vh",position:"absolute",display:"block", border:"1px solid black"}}>

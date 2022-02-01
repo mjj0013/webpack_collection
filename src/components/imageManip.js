@@ -1,6 +1,6 @@
 import { ifStatement, isThisExpression, variableDeclaration } from 'babel-types';
 import { Matrix,EigenvalueDecomposition, solve } from 'ml-matrix';
-import {numberInRange, getRandomInt, objExistsInArray} from './utility.js';
+import {numberInRange, getRandomInt, objExistsInArray, getStdDev} from './utility.js';
 import {Cluster} from './Cluster.js'
 import { AST_PrefixedTemplateString } from 'terser';
 
@@ -76,55 +76,51 @@ export class ImageScan {
        
         //makes sure window makes IxJ evenly divided regions.    
         return new Promise((resolve,reject)=> {
-            windowHeight = this.imageHeight%windowHeight!=0? windowHeight+(this.imageHeight - (this.imageHeight%windowHeight)): windowHeight;
-            windowWidth = this.imageWidth%windowWidth!=0? windowWidth+(this.imageWidth - (this.imageWidth%windowWidth)): windowWidth;
-            console.log(windowHeight, windowWidth)
-            var grid = Array(this.imageHeight/windowHeight).fill(Array(this.imageWidth/windowWidth).fill([]))
-            var gridY = 0, gridX=0;         //these are ITERS
-            for(let layer=0; layer < this.imageLayers.length; ++layer) {
-                var Layer = this.imageLayers[layer]
-                var resultData = Layer["resultData"];
-
-                // resultData["cornerLocations"]
-
-                // for(var imgY=windowHeight; imgY < this.imageHeight-windowHeight; imgY+=windowHeight) { 
-                //     for(var imgX=windowWidth; imgX < this.imageWidth-windowWidth; imgX+=windowWidth) {              
-                //         var interestPts = []     // will be objects w/ format: {mag:.., pts:[], avgMag:..[]}  , mag is the mag that all the pts are close to
+            // windowHeight = this.imageHeight%windowHeight!=0? windowHeight+(this.imageHeight - (this.imageHeight%windowHeight)): windowHeight;
+            // windowWidth = this.imageWidth%windowWidth!=0? windowWidth+(this.imageWidth - (this.imageWidth%windowWidth)): windowWidth;
+            // console.log(windowHeight, windowWidth)
+            // var grid = Array(this.imageHeight/windowHeight).fill(Array(this.imageWidth/windowWidth).fill([]))
+            // var gridY = 0, gridX=0;         //these are ITERS
+            // for(let layer=0; layer < this.imageLayers.length; ++layer) {
+            //     var Layer = this.imageLayers[layer]
+            //     var resultData = Layer["resultData"];
+            //     for(var imgY=windowHeight; imgY < this.imageHeight-windowHeight; imgY+=windowHeight) { 
+            //         for(var imgX=windowWidth; imgX < this.imageWidth-windowWidth; imgX+=windowWidth) {              
+            //             var interestPts = []     // will be objects w/ format: {mag:.., pts:[], avgMag:..[]}  , mag is the mag that all the pts are close to
                         
-                //         //Below, Trying to normalize data so its scaled to [0,1],  https://en.wikipedia.org/wiki/Feature_scaling#Rescaling_(min-max_normalization)
-                //         // for(var kY=-windowHeight; kY < windowHeight; ++kY) {
-                //         //     for(var kX=-windowWidth; kX < windowWidth; ++kX) { 
-                //         //         var thisMagGradient = resultData["magGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-                //         //     }
-                //         // }
+            //             //Below, Trying to normalize data so its scaled to [0,1],  https://en.wikipedia.org/wiki/Feature_scaling#Rescaling_(min-max_normalization)
+            //             // for(var kY=-windowHeight; kY < windowHeight; ++kY) {
+            //             //     for(var kX=-windowWidth; kX < windowWidth; ++kX) { 
+            //             //         var thisMagGradient = resultData["magGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
+            //             //     }
+            //             // }
 
-                //         //moving window so that image is scanned in grid-like way, NOT a convolution
-                //         for(var kY=-windowHeight; kY < windowHeight; ++kY) {
-                //             for(var kX=-windowWidth; kX < windowWidth; ++kX) { 
-                //                 var svgX = imgX-kX;
-                //                 var svgY = imgY-kY;
-                //                 var thisMagGradient = resultData["magGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-                //                 var thisTheta = resultData["thetaGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
+            //             //moving window so that image is scanned in grid-like way, NOT a convolution
+            //             for(var kY=-windowHeight; kY < windowHeight; ++kY) {
+            //                 for(var kX=-windowWidth; kX < windowWidth; ++kX) { 
+            //                     var svgX = imgX-kX;
+            //                     var svgY = imgY-kY;
+            //                     var thisMagGradient = resultData["magGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
+            //                     var thisTheta = resultData["thetaGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
 
-                //                 if(thisMagGradient >=150) {
-                //                     var thisXGradient = resultData["xGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-                //                     var thisYGradient = resultData["yGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-                //                     var thisSlope = resultData["slopeRateY1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]/resultData["slopeRateX1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-                //                     interestPts.push({x:svgX, y:svgY, slope:thisSlope, theta:thisTheta, magGradient:thisMagGradient, xGradient:thisXGradient, yGradient:thisYGradient})
-                //                 }
-                //             }
-                //         }
-                //         grid[gridY][gridX] = interestPts;
-                //         ++gridX;
-                //     }
-                //     ++gridY;
-                // }
-            }
-            console.log("grid", grid)
-            this.combinedGrid = {grid:grid, windowHeight:windowHeight, windowWidth:windowWidth};
+            //                     if(thisMagGradient >=150) {
+            //                         var thisXGradient = resultData["xGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
+            //                         var thisYGradient = resultData["yGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
+            //                         var thisSlope = resultData["slopeRateY1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]/resultData["slopeRateX1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
+            //                         interestPts.push({x:svgX, y:svgY, slope:thisSlope, theta:thisTheta, magGradient:thisMagGradient, xGradient:thisXGradient, yGradient:thisYGradient})
+            //                     }
+            //                 }
+            //             }
+            //             grid[gridY][gridX] = interestPts;
+            //             ++gridX;
+            //         }
+            //         ++gridY;
+            //     }
+            // }
+            // console.log("grid", grid)
+            // this.combinedGrid = {grid:grid, windowHeight:windowHeight, windowWidth:windowWidth};
             resolve();
         })
-
     }
 
     async detectBlobs(gaussLength=15, baseSig=2, numLayers=3, sigExpMax=6, k=.04, eigenValEstimate=5000) {
@@ -143,7 +139,6 @@ export class ImageScan {
             var data = this.imageData.data;     //should normally be this.originalImageData.data;
             
             var componentLength = 7;   //15 works good with space & rocket center, trying 7 for Red&Black checker board
-            
             let sig0 = 1;
             var sigStack = []
             var sigDelta =sigExpMax/numLayers
@@ -167,8 +162,8 @@ export class ImageScan {
             for(let s=0; s < sigStack.length; ++s) {
                 var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
                 var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
-                layerStack.push({"component":component, "resultData":{"RGB":data.map((x)=>x),"imageData":null, "mags":[],"yGradient1":[], "xGradient1":[],
-                "magGradient1":[],"thetaGradient1":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[],"cornerLocations":[], "laplacian":[], "eigenVals":[], "preClusteringGroups":Array(preClusteringGridH).fill(Array(preClusteringGridW).fill([]))
+                layerStack.push({"component":component, "resultData":{"RGB":data.map((x)=>x),"imageData":null, "mags":[],"yGradient1":[], "xGradient1":[], "magGradient1":[],"thetaGradient1":[], "harrisResponse":[],
+                 "slopeRateX1":[], "slopeRateY1":[],"cornerLocations":[], "laplacian":[], "eigenVals":[], "preClusteringGroups":Array(preClusteringGridH).fill(Array(preClusteringGridW).fill([]))
                 }});
             }
             
@@ -177,7 +172,6 @@ export class ImageScan {
                 var parallelComponent = layerStack[c];
                 for(var imgY=0; imgY < this.imageHeight; imgY+=1) { 
                     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {
-
                         var regionX = Math.floor(imgX/preClusteringRegion.w)
                         var regionY = Math.floor(imgY/preClusteringRegion.h)
                         if(parallelComponent["resultData"].preClusteringGroups[regionY][regionX].length==0) {
@@ -207,9 +201,11 @@ export class ImageScan {
                         parallelComponent["resultData"]["RGB"][4*(imgX + imgY*this.imageWidth) + 1] = G;
                         parallelComponent["resultData"]["RGB"][4*(imgX + imgY*this.imageWidth) + 2] = B;
                         parallelComponent["resultData"]["mags"].push((R+G+B)/3);
+                        
                     }
                 }
             }
+            
             var windowR = 5; //3 worked good
             var tempKernel = this.gaussianBlurComponent(2*windowR-1, 1);
             var gaussKernel = tempKernel.kernel;
@@ -250,7 +246,7 @@ export class ImageScan {
                         let magGrad = Math.sqrt((sobelY1*sobelY1) + (sobelX1*sobelX1))
                         let theta = sobelY1==0||sobelX1==0? 0:Math.atan((sobelY1)/(sobelX1));
                         let slopeRate1 = {x:magGrad*Math.cos(theta), y:magGrad*Math.sin(theta)}
-                      
+                       
                         parallelComponent["resultData"]["magGradient1"].push(magGrad);
                         parallelComponent["resultData"]["thetaGradient1"].push(theta); 
                         parallelComponent["resultData"]["slopeRateX1"].push(slopeRate1.x)       //measure of horizontal-ness
@@ -259,7 +255,7 @@ export class ImageScan {
                         var preClusteringGroups = parallelComponent["resultData"]["preClusteringGroups"]
                         //before clustering, divide image into grid of regions. For each region, have array of Objects that contain predefined  magnitude ranges and the pixels that fall into those ranges.
                         // Example:  [y][x] => {'50,100': [{x:.., y:..}, {x:.., y:..}],  '100,150': [{x:.., y:..}, {x:.., y:..}], '200,250': [{x:.., y:..}, {x:.., y:..}], }
-                        if(Math.round(laplacian) > 0) {
+                        if(Math.round(laplacian) > 5 || Math.round(laplacian) < -5) {
                             var regionX = Math.floor(imgX/preClusteringRegion.w)
                             var regionY = Math.floor(imgY/preClusteringRegion.h)
                             var regionObj = preClusteringGroups[regionY][regionX];
@@ -289,6 +285,7 @@ export class ImageScan {
                         let Ixx = [], Iyy = [], Ixy = [];
                         var isLocalPeak = true;
                         var centerMag = parallelComponent["resultData"]["laplacian"][((imgX) + (imgY)*this.imageWidth)]
+                      
                         for(var kY=-windowR; kY <= windowR; ++kY) {  
                             var xRow = [], yRow = [], xyRow = [];
                             for(var kX=-windowR; kX <= windowR; ++kX) {   
@@ -308,7 +305,6 @@ export class ImageScan {
                             Ixx.push(xRow);
                             Ixy.push(xyRow);
                             Iyy.push(yRow);
-
                         }
                         if(!isLocalPeak) continue;
                         Ixx = new Matrix(Ixx);
@@ -323,17 +319,15 @@ export class ImageScan {
                         var IxxSum = Ixx.sum();
                         var IxySum = Ixy.sum();
                         var IyySum = Iyy.sum();
-
                         var M = new Matrix([[IxxSum, IxySum], [IxySum, IyySum]]);
                         var det = (IxxSum*IyySum) - (IxySum*IxySum)
                         var trace = IxxSum + IyySum;
                         var eigs = new EigenvalueDecomposition(M);
                         var real = eigs.realEigenvalues;
                         var R = det - k*(trace*trace);      //measure of corner response
-                        
                         parallelComponent["resultData"]["harrisResponse"].push(R);
                         parallelComponent["resultData"]["eigenVals"].push(eigs);
-                        
+
                         if(R>0) {
                             if(real[0] > eigenValEstimate && real[1] > eigenValEstimate)  {
                                 var pixelIdx = ((imgX) + (imgY)*this.imageWidth);
@@ -343,6 +337,7 @@ export class ImageScan {
                                 parallelComponent["resultData"]["cornerLocations"].push({x:imgX, y:imgY,thetaGradient:thetaGradient1, slope:slopeRateY1/slopeRateX1, pixelIdx:pixelIdx, magGradient: parallelComponent["resultData"]["magGradient1"][pixelIdx]});
                             }
                         }
+
                     }
                     console.log(`Completed iter ${(imgX + imgY*this.imageWidth)} of ${this.imageHeight*this.imageWidth}`);
                 }
@@ -365,7 +360,7 @@ export class ImageScan {
                 //     let topPts = closestPts.slice(0,maxNumClosest);
                 //     cornerClusters[p1].closestPts = topPts;   
                 // }
-                console.log('sigStack[c]',sigStack[c])  
+                
             }
             this.imageLayers = layerStack;
             resolve();
@@ -482,27 +477,21 @@ export class ImageScan {
                     //calculating values and gradients of every pixel
                     for(var imgY=0; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
                         for(var imgX=0; imgX < OBJ.imageWidth; imgX+=1) {
-                            // var [thisR,thisG,thisB,thisA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + imgX)]]
                             var [thisR,thisG,thisB,thisA] = OBJ.data.slice(4*(imgY*OBJ.imageWidth + imgX),4*(imgY*OBJ.imageWidth + imgX) + 4);
                             let leftVal=-1, rightVal=-1, topVal=-1, bottomVal=-1;
                             if(imgX>0) {
-                                
-                                // let [leftR,leftG,leftB,leftA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + (imgX-1))]]
                                 let [leftR,leftG,leftB,leftA] = OBJ.data.slice(4*(imgY*OBJ.imageWidth + (imgX-1)),4*(imgY*OBJ.imageWidth + (imgX-1)) + 4);
                                 leftVal = (leftR + leftG + leftB)/3;
                             }
                             if(imgX < OBJ.imageWidth-1) {
-                                //var [rightR,rightG,rightB,rightA] = [...OBJ.data[4*(imgY*OBJ.imageWidth + (imgX+1))]]
                                 let [rightR,rightG,rightB,rightA] = OBJ.data.slice(4*(imgY*OBJ.imageWidth + (imgX+1)),4*(imgY*OBJ.imageWidth + (imgX+1)) + 4);
                                 rightVal = (rightR + rightG + rightB)/3;
                             }
                             if(imgY>0) {
-                                //var [topR,topG,topB,topA] = [...OBJ.data[4*((imgY-1)*OBJ.imageWidth + (imgX))]]
                                 let [topR,topG,topB,topA] = OBJ.data.slice(4*((imgY-1)*OBJ.imageWidth + (imgX)),4*((imgY-1)*OBJ.imageWidth + (imgX)) + 4);
                                 topVal = (topR + topG + topB)/3;
                             }
                             if(imgY < OBJ.imageHeight-1) {
-                                // let [bottomR,bottomG,bottomB,bottomA] = [...OBJ.data[4*((imgY+1)*OBJ.imageWidth + (imgX))]]
                                 let [bottomR,bottomG,bottomB,bottomA] = OBJ.data.slice(4*((imgY+1)*OBJ.imageWidth + (imgX)),4*((imgY+1)*OBJ.imageWidth + (imgX)) + 4);
                                 bottomVal = (bottomR + bottomG + bottomB)/3;
                             }
@@ -535,9 +524,7 @@ export class ImageScan {
                     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {
                         let mag = this.imageLayers[layerIndex]["resultData"]["magGradient1"][imgX + (imgY*this.imageWidth)];
                         let theta = this.imageLayers[layerIndex]["resultData"]["thetaGradient1"][imgX + (imgY*this.imageWidth)];
-                        let R = (mag)*Math.cos(theta)     //57.2958*
-                        let G = 0;
-                        let B = (mag)*Math.sin(theta);
+                        let R = (mag)*Math.cos(theta),  G = 0,  B = (mag)*Math.sin(theta);
                         dataCopy[4*(imgX + imgY*this.imageWidth)] = R;
                         dataCopy[4*(imgX + imgY*this.imageWidth)+1] = G;
                         dataCopy[4*(imgX + imgY*this.imageWidth)+2] = B;

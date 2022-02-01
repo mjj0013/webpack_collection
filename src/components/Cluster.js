@@ -18,6 +18,7 @@ export class Cluster {
     ABCAN1D(clusterData, epsilonMultiplier, minPts, attribute ) {     //Attribute-Based Clustering of Applications with Noise, 1 Dimensional (i.e magntiude, theta)
         // Calculate the best epsilon by finding differences b/w all points' attributes, sorting them, then finding where the greatest change occurs 
         var allDiffs = []
+        if(clusterData.length < 3) return [clusterData];
         for(let p=0; p < clusterData.length; ++p) {
             var thisDiffs = []
             for(let p2=0; p2 < clusterData.length; ++p2) {
@@ -130,6 +131,7 @@ export class Cluster {
 
         //calculate best epsilon by finding distances b/w all points, sorting those distances, then finding where the greatest change in distance occurs 
         var allDists = []
+        if(clusterData.length < 3) return [clusterData];
         for(let p=0; p < clusterData.length; ++p) {
             var thisDists = []
             for(let p2=0; p2 < clusterData.length; ++p2) {

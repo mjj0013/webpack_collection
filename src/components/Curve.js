@@ -87,7 +87,7 @@ export class Curve {
     }
     testLagrangePolyString(range=null) {
         //range[0] is xMin,     range[1] is xMax
-        if(range==null) range = this.xRange;
+        range = range==null? this.xRange : range;
         var selectedPts = this.pts.slice(range[0],range[1]);
         var selectedXVals = this.xVals.slice(range[0],range[1]);
         var selectedYVals = this.yVals.slice(range[0],range[1]);

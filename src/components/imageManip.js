@@ -178,7 +178,6 @@ export class ImageScan {
                             var regionTemplate = {}
                             for(let i =magRangeStart; i < magRangeEnd; i+=magRangeSize) regionTemplate[[i, i+magRangeSize]] = [];
                             parallelComponent["resultData"].preClusteringGroups[regionY][regionX] = regionTemplate;
-
                         }
 
                         let R=0, G=0, B=0;
@@ -260,7 +259,6 @@ export class ImageScan {
                             var regionY = Math.floor(imgY/preClusteringRegion.h)
                             var regionObj = preClusteringGroups[regionY][regionX];
                             var regionObjKeys = Object.keys(regionObj);
-
                             for(let key=0; key < regionObjKeys.length; ++key) {
                                 let keyRange = regionObjKeys[key].split(',')
                                 let lowerLim = parseInt(keyRange[0]);
@@ -275,7 +273,6 @@ export class ImageScan {
                         }
                     }
                 }
-
                 // https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
                 // https://mathinsight.org/directional_derivative_gradient_introduction
 
@@ -563,7 +560,6 @@ export class ImageScan {
             return -1;
         }
         let kernelRadius=Math.floor(kernelLength/2);
-        
         sig = Math.max((kernelRadius / 2), sig)      //set minimum standard deviation as a baseline; link above says to scale sigma value in proportion to radius
         let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));
         let lowerExp = sig*sig*2;
@@ -577,7 +573,7 @@ export class ImageScan {
             }
         }
         for(let x=0; x < kernelLength; ++x) {
-            for(let y=0; y < kernelLength; ++y) kernel[x][y] /=sum;
+            for(let y=0; y < kernelLength; ++y) { kernel[x][y] /=sum; }
         }
         return {kernel:kernel, kernelRadius:kernelRadius, sig:sig};
     }

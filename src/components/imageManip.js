@@ -76,49 +76,6 @@ export class ImageScan {
        
         //makes sure window makes IxJ evenly divided regions.    
         return new Promise((resolve,reject)=> {
-            // windowHeight = this.imageHeight%windowHeight!=0? windowHeight+(this.imageHeight - (this.imageHeight%windowHeight)): windowHeight;
-            // windowWidth = this.imageWidth%windowWidth!=0? windowWidth+(this.imageWidth - (this.imageWidth%windowWidth)): windowWidth;
-            // console.log(windowHeight, windowWidth)
-            // var grid = Array(this.imageHeight/windowHeight).fill(Array(this.imageWidth/windowWidth).fill([]))
-            // var gridY = 0, gridX=0;         //these are ITERS
-            // for(let layer=0; layer < this.imageLayers.length; ++layer) {
-            //     var Layer = this.imageLayers[layer]
-            //     var resultData = Layer["resultData"];
-            //     for(var imgY=windowHeight; imgY < this.imageHeight-windowHeight; imgY+=windowHeight) { 
-            //         for(var imgX=windowWidth; imgX < this.imageWidth-windowWidth; imgX+=windowWidth) {              
-            //             var interestPts = []     // will be objects w/ format: {mag:.., pts:[], avgMag:..[]}  , mag is the mag that all the pts are close to
-                        
-            //             //Below, Trying to normalize data so its scaled to [0,1],  https://en.wikipedia.org/wiki/Feature_scaling#Rescaling_(min-max_normalization)
-            //             // for(var kY=-windowHeight; kY < windowHeight; ++kY) {
-            //             //     for(var kX=-windowWidth; kX < windowWidth; ++kX) { 
-            //             //         var thisMagGradient = resultData["magGradient"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-            //             //     }
-            //             // }
-
-            //             //moving window so that image is scanned in grid-like way, NOT a convolution
-            //             for(var kY=-windowHeight; kY < windowHeight; ++kY) {
-            //                 for(var kX=-windowWidth; kX < windowWidth; ++kX) { 
-            //                     var svgX = imgX-kX;
-            //                     var svgY = imgY-kY;
-            //                     var thisMagGradient = resultData["magGradient"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-            //                     var thisTheta = resultData["thetaGradient"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-
-            //                     if(thisMagGradient >=150) {
-            //                         var thisXGradient = resultData["xGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-            //                         var thisYGradient = resultData["yGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-            //                         var thisSlope = resultData["slopeRateY1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]/resultData["slopeRateX1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-            //                         interestPts.push({x:svgX, y:svgY, slope:thisSlope, theta:thisTheta, magGradient:thisMagGradient, xGradient:thisXGradient, yGradient:thisYGradient})
-            //                     }
-            //                 }
-            //             }
-            //             grid[gridY][gridX] = interestPts;
-            //             ++gridX;
-            //         }
-            //         ++gridY;
-            //     }
-            // }
-            // console.log("grid", grid)
-            // this.combinedGrid = {grid:grid, windowHeight:windowHeight, windowWidth:windowWidth};
             resolve();
         })
     }

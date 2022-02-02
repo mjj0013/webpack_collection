@@ -71,6 +71,12 @@ export function numberInRange(number, target, degreeOfTolerance) {
 }
 
 
+
+export function scaleNumberToRange(number, currentRange, desiredRange) {
+    return desiredRange[0] + (desiredRange[1]-desiredRange[0])*(number-currentRange[0])/(currentRange[1]-currentRange[0])
+}
+
+
 export function distance(A,B) {
     return Math.sqrt((A.x - B.x)*(A.x - B.x) + (A.y - B.y)*(A.y - B.y))
 }

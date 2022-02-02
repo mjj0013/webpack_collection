@@ -7,7 +7,7 @@ import { documentElement } from 'min-document';
 import {ImageScan} from './imageManip.js'
 import {Curve} from './Curve.js'
 import {Cluster} from './Cluster.js';
-import {getRandomInt, distance, groupInRegion, itemCountInArray} from './utility.js'
+import {getRandomInt, distance, groupInRegion, scaleNumberToRange, numberInRange} from './utility.js'
 
 var geval = eval;
 import { Matrix, solve } from 'ml-matrix';
@@ -67,7 +67,8 @@ class FileManipPage extends React.Component {
         context.putImageData(currentImageData, 0 , 0)
         var cornerClusters = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"].subClusters;
         for(let cluster=0; cluster < cornerClusters.length; ++cluster) {
-            var color = `rgb(${getRandomInt(0,255)},${getRandomInt(0,255)},${getRandomInt(0,255)} )`
+            //var color = `rgb(${getRandomInt(0,255)},${getRandomInt(0,255)},${getRandomInt(0,255)} )`
+            var color='black';
             for(let pt=0; pt < cornerClusters[cluster].length; ++pt) {
                 context.beginPath();
                 context.arc(cornerClusters[cluster][pt].x, cornerClusters[cluster][pt].y, 1, 0, 2 * Math.PI)
@@ -81,13 +82,23 @@ class FileManipPage extends React.Component {
         var y = e.layerY;
         var idx = (x) + (y)*this.currentScanObj.imageWidth;
         if(this.currentScanObj.imageLayers.length==0) return;
-        var mag = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["magGradient1"][idx]  
+        var mag = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["magGradient"][idx]  
         var laplacian =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["laplacian"][idx]  
-        var harrisResponse =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["harrisResponse"][idx]      
-        var theta = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["thetaGradient1"][idx]         //subtract 90 degrees (1.570795 in radians) from this to get actual theta
+        var harrisResponse =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["harrisResponse"][idx]   
+        var eigenVals =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["eigenVals"][idx]   
+        var slopeX =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateX1"][idx]  
+        var slopeY =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateY1"][idx]  
+        
+        var theta = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["thetaGradient"][idx]         //subtract 90 degrees (1.570795 in radians) from this to get actual theta
         // var ratio =  this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateY1"][idx] /this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateX1"][idx] 
-
-        console.log("theta", theta,"mag",mag, "laplacian", laplacian, "harrisResponse", harrisResponse)        
+        
+        var e1 = document.getElementById("e1");
+        e1.setAttribute("x2", (mag+laplacian)*Math.cos(1.57079+theta)*100);
+        e1.setAttribute("y2",(mag+laplacian)*Math.sin(1.57079+theta)*100);
+        // var scaledX = Math.round(3*Math.cos(1.57079+theta))
+        // var scaledY = Math.round(3*Math.sin(1.57079+theta))
+        // console.log('x,y',scaledX, scaledY)
+        console.log("theta", theta,"mag",mag, "laplacian", laplacian, "eigenVals", eigenVals.eigenvectorMatrix.get(0,0),eigenVals.eigenvectorMatrix.get(0,1))        
     }
     
     async loadText(e) {
@@ -161,32 +172,122 @@ class FileManipPage extends React.Component {
         resultSVG.addEventListener("click", this.mouseClickHandler, false);
     }
 
-    edgeTracer(resultData, currentPt) {
+    edgeTracer(resultData,movWinRadius=10) {
         var cornerLocations = resultData["cornerLocations"];
-        let movWinRadius = 5;
-
+        var clusterMatrix=[];
         // try moving window starting from corners (lock the grid to the corners, start new grid every time so no overlapping occurs)
         for(let corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
-            var idxMatrix = [];
-            this.tracingWindow
+            //trying to account for multiple edges coming from one corner
+            var currentIdx = (currentCorner.x) + (currentCorner.y)*this.currentScanObj.imageWidth
+            var currentTheta = resultData["thetaGradient"][currentCorner.pixelIdx];
+
+            for(let wY=-5; wY < 5; ++wY) {
+                for(let wX=-5; wX < 5; ++wX) {
+                    if(wY==0 && wX==0) continue;
+                    var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
+                    if(resultData["harrisResponse"][relativeIdx] < 0) {     // < 0 means its classified as an edge by Harris Response
+                        
+                        var relativeTheta = resultData["thetaGradient"][relativeIdx];
+                        if(!numberInRange(relativeTheta, currentTheta, .261799 )) {           //edge is completely different from current edge
+                            var relativePt = {magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+wX, y:currentCorner.y+wY}
+                            var edgePts = this.tracingWindow(resultData, relativePt,movWinRadius)  //make this a cluster
+                            clusterMatrix.push(edgePts);
+                        }
+                    }
+                }
+            }
+            var edgePts = this.tracingWindow(resultData, currentCorner,movWinRadius)  //make this a cluster
+            clusterMatrix.push(edgePts);
+        }
+        console.log('clusterMatrix',clusterMatrix)
+        var clusterOperations = [
+            {name:'density',epsilon:null, minPts:3, epsilonMultiplier:1}
+        ]
+        for(let clm=0; clm < clusterMatrix.length; ++clm) {
+            var clusterObj = new Cluster(clusterMatrix[clm], clusterOperations);
+
+            var curveObjs = [];
+            for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
+                var curve = new Curve(clusterObj.subClusters[cl],`curve${clm}_${cl}`,2);
+                if(curve.pts.length ==0) continue;
+                curveObjs.push(curve)
+            }
+            for(let curve=0; curve < curveObjs.length; ++curve) {
+                var curveObj = curveObjs[curve];
+                console.log("curveObj",curveObj);
+                geval(curveObj["currentEquationStr"])
+                var thisCurveFunc = geval(curveObj.currentEquationName)
+    
+                let xMin = curveObj.xRange[0];
+                let xMax = curveObj.xRange[1];
+    
+                var P1 = {x:xMin, y:thisCurveFunc(xMin)}
+                var P2 = {x:xMax, y:thisCurveFunc(xMax)}
+                var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
+    
+                var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
+                // var d2 = `M${P1.x},${P1.y} Q${C.x+25},${C.y},${P2.x},${P2.y} `
+                // var d3 = `M${P1.x},${P1.y} Q${C.x+25},${C.y+25},${P2.x},${P2.y} `
+    
+                var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+                path.setAttribute("id",`curve${curve}_${clm}`)
+                path.setAttribute("d",d);
+                // path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
+                path.setAttribute("stroke",`black`);
+                path.setAttribute("fill","none");
+                // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="3s" begin="0s" repeatCount="indefinite" values="${d}; ${d2}; ${d3}"></animate>`)
+                document.getElementById("curveGroup").append(path);
+                
+            }
         }
 
     }
 
-    tracingWindow(resultData) {
+    tracingWindow(resultData, currentPt, movWinRadius=7) {
+        //currentPt is object {x:..., y:...}
+        var imageWidth = this.currentScanObj.imageWidth;
+        var imageHeight  =this.currentScanObj.imageHeight;
+        var imageLength=imageWidth*imageHeight;
+
+        var dataPts = [currentPt]
+
+        var currentTheta = currentPt.thetaGradient;       
+        // var currentLaplacian = resultData["laplacian"][currentIdx]
+
        
-         //currentPt is object {x:..., y:...}
-         var currentIdx = currentPt.x + currentPt.y*this.imageWidth
-         var currentTheta = resultData["thetaGradient1"][currentIdx]
-         var idxMatrix=[]
-         for(let wY=-movWinRadius; wY < movWinRadius; ++wY) {
-             var row = [];
-             for(let wX=-movWinRadius; wX < movWinRadius; ++wX) {
-                 row.push(((currentCorner.x-wX) + (currentCorner.y-wY)*this.imageWidth))
-             }
-             idxMatrix.push(row);
-         }   
+        var nextShots = [];
+        for(let i=movWinRadius; i > 0; --i) {
+            var nextX = Math.round(i*Math.cos(currentTheta-1.57079))
+            var nextY = Math.round(i*Math.sin(currentTheta-1.57079))
+            nextShots.push({x:nextX, y:nextY})
+        }
+        for(let shot=0; shot < nextShots.length; ++shot) {
+            var nextIdx = (currentPt.x+nextShots[shot].x) + (currentPt.y+nextShots[shot].y)*imageWidth
+            if(nextIdx >= 0 && nextIdx <= imageLength) {
+                if(resultData["magGradient"][nextIdx] >= 75) {
+                    var nextMagIsSimilar = numberInRange(resultData["magGradient"][nextIdx], currentPt.magGradient, 25)
+                    var nextTheta = resultData["thetaGradient"][nextIdx];
+                    // var thetaDiff = (nextTheta>currentTheta?nextTheta:currentTheta) - (nextTheta>currentTheta?currentTheta:nextTheta);
+                    // var isStraight = numberInRange(thetaDiff, Math.PI, .087266);
+                    
+                    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
+                    var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, .26179);
+        
+                    if(nextThetaIsSimilar && nextMagIsSimilar) {
+                        var nextObj = {x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], thetaGradient:nextTheta};
+                        var nextResult = this.tracingWindow(resultData, nextObj, movWinRadius)
+                        dataPts = dataPts.concat(nextResult);
+                        break;
+                    }
+                }
+                
+            }
+        }
+        
+        
+
+        return dataPts;
     }
 
     setImageLayers() {
@@ -200,68 +301,68 @@ class FileManipPage extends React.Component {
         }
         var pathAmount = 0, windowR = 0;
         var resultData = imageLayers[0]["resultData"];
-        var preClusteringGroups = resultData["preClusteringGroups"];
-        var cornerLocations = resultData["cornerLocations"];
-        var H = preClusteringGroups.length
-        var W = preClusteringGroups[0].length 
-
+        // var preClusteringGroups = resultData["preClusteringGroups"];
+        // var cornerLocations = resultData["cornerLocations"];
+        // var H = preClusteringGroups.length
+        // var W = preClusteringGroups[0].length 
+        this.edgeTracer(resultData);
         
-        for(let j=windowR; j < H-windowR; ++j) {
-            for(let i=windowR; i < W-windowR; ++i) {
-                var rangeKeys = Object.keys(preClusteringGroups[j][i]);
-                // for(let key=0; key < rangeKeys.length; ++key) {
+        // for(let j=windowR; j < H-windowR; ++j) {
+        //     for(let i=windowR; i < W-windowR; ++i) {
+        //         var rangeKeys = Object.keys(preClusteringGroups[j][i]);
+        //         // for(let key=0; key < rangeKeys.length; ++key) {
                     
-                    var maxRangeKey = rangeKeys[0];
-                    for(let key=0; key < rangeKeys.length; ++key) {
-                        if(preClusteringGroups[j][i][rangeKeys[key]].length > preClusteringGroups[j][i][maxRangeKey].length) maxRangeKey=rangeKeys[key];
-                    }
-                    if(preClusteringGroups[j][i][maxRangeKey].length==0) continue;        //was formerly '150,300'
+        //             var maxRangeKey = rangeKeys[0];
+        //             for(let key=0; key < rangeKeys.length; ++key) {
+        //                 if(preClusteringGroups[j][i][rangeKeys[key]].length > preClusteringGroups[j][i][maxRangeKey].length) maxRangeKey=rangeKeys[key];
+        //             }
+        //             if(preClusteringGroups[j][i][maxRangeKey].length==0) continue;        //was formerly '150,300'
 
-                    var clusterOperations = [
-                        {name:'density', minPts:4, epsilonMultiplier:1}
-                    ]
-                    // var numCornersInRegion  = groupInRegion(resultData.cornerLocations, {top:j, left:i, width:W, height:H})
-                    // if(numCornersInRegion > 0) clusterOperations.push({name:'thetaGradient', minPts:3, epsilonMultiplier:.125})
+        //             var clusterOperations = [
+        //                 {name:'density',epsilon:W/4, minPts:4, epsilonMultiplier:1}
+        //             ]
+        //             // var numCornersInRegion  = groupInRegion(resultData.cornerLocations, {top:j, left:i, width:W, height:H})
+        //             // if(numCornersInRegion > 0) clusterOperations.push({name:'thetaGradient', minPts:3, epsilonMultiplier:.125})
                     
-                    var clusterObj = new Cluster(preClusteringGroups[j][i][maxRangeKey], clusterOperations);
+        //             var clusterObj = new Cluster(preClusteringGroups[j][i][maxRangeKey], clusterOperations);
 
-                    var curveObjs = [];
-                    for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
-                        var curve = new Curve(clusterObj.subClusters[cl],`${j}${i}_${cl}`,2);
-                        if(curve.pts.length ==0) continue;
-                        curveObjs.push(curve)
-                    }
-                    for(let curve=0; curve < curveObjs.length; ++curve) {
-                        var curveObj = curveObjs[curve];
-                        console.log("curveObj",curveObj);
-                        geval(curveObj["currentEquationStr"])
-                        var thisCurveFunc = geval(curveObj.currentEquationName)
+        //             var curveObjs = [];
+        //             for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
+        //                 var curve = new Curve(clusterObj.subClusters[cl],`${j}${i}_${cl}`,2);
+        //                 if(curve.pts.length ==0) continue;
+        //                 curveObjs.push(curve)
+        //             }
+        //             for(let curve=0; curve < curveObjs.length; ++curve) {
+        //                 var curveObj = curveObjs[curve];
+        //                 console.log("curveObj",curveObj);
+        //                 geval(curveObj["currentEquationStr"])
+        //                 var thisCurveFunc = geval(curveObj.currentEquationName)
 
-                        let xMin = curveObj.xRange[0];
-                        let xMax = curveObj.xRange[1];
+        //                 let xMin = curveObj.xRange[0];
+        //                 let xMax = curveObj.xRange[1];
 
-                        var P1 = {x:xMin, y:thisCurveFunc(xMin)}
-                        var P2 = {x:xMax, y:thisCurveFunc(xMax)}
-                        var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
+        //                 var P1 = {x:xMin, y:thisCurveFunc(xMin)}
+        //                 var P2 = {x:xMax, y:thisCurveFunc(xMax)}
+        //                 var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
 
-                        var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
-                        var d2 = `M${P1.x},${P1.y} Q${C.x+25},${C.y},${P2.x},${P2.y} `
-                        var d3 = `M${P1.x},${P1.y} Q${C.x+25},${C.y+25},${P2.x},${P2.y} `
+        //                 var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
+        //                 var d2 = `M${P1.x},${P1.y} Q${C.x+25},${C.y},${P2.x},${P2.y} `
+        //                 var d3 = `M${P1.x},${P1.y} Q${C.x+25},${C.y+25},${P2.x},${P2.y} `
 
-                        var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-                        path.setAttribute("id",`curve${curve}_${j}_${i}`)
-                        path.setAttribute("d",d);
-                        path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
-                        path.setAttribute("fill","none");
-                        // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${j}_${i}" id="pathAnimate${curve}_${j}_${i}" attributeName="d" attributeType="XML" dur="3s" begin="0s" repeatCount="indefinite" values="${d}; ${d2}; ${d3}"></animate>`)
-                        document.getElementById("curveGroup").append(path);
-                        ++pathAmount;
-                    }
+        //                 var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+        //                 path.setAttribute("id",`curve${curve}_${j}_${i}`)
+        //                 path.setAttribute("d",d);
+        //                 path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
+        //                 path.setAttribute("fill","none");
+        //                 // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${j}_${i}" id="pathAnimate${curve}_${j}_${i}" attributeName="d" attributeType="XML" dur="3s" begin="0s" repeatCount="indefinite" values="${d}; ${d2}; ${d3}"></animate>`)
+        //                 document.getElementById("curveGroup").append(path);
+        //                 ++pathAmount;
+        //             }
 
-                // }
+        //         // }
                 
-            }
-        }
+        //     }
+        // }
         return new Promise((resolve,reject)=> { resolve("here"); });
     }
     
@@ -295,10 +396,10 @@ class FileManipPage extends React.Component {
                 <div id="windowTest" style={{backgroundColor:'black', top:'100px', left:'30px', width:100, height:100} } />
 
 
-                {/* <svg id="eigenVectors" width="200" height="200" xmlns="http://www.w3.org/2000/svg" style={{left:"80vw", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}}>
+                <svg id="eigenVectors" width="200" height="200" xmlns="http://www.w3.org/2000/svg" style={{left:"80vw", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}}>
                     <line id='e1' x1="100" y1="100" x2="100" y2="0" stroke="red" />
-                    <line id='e2' x1="100" y1="100" x2="100" y2="0" stroke="blue" />
-                </svg> */}
+                    {/* <line id='e2' x1="100" y1="100" x2="100" y2="0" stroke="blue" /> */}
+                </svg>
                 <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
                 <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}></select>
                 <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"110vh",position:"absolute",display:"block", border:"1px solid black"}}>

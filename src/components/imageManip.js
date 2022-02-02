@@ -91,7 +91,7 @@ export class ImageScan {
             //             //Below, Trying to normalize data so its scaled to [0,1],  https://en.wikipedia.org/wiki/Feature_scaling#Rescaling_(min-max_normalization)
             //             // for(var kY=-windowHeight; kY < windowHeight; ++kY) {
             //             //     for(var kX=-windowWidth; kX < windowWidth; ++kX) { 
-            //             //         var thisMagGradient = resultData["magGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
+            //             //         var thisMagGradient = resultData["magGradient"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
             //             //     }
             //             // }
 
@@ -100,8 +100,8 @@ export class ImageScan {
             //                 for(var kX=-windowWidth; kX < windowWidth; ++kX) { 
             //                     var svgX = imgX-kX;
             //                     var svgY = imgY-kY;
-            //                     var thisMagGradient = resultData["magGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
-            //                     var thisTheta = resultData["thetaGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
+            //                     var thisMagGradient = resultData["magGradient"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
+            //                     var thisTheta = resultData["thetaGradient"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
 
             //                     if(thisMagGradient >=150) {
             //                         var thisXGradient = resultData["xGradient1"][((imgX-kX) + ((imgY-kY)*this.imageWidth))]
@@ -124,7 +124,7 @@ export class ImageScan {
     }
 
     async detectBlobs(gaussLength=15, baseSig=2, numLayers=3, sigExpMax=6, k=.04, eigenValEstimate=5000) {
-        //  k is sensitivity factor
+        //  k is sensitivity factor, default .04
         //  eigenValEstimate is the eigen-value used as a threshold for determining if eigen-values are large enough. If larger than it, they are accepted.
         //  http://vision.stanford.edu/teaching/cs231a_autumn1112/lecture/lecture11_detectors_descriptors_cs231a.pdf
         //  https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L12.pdf
@@ -162,7 +162,7 @@ export class ImageScan {
             for(let s=0; s < sigStack.length; ++s) {
                 var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
                 var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
-                layerStack.push({"component":component, "resultData":{"RGB":data.map((x)=>x),"imageData":null, "mags":[],"yGradient1":[], "xGradient1":[], "magGradient1":[],"thetaGradient1":[], "harrisResponse":[],
+                layerStack.push({"component":component, "resultData":{"RGB":data.map((x)=>x),"imageData":null, "mags":[],"yGradient1":[], "xGradient1":[], "magGradient":[],"thetaGradient":[], "harrisResponse":[],
                  "slopeRateX1":[], "slopeRateY1":[],"cornerLocations":[], "laplacian":[], "eigenVals":[], "preClusteringGroups":Array(preClusteringGridH).fill(Array(preClusteringGridW).fill([]))
                 }});
             }
@@ -246,8 +246,8 @@ export class ImageScan {
                         let theta = sobelY1==0||sobelX1==0? 0:Math.atan((sobelY1)/(sobelX1));
                         let slopeRate1 = {x:magGrad*Math.cos(theta), y:magGrad*Math.sin(theta)}
                        
-                        parallelComponent["resultData"]["magGradient1"].push(magGrad);
-                        parallelComponent["resultData"]["thetaGradient1"].push(theta); 
+                        parallelComponent["resultData"]["magGradient"].push(magGrad);
+                        parallelComponent["resultData"]["thetaGradient"].push(theta); 
                         parallelComponent["resultData"]["slopeRateX1"].push(slopeRate1.x)       //measure of horizontal-ness
                         parallelComponent["resultData"]["slopeRateY1"].push(slopeRate1.y)       //measure of vertical-ness
                         
@@ -288,9 +288,9 @@ export class ImageScan {
                             for(var kX=-windowR; kX <= windowR; ++kX) {   
                                 if(parallelComponent["resultData"]["laplacian"][((imgX-kX) + (imgY-kY)*this.imageWidth)] > centerMag) {
                                     isLocalPeak = false;
-                                    parallelComponent["resultData"]["harrisResponse"].push(0);
-                                    parallelComponent["resultData"]["eigenVals"].push(null);
-                                    break;
+                                    // parallelComponent["resultData"]["harrisResponse"].push(0);
+                                    // parallelComponent["resultData"]["eigenVals"].push(null);
+                                    // break;
                                 }
                                 let xComp = parallelComponent["resultData"]["xGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
                                 let yComp = parallelComponent["resultData"]["yGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
@@ -298,12 +298,12 @@ export class ImageScan {
                                 xyRow.push(xComp*yComp)
                                 yRow.push(yComp*yComp)
                             }
-                            if(!isLocalPeak) break;
+                            // if(!isLocalPeak) break;
                             Ixx.push(xRow);
                             Ixy.push(xyRow);
                             Iyy.push(yRow);
                         }
-                        if(!isLocalPeak) continue;
+                        // if(!isLocalPeak) continue;
                         Ixx = new Matrix(Ixx);
                         Ixy = new Matrix(Ixy);
                         Iyy = new Matrix(Iyy);
@@ -324,39 +324,21 @@ export class ImageScan {
                         var R = det - k*(trace*trace);      //measure of corner response
                         parallelComponent["resultData"]["harrisResponse"].push(R);
                         parallelComponent["resultData"]["eigenVals"].push(eigs);
-
+                        if(!isLocalPeak) continue;
                         if(R>0) {
                             if(real[0] > eigenValEstimate && real[1] > eigenValEstimate)  {
                                 var pixelIdx = ((imgX) + (imgY)*this.imageWidth);
-                                var thetaGradient1 = parallelComponent["resultData"]["thetaGradient1"][pixelIdx]
+                                var thetaGradient = parallelComponent["resultData"]["thetaGradient"][pixelIdx]
                                 var slopeRateX1 = parallelComponent["resultData"]["slopeRateX1"][pixelIdx]
                                 var slopeRateY1 = parallelComponent["resultData"]["slopeRateY1"][pixelIdx]
-                                parallelComponent["resultData"]["cornerLocations"].push({x:imgX, y:imgY,thetaGradient:thetaGradient1, slope:slopeRateY1/slopeRateX1, pixelIdx:pixelIdx, magGradient: parallelComponent["resultData"]["magGradient1"][pixelIdx]});
+                                parallelComponent["resultData"]["cornerLocations"].push({x:imgX, y:imgY,thetaGradient:thetaGradient, slope:slopeRateY1/slopeRateX1, pixelIdx:pixelIdx, magGradient: parallelComponent["resultData"]["magGradient"][pixelIdx]});
                             }
                         }
-
                     }
                     console.log(`Completed iter ${(imgX + imgY*this.imageWidth)} of ${this.imageHeight*this.imageWidth}`);
                 }
                 var cornerLocations = parallelComponent["resultData"]["cornerLocations"];
                 parallelComponent["resultData"]["cornerClusters"] = new Cluster(cornerLocations);
-                // for(let c=0; c < cornerLocations.length; ++c) {
-                //     cornerClusters.push({x:cornerLocations[c].x, y:cornerLocations[c].y, closestPts:[], pixelIdx:cornerLocations[c].pixelIdx})
-                // }
-                // for(let p1=0; p1 < cornerClusters.length; ++p1) {
-                //     let thisPt = cornerClusters[p1];
-                //     let closestPts = [];
-                //     for(let p2=0; p2 < cornerClusters.length; ++p2){
-                //         if(p2==p1) continue;
-                //         let otherPt =  cornerClusters[p2];
-                //         let squaredDist = (thisPt.x-otherPt.x)*(thisPt.x-otherPt.x) + (thisPt.y-otherPt.y)*(thisPt.y-otherPt.y);
-                //         closestPts.push({index:p2,squaredDist:squaredDist});
-                //     }
-                //     closestPts.sort(function(a,b) { return a.squaredDist - b.squaredDist;  })
-                //     let maxNumClosest = 4
-                //     let topPts = closestPts.slice(0,maxNumClosest);
-                //     cornerClusters[p1].closestPts = topPts;   
-                // }
                 
             }
             this.imageLayers = layerStack;
@@ -519,8 +501,8 @@ export class ImageScan {
                 let layerIndex = layer;
                 for(var imgY=0; imgY < this.imageHeight; imgY+=1) {
                     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {
-                        let mag = this.imageLayers[layerIndex]["resultData"]["magGradient1"][imgX + (imgY*this.imageWidth)];
-                        let theta = this.imageLayers[layerIndex]["resultData"]["thetaGradient1"][imgX + (imgY*this.imageWidth)];
+                        let mag = this.imageLayers[layerIndex]["resultData"]["magGradient"][imgX + (imgY*this.imageWidth)];
+                        let theta = this.imageLayers[layerIndex]["resultData"]["thetaGradient"][imgX + (imgY*this.imageWidth)];
                         let R = (mag)*Math.cos(theta),  G = 0,  B = (mag)*Math.sin(theta);
                         dataCopy[4*(imgX + imgY*this.imageWidth)] = R;
                         dataCopy[4*(imgX + imgY*this.imageWidth)+1] = G;

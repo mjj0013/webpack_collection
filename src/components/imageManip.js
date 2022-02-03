@@ -20,9 +20,6 @@ export class ImageScan {
 
         this.imageReader = this.imageReader.bind(this);
         this.gaussianBlurComponent = this.gaussianBlurComponent.bind(this);
-        
-        this.generateLagrangePolyString = this.generateLagrangePolyString.bind(this);
-        this.lagrangePolys = [];  //strings that are unevaluated functions ( just use eval on them to create)
 
         this.colorBlackWhiteTransferComponent = this.colorBlackWhiteTransferComponent.bind(this);
         this.colorGammaTransferComponent = this.colorGammaTransferComponent.bind(this);
@@ -36,30 +33,6 @@ export class ImageScan {
         this.combinedGrid = []  //should eventually be where clusters of each image layer in 'imageLayers' are combined 
         
         this.selectedImage = null
-    }
-
-    generateLagrangePolyString(pts,equationId) {
-        var terms = [];
-        var xVals = pts.map(a=>a.x);
-        var leastX=99999999, mostX = -99999999;
-        for(let x=0; x < xVals.length; ++x) {
-            if(xVals[x] > mostX) mostX=xVals[x];
-            if(xVals[x] < leastX) leastX = xVals[x];
-        }
-        var yVals = pts.map(a=> a.y);
-        for(let p=0; p < pts.length; ++p) {
-            var numerator=`${yVals[p]}`
-            var denominator = 1;
-            for(let pk=0; pk < pts.length; ++pk) {
-                if(p==pk) continue;
-                numerator += `*(x - ${xVals[pk]})`
-                denominator *= (xVals[p]-xVals[pk]);
-            }
-            terms.push("("+numerator+`/${denominator}`+")")
-        }
-        var equation = `var curvePoly${equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
-        this.lagrangePolys.push({xRange:[leastX, mostX],equationStr:equation, equationName:`curvePoly${equationId.toString()}`});
-        return equation; 
     }
 
     async processBlobs(windowHeight=100, windowWidth=100) {
@@ -95,7 +68,8 @@ export class ImageScan {
             this.originalData = this.originalImageData.data;
             var data = this.imageData.data;     //should normally be this.originalImageData.data;
             
-            var componentLength = 7;   //15 works good with space & rocket center, trying 7 for Red&Black checker board
+            gaussLength = 7;
+            var componentLength = gaussLength;   //15 works good with space & rocket center, trying 7 for Red&Black checker board
             let sig0 = 1;
             var sigStack = []
             var sigDelta =sigExpMax/numLayers
@@ -106,37 +80,20 @@ export class ImageScan {
             var sigStack = [sig0*Math.pow(baseSig,0)]
             // for(let s=sigExpMax;s>=0;s-=sigDelta)    sigStack.push(sig0*Math.pow(baseSig,s));
             var layerStack = [];
-
-            var preClusteringGridW = 25; //25
-            var preClusteringGridH = 25; //25
-            var preClusteringRegion = {w:this.imageWidth/preClusteringGridW, h:this.imageHeight/preClusteringGridH}
-
-            var magRangeStart=100;
-            var magRangeEnd = 400;
-            var magRangeSize = 150;
             
             //make stack of layers, which each have different sigma values
             for(let s=0; s < sigStack.length; ++s) {
                 var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
                 var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
-                layerStack.push({"component":component, "resultData":{"RGB":data.map((x)=>x),"imageData":null, "mags":[],"yGradient1":[], "xGradient1":[], "magGradient":[],"thetaGradient":[], "harrisResponse":[],
-                 "slopeRateX1":[], "slopeRateY1":[],"cornerLocations":[], "laplacian":[], "eigenVals":[], "preClusteringGroups":Array(preClusteringGridH).fill(Array(preClusteringGridW).fill([]))
+                layerStack.push({ "component":component, "resultData": { "RGB":data.map((x)=>x), "imageData":null, "mags":[], "yGradient1":[], "xGradient1":[],
+                 "magGradient":[], "thetaGradient":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[], "cornerLocations":[], "laplacian":[], "eigenVals":[]
                 }});
             }
-            
             var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
             for(let c=0; c < layerStack.length; ++c) {
                 var parallelComponent = layerStack[c];
                 for(var imgY=0; imgY < this.imageHeight; imgY+=1) { 
                     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {
-                        var regionX = Math.floor(imgX/preClusteringRegion.w)
-                        var regionY = Math.floor(imgY/preClusteringRegion.h)
-                        if(parallelComponent["resultData"].preClusteringGroups[regionY][regionX].length==0) {
-                            var regionTemplate = {}
-                            for(let i =magRangeStart; i < magRangeEnd; i+=magRangeSize) regionTemplate[[i, i+magRangeSize]] = [];
-                            parallelComponent["resultData"].preClusteringGroups[regionY][regionX] = regionTemplate;
-                        }
-
                         let R=0, G=0, B=0;
                         if((imgY >=kernelRadius) && (imgX >=kernelRadius)) {
                             for(var kY=-kernelRadius; kY < kernelRadius; ++kY) {
@@ -163,8 +120,8 @@ export class ImageScan {
             }
             
             var windowR = 5; //3 worked good
-            var tempKernel = this.gaussianBlurComponent(2*windowR-1, 1);
-            var gaussKernel = tempKernel.kernel;
+            // var tempKernel = this.gaussianBlurComponent(2*windowR-1, 1);
+            // var gaussKernel = tempKernel.kernel;
             // gaussKernel = new Matrix(gaussKernel)
             
             // var LaplacianKernel = [[0,-1,0], [-1,4,-1], [0,-1,0]];
@@ -179,9 +136,6 @@ export class ImageScan {
                 for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
                     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {   
                         var sobelX1 = 0, sobelY1=0, laplacian=0;
-                        var regionX = Math.floor(imgX/preClusteringRegion.w)
-                        var regionY = Math.floor(imgY/preClusteringRegion.h)
-
                         if(!(imgX==0 || imgX==this.imageWidth-1 || imgY==0 || imgY==this.imageHeight-1)) {
                             for(let ky=-1; ky<= 1; ++ky) {
                                 for(let kx=-1; kx<= 1; ++kx) {
@@ -208,26 +162,28 @@ export class ImageScan {
                         parallelComponent["resultData"]["slopeRateX1"].push(slopeRate1.x)       //measure of horizontal-ness
                         parallelComponent["resultData"]["slopeRateY1"].push(slopeRate1.y)       //measure of vertical-ness
                         
-                        var preClusteringGroups = parallelComponent["resultData"]["preClusteringGroups"]
+                        
                         //before clustering, divide image into grid of regions. For each region, have array of Objects that contain predefined  magnitude ranges and the pixels that fall into those ranges.
                         // Example:  [y][x] => {'50,100': [{x:.., y:..}, {x:.., y:..}],  '100,150': [{x:.., y:..}, {x:.., y:..}], '200,250': [{x:.., y:..}, {x:.., y:..}], }
-                        if(Math.round(laplacian) > 5 || Math.round(laplacian) < -5) {
-                            var regionX = Math.floor(imgX/preClusteringRegion.w)
-                            var regionY = Math.floor(imgY/preClusteringRegion.h)
-                            var regionObj = preClusteringGroups[regionY][regionX];
-                            var regionObjKeys = Object.keys(regionObj);
-                            for(let key=0; key < regionObjKeys.length; ++key) {
-                                let keyRange = regionObjKeys[key].split(',')
-                                let lowerLim = parseInt(keyRange[0]);
-                                let upperLim = parseInt(keyRange[1]);
-                                let roundedMag = Math.round(magGrad);
-                                if(roundedMag >= lowerLim && roundedMag < upperLim) {
-                                    if(!objExistsInArray(regionObj[regionObjKeys[key]],{x:imgX, y:imgY})) {
-                                        regionObj[regionObjKeys[key]].push({x:imgX, y:imgY, thetaGradient:theta, magGradient:magGrad});
-                                    }
-                                }
-                            }                            
-                        }
+
+                        // var preClusteringGroups = parallelComponent["resultData"]["preClusteringGroups"]
+                        // if(Math.round(laplacian) > 5 || Math.round(laplacian) < -5) {
+                        //     var regionX = Math.floor(imgX/preClusteringRegion.w)
+                        //     var regionY = Math.floor(imgY/preClusteringRegion.h)
+                        //     var regionObj = preClusteringGroups[regionY][regionX];
+                        //     var regionObjKeys = Object.keys(regionObj);
+                        //     for(let key=0; key < regionObjKeys.length; ++key) {
+                        //         let keyRange = regionObjKeys[key].split(',')
+                        //         let lowerLim = parseInt(keyRange[0]);
+                        //         let upperLim = parseInt(keyRange[1]);
+                        //         let roundedMag = Math.round(magGrad);
+                        //         if(roundedMag >= lowerLim && roundedMag < upperLim) {
+                        //             if(!objExistsInArray(regionObj[regionObjKeys[key]],{x:imgX, y:imgY})) {
+                        //                 regionObj[regionObjKeys[key]].push({x:imgX, y:imgY, thetaGradient:theta, magGradient:magGrad});
+                        //             }
+                        //         }
+                        //     }                            
+                        // }
                     }
                 }
                 // https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
@@ -274,15 +230,16 @@ export class ImageScan {
                         var IxySum = Ixy.sum();
                         var IyySum = Iyy.sum();
                         var M = new Matrix([[IxxSum, IxySum], [IxySum, IyySum]]);
-                        var det = (IxxSum*IyySum) - (IxySum*IxySum)
+                        var det = (IxxSum*IyySum) - (IxySum*IxySum);
                         var trace = IxxSum + IyySum;
                         var eigs = new EigenvalueDecomposition(M);
-                        var real = eigs.realEigenvalues;
+                        
                         var R = det - k*(trace*trace);      //measure of corner response
                         parallelComponent["resultData"]["harrisResponse"].push(R);
                         parallelComponent["resultData"]["eigenVals"].push(eigs);
                         if(!isLocalPeak) continue;
                         if(R>0) {
+                            var real = eigs.realEigenvalues;
                             if(real[0] > eigenValEstimate && real[1] > eigenValEstimate)  {
                                 var pixelIdx = ((imgX) + (imgY)*this.imageWidth);
                                 var thetaGradient = parallelComponent["resultData"]["thetaGradient"][pixelIdx]
@@ -356,40 +313,41 @@ export class ImageScan {
                             component.sig = temp.sig;
                             component.kernelRadius = temp.kernelRadius;
                         }
-                        if(["gammaTransfer","discreteTransfer","blackWhiteTransfer","grayScale"].includes(component.type))     {component.kernelRadius = 0;}
+                        if(["gammaTransfer","discreteTransfer","blackWhiteTransfer","grayScale"].includes(component.type))     { component.kernelRadius = 0; }
                         
                         var kernelRadius = component.kernelRadius;
                         for(var imgY=kernelRadius; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
                             for(var imgX=kernelRadius; imgX < OBJ.imageWidth; imgX+=1) {       //increment by 4 because its RGBA values
+                                var pixelIdx = 4*(imgY*OBJ.imageWidth + imgX);
                                 if(component.type=="grayScale") {
-                                    var pixel = OBJ.data.slice(4*(imgY*OBJ.imageWidth + imgX),  4*(imgY*OBJ.imageWidth + imgX) + 4)     //array of 4 values (R,G,B,A) for 1 pixel
+                                    var pixel = OBJ.data.slice(pixelIdx,  pixelIdx + 4)     //array of 4 values (R,G,B,A) for 1 pixel
                                     var newRGBA = OBJ.simpleGrayscaleConvert(pixel,component.subType);
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = newRGBA[0];
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = newRGBA[1]
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 2] = newRGBA[2]
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = newRGBA[3]
+                                    OBJ.data[pixelIdx] = newRGBA[0];
+                                    OBJ.data[pixelIdx + 1] = newRGBA[1]
+                                    OBJ.data[pixelIdx + 2] = newRGBA[2]
+                                    OBJ.data[pixelIdx + 3] = newRGBA[3]
                                 }
                                 else if(component.type=="blackWhiteTransfer") {
-                                    let [R,G,B,A] = [...OBJ.data[4*(imgY*OBJ.imageWidth + imgX)]]
+                                    let [R,G,B,A] = [...OBJ.data[pixelIdx]]
                                     var newRGBA = OBJ.colorBlackWhiteTransferComponent([R,G,B,A]);
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = newRGBA[0];
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = newRGBA[1]
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 2] = newRGBA[2]
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = newRGBA[3]
+                                    OBJ.data[pixelIdx] = newRGBA[0];
+                                    OBJ.data[pixelIdx + 1] = newRGBA[1]
+                                    OBJ.data[pixelIdx + 2] = newRGBA[2]
+                                    OBJ.data[pixelIdx + 3] = newRGBA[3]
                                 }
                                 else if(component.type=="gammaTransfer") {
-                                    let [R,G,B,A] = [...OBJ.data[4*(imgY*OBJ.imageWidth + imgX)]]
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = component.applyTo.includes("R")?     OBJ.colorGammaTransferComponent(R, component.amplitude, component.exponent, component.offset):R;
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = component.applyTo.includes("G")? OBJ.colorGammaTransferComponent(G, component.amplitude, component.exponent, component.offset):G;
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 2] = component.applyTo.includes("B")? OBJ.colorGammaTransferComponent(B, component.amplitude, component.exponent, component.offset):B;
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = component.applyTo.includes("A")? OBJ.colorGammaTransferComponent(A, component.amplitude, component.exponent, component.offset):A;
+                                    let [R,G,B,A] = [...OBJ.data[pixelIdx]]
+                                    OBJ.data[pixelIdx] = component.applyTo.includes("R")?     OBJ.colorGammaTransferComponent(R, component.amplitude, component.exponent, component.offset):R;
+                                    OBJ.data[pixelIdx + 1] = component.applyTo.includes("G")? OBJ.colorGammaTransferComponent(G, component.amplitude, component.exponent, component.offset):G;
+                                    OBJ.data[pixelIdx + 2] = component.applyTo.includes("B")? OBJ.colorGammaTransferComponent(B, component.amplitude, component.exponent, component.offset):B;
+                                    OBJ.data[pixelIdx + 3] = component.applyTo.includes("A")? OBJ.colorGammaTransferComponent(A, component.amplitude, component.exponent, component.offset):A;
                                 }
                                 else if(component.type=="discreteTransfer") {
-                                    let [R,G,B,A] = [...OBJ.data[4*(imgY*OBJ.imageWidth + imgX)]]
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX)] = component.applyTo.includes("R")? OBJ.colorDiscreteTransferComponent(R, component.tableValues):R;
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 1] = component.applyTo.includes("G")? OBJ.colorDiscreteTransferComponent(G, component.tableValues):G;
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 2] = component.applyTo.includes("B")? OBJ.colorDiscreteTransferComponent(B, component.tableValues):B;
-                                    OBJ.data[4*(imgY*OBJ.imageWidth + imgX) + 3] = component.applyTo.includes("A")? OBJ.colorDiscreteTransferComponent(A, component.tableValues):A;
+                                    let [R,G,B,A] = [...OBJ.data[pixelIdx]]
+                                    OBJ.data[pixelIdx] = component.applyTo.includes("R")? OBJ.colorDiscreteTransferComponent(R, component.tableValues):R;
+                                    OBJ.data[pixelIdx + 1] = component.applyTo.includes("G")? OBJ.colorDiscreteTransferComponent(G, component.tableValues):G;
+                                    OBJ.data[pixelIdx + 2] = component.applyTo.includes("B")? OBJ.colorDiscreteTransferComponent(B, component.tableValues):B;
+                                    OBJ.data[pixelIdx + 3] = component.applyTo.includes("A")? OBJ.colorDiscreteTransferComponent(A, component.tableValues):A;
                                 }
                                 else if(component.type=="gaussBlur" || component.type=="edgeDetect") {
                                     let R = 0,G = 0,B = 0, A=0;
@@ -402,10 +360,10 @@ export class ImageScan {
                                             A += OBJ.data[4*((imgX-kX) + (imgY-kY)*OBJ.imageWidth)+3]*value;
                                         }
                                     }
-                                    OBJ.data[4*(imgX + imgY*OBJ.imageWidth)] = R;
-                                    OBJ.data[4*(imgX + imgY*OBJ.imageWidth) + 1] = G;
-                                    OBJ.data[4*(imgX + imgY*OBJ.imageWidth) + 2] = B;
-                                    OBJ.data[4*(imgX + imgY*OBJ.imageWidth) + 3] = A;
+                                    OBJ.data[pixelIdx] = R;
+                                    OBJ.data[pixelIdx + 1] = G;
+                                    OBJ.data[pixelIdx + 2] = B;
+                                    OBJ.data[pixelIdx + 3] = A;
                                 }
                             }
                         }
@@ -464,7 +422,6 @@ export class ImageScan {
                         dataCopy[4*(imgX + imgY*this.imageWidth)] = R;
                         dataCopy[4*(imgX + imgY*this.imageWidth)+1] = G;
                         dataCopy[4*(imgX + imgY*this.imageWidth)+2] = B;
-
                         if(layer==0) {
                             this.data[4*(imgX + imgY*this.imageWidth)] = R;
                             this.data[4*(imgX + imgY*this.imageWidth)+1] = G;
@@ -523,5 +480,3 @@ export class ImageScan {
         return pixel;
     }
 }
-
-

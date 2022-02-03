@@ -7,12 +7,10 @@ import { documentElement } from 'min-document';
 import {ImageScan} from './imageManip.js'
 import {Curve} from './Curve.js'
 import {Cluster} from './Cluster.js';
-import {getRandomInt, distance, groupInRegion, scaleNumberToRange, numberInRange} from './utility.js'
+import {mergeSubElements, hasIntersection2D, numberInRange,distance} from './utility.js'
 
 var geval = eval;
-import { Matrix, solve } from 'ml-matrix';
-
-
+// import { Matrix, solve } from 'ml-matrix';
 
 class FileManipPage extends React.Component {
     constructor(props) {
@@ -21,7 +19,7 @@ class FileManipPage extends React.Component {
         this.numOfPagesChanged= this.numOfPagesChanged.bind(this);
         this.state = {num:''};
         this.loadImage = this.loadImage.bind(this);
-        this.showSigmaLayersOnHover = this.showSigmaLayersOnHover.bind(this)
+        this.showValuesOnHover = this.showValuesOnHover.bind(this)
         this.imageScanInstances = [];
         this.selectImageLayerToDisplay = this.selectImageLayerToDisplay.bind(this);
         this.tracingWindow = this.tracingWindow.bind(this);
@@ -30,23 +28,12 @@ class FileManipPage extends React.Component {
         
         this.curveObjs = [];
         this.setImageLayers = this.setImageLayers.bind(this);
-        this.mouseClickHandler = this.mouseClickHandler.bind(this);
+        
         this.currentPts = [];//for testing clustering algorithm
         this.keyMag = 2;    //for testing clustering algorithm
         this.currentImageLayerIdx = 0;
     }
-    mouseClickHandler(e) {
-        var resultSVG = document.getElementById("resultSVG");
-        const rect = resultSVG.getBoundingClientRect();
-        var svgMouseClick = {x: e.clientX - rect.left, y: e.clientY - rect.top, magGradient:this.keyMag}
-        this.currentPts.push(svgMouseClick);
-        var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        ptObj.setAttribute("cx",svgMouseClick.x);
-        ptObj.setAttribute("cy",svgMouseClick.y);
-        ptObj.setAttribute("r",5);
-        ptObj.setAttribute("fill","black");
-        document.getElementById("ptGroup").append(ptObj);
-    }
+
     selectImageLayerToDisplay(e) {
         var canvas = document.getElementById("testCanvas");
         var context = document.getElementById("testCanvas").getContext('2d');
@@ -77,28 +64,19 @@ class FileManipPage extends React.Component {
             }   
         }
     }
-    showSigmaLayersOnHover(e) {
+    showValuesOnHover(e) {
         var x = e.layerX;
         var y = e.layerY;
         var idx = (x) + (y)*this.currentScanObj.imageWidth;
         if(this.currentScanObj.imageLayers.length==0) return;
         var mag = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["magGradient"][idx]  
         var laplacian =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["laplacian"][idx]  
-        var harrisResponse =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["harrisResponse"][idx]   
-        var eigenVals =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["eigenVals"][idx]   
-        var slopeX =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateX1"][idx]  
-        var slopeY =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateY1"][idx]  
-        
         var theta = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["thetaGradient"][idx]         //subtract 90 degrees (1.570795 in radians) from this to get actual theta
-        // var ratio =  this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateY1"][idx] /this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["slopeRateX1"][idx] 
         
         var e1 = document.getElementById("e1");
         e1.setAttribute("x2", (mag+laplacian)*Math.cos(1.57079+theta)*100);
         e1.setAttribute("y2",(mag+laplacian)*Math.sin(1.57079+theta)*100);
-        // var scaledX = Math.round(3*Math.cos(1.57079+theta))
-        // var scaledY = Math.round(3*Math.sin(1.57079+theta))
-        // console.log('x,y',scaledX, scaledY)
-        console.log("theta", theta,"mag",mag, "laplacian", laplacian, "eigenVals", eigenVals.eigenvectorMatrix.get(0,0),eigenVals.eigenvectorMatrix.get(0,1))        
+        console.log(`theta=${theta}  |  1st gradient mag=${mag}  |  2nd gradient mag (laplacian)=${laplacian}`)
     }
     
     async loadText(e) {
@@ -117,79 +95,41 @@ class FileManipPage extends React.Component {
 
     numOfPagesChanged(e) { this.setState({num: e.target.value});  }
 
-    componentDidMount() {
-        //TESTING CURVE GENERATING
-        var resultSVG = document.getElementById("resultSVG")
-        document.addEventListener('keydown', (event) => {
-            const keyName = event.key;
-            console.log("keyName",keyName)
-            if(keyName==' ') {
-                var clusterObj = new Cluster(this.currentPts);
-                var clusters = clusterObj.subClusters;
-                var ptGroup =document.getElementById("ptGroup")
-                while (ptGroup.firstChild) ptGroup.removeChild(ptGroup.firstChild);
-                
-                for(let i =0; i < clusters.length; ++i) {
-                    var color = `rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`
-                    for(let p=0; p < clusters[i].length; ++p) {
-                        var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");         
-                        ptObj.setAttribute("cx",clusters[i][p].x);
-                        ptObj.setAttribute("cy",clusters[i][p].y);
-                        ptObj.setAttribute("r",5);
-                        ptObj.setAttribute("fill",color);
-                        document.getElementById("ptGroup").append(ptObj);
-                    }
-                }
-            }
-            if(['1','2','3','4','5','6','7','8','9'].includes(keyName))   this.keyMag = parseInt(keyName);
-            if (keyName === 'Enter') {
-                var curveGroup =document.getElementById("curveGroup")
-                while (curveGroup.firstChild) curveGroup.removeChild(curveGroup.firstChild);
-                this.curveObjs = [];
-                var curveObj = new Curve(this.currentPts,'0')
-                this.curveObjs.push(curveObj);
-                for(let curve=0; curve < this.curveObjs.length; ++curve) {
-                    var curveData = this.curveObjs[curve].curveData;
-                    console.log("curveData", curveData)
-                    geval(curveData["equationStr"])
-                    var thisCurveFunc = geval(curveData.equationName)
-                    let xMin = curveObj.xRange[0];
-                    let xMax = curveObj.xRange[1];
-                    var d = `M${xMin},${thisCurveFunc(xMin)} `
-                    for(let x =xMin; x < xMax; ++x) {
-                        var y = thisCurveFunc(x)
-                        d+=`L${x},${y} `
-                    }
-                    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-                    path.setAttribute("d",d);
-                    path.setAttribute("stroke","black");
-                    path.setAttribute("fill","none");
-                    document.getElementById("curveGroup").append(path);
-                }
-                return;
-            }
-          }, false);
-        resultSVG.addEventListener("click", this.mouseClickHandler, false);
-    }
-
     edgeTracer(resultData,movWinRadius=10) {
+        // Traces edges starting from each detected corner. A 5x5 window is mapped around each corner to account for multiple edges coming from corner. Duplicates edges are detected 
+        // Calls 'tracingWindow' recursively when an edge continues in a specific direction.
+        // TODO: add Hough Transform for ellipse detection (iterating through different radius lengths to see which radius has most 'votes'/ fits data points)
         var cornerLocations = resultData["cornerLocations"];
         var clusterMatrix=[];
-        // try moving window starting from corners (lock the grid to the corners, start new grid every time so no overlapping occurs)
+
+       
+
         for(let corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
-            //trying to account for multiple edges coming from one corner
-            var currentIdx = (currentCorner.x) + (currentCorner.y)*this.currentScanObj.imageWidth
             var currentTheta = resultData["thetaGradient"][currentCorner.pixelIdx];
 
+            //searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
+            var foundEdges = [];        //will consist of objects w/ form : {theta:relativeTheta, thetaRange:[relativeTheta-.261799, relativeTheta+.261799], pt1:{x:..,y:..}, pt2:{x:..,y:..} }
             for(let wY=-5; wY < 5; ++wY) {
                 for(let wX=-5; wX < 5; ++wX) {
                     if(wY==0 && wX==0) continue;
                     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
                     if(resultData["harrisResponse"][relativeIdx] < 0) {     // < 0 means its classified as an edge by Harris Response
-                        
                         var relativeTheta = resultData["thetaGradient"][relativeIdx];
-                        if(!numberInRange(relativeTheta, currentTheta, .261799 )) {           //edge is completely different from current edge
+                        var edgeIsUnique = true;
+                        for(let edge=0; edge < foundEdges.length; ++edge) {
+                            let lowerTheta = foundEdges[edge].thetaRange[0];
+                            let upperTheta = foundEdges[edge].thetaRange[1];
+                            
+                            if(relativeTheta >= lowerTheta && relativeTheta <= upperTheta) {      //two angles are relatively the same
+                                edgeIsUnique=false;
+                                break;
+                            }
+                        }
+                        if(edgeIsUnique) {       //edge is completely different from other edges
+                            // +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees)
+                            foundEdges.push({theta:relativeTheta, thetaRange: [relativeTheta-.261799, relativeTheta+.261799], pt1:{x:currentCorner.x, y:currentCorner.y}, pt2:{x:currentCorner.x+wX, y:currentCorner.y+wY}}) 
+
                             var relativePt = {magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+wX, y:currentCorner.y+wY}
                             var edgePts = this.tracingWindow(resultData, relativePt,movWinRadius)  //make this a cluster
                             clusterMatrix.push(edgePts);
@@ -201,10 +141,57 @@ class FileManipPage extends React.Component {
             clusterMatrix.push(edgePts);
         }
         console.log('clusterMatrix',clusterMatrix)
+        
+        // for(let clm=0; clm < clusterMatrix.length; ++clm) {
+        //     var preCluster1 = clusterMatrix[clm];
+        //     if(preCluster1==undefined) continue;
+        //     for(let clm2=0; clm2 < clusterMatrix.length; ++clm2) {
+        //         if(clm==clm2) continue;
+        //         var preCluster2 = clusterMatrix[clm2];
+        //         if(preCluster2==undefined) continue;
+
+        //         for(let pt=0; pt < preCluster1.length; ++pt) {
+        //             var edge1 = [preCluster1[pt], pt+1<preCluster1.length? preCluster1[pt+1] : -1]
+        //             if(edge1[1]==-1 || edge1[1]==undefined) break;
+        //             for(let pt2=0; pt2 < preCluster2.length; ++pt2) {
+        //                 var edge2 = [preCluster2[pt2], pt2+1<preCluster2.length? preCluster2[pt2+1] : -1]
+                        
+        //                 if(edge2[1]==-1 || edge2[1]==undefined) break;
+        //                 // console.log('edge1,edge2',edge1,edge2)
+        //                 if(numberInRange(edge1[0].thetaGradient, edge2[0].thetaGradient,.13089) || numberInRange(edge1[1].thetaGradient, edge2[1].thetaGradient, .13089) ) {
+        //                     if(distance(edge1[0],edge2[0]) <= 5) {        //merge these edges into 1
+        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                     }
+        //                     else if(distance(edge1[0],edge2[1]) <= 5) {        //merge these edges into 1
+        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                     }
+        //                     else if(distance(edge1[1],edge2[0]) <= 5) {        //merge these edges into 1
+        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                     }
+        //                     else if(distance(edge1[1],edge2[1]) <= 5) {        //merge these edges into 1
+        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                     }
+        //                     // hasIntersection2D
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
         var clusterOperations = [
             {name:'density',epsilon:null, minPts:3, epsilonMultiplier:1}
         ]
         for(let clm=0; clm < clusterMatrix.length; ++clm) {
+            for(let pt=0; pt < clusterMatrix[clm].length; ++pt) {
+                var pt1 = clusterMatrix[clm][pt];
+                var pt2 = pt+1 < clusterMatrix[clm].length ? clusterMatrix[clm][pt+1] : -1;
+                if(pt2==-1) break;
+                if((currentCorner.x==pt1.x && currentCorner.y==pt1.y) || (currentCorner.x==pt2.x && currentCorner.y==pt2.y)) continue;      //two edges are just edges from currentCorner
+                
+
+            }
+            
+            
+            
             var clusterObj = new Cluster(clusterMatrix[clm], clusterOperations);
 
             var curveObjs = [];
@@ -218,18 +205,15 @@ class FileManipPage extends React.Component {
                 console.log("curveObj",curveObj);
                 geval(curveObj["currentEquationStr"])
                 var thisCurveFunc = geval(curveObj.currentEquationName)
-    
+
                 let xMin = curveObj.xRange[0];
                 let xMax = curveObj.xRange[1];
     
                 var P1 = {x:xMin, y:thisCurveFunc(xMin)}
                 var P2 = {x:xMax, y:thisCurveFunc(xMax)}
                 var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
-    
                 var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
-                // var d2 = `M${P1.x},${P1.y} Q${C.x+25},${C.y},${P2.x},${P2.y} `
-                // var d3 = `M${P1.x},${P1.y} Q${C.x+25},${C.y+25},${P2.x},${P2.y} `
-    
+          
                 var path = document.createElementNS("http://www.w3.org/2000/svg","path");
                 path.setAttribute("id",`curve${curve}_${clm}`)
                 path.setAttribute("d",d);
@@ -238,24 +222,23 @@ class FileManipPage extends React.Component {
                 path.setAttribute("fill","none");
                 // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="3s" begin="0s" repeatCount="indefinite" values="${d}; ${d2}; ${d3}"></animate>`)
                 document.getElementById("curveGroup").append(path);
-                
             }
         }
-
     }
 
-    tracingWindow(resultData, currentPt, movWinRadius=7) {
+    tracingWindow(resultData, currentPt, movWinRadius=7) {      
+        //gathers data points by following/tracing a line with common gradient value and  with 15 degrees of flexibility between each data point (so it results in a curve if applicable). Clustering happens after this function, not during
+
         //currentPt is object {x:..., y:...}
         var imageWidth = this.currentScanObj.imageWidth;
         var imageHeight  =this.currentScanObj.imageHeight;
         var imageLength=imageWidth*imageHeight;
-
         var dataPts = [currentPt]
 
         var currentTheta = currentPt.thetaGradient;       
         // var currentLaplacian = resultData["laplacian"][currentIdx]
 
-       
+        //for testing different lengths of edges
         var nextShots = [];
         for(let i=movWinRadius; i > 0; --i) {
             var nextX = Math.round(i*Math.cos(currentTheta-1.57079))
@@ -266,13 +249,10 @@ class FileManipPage extends React.Component {
             var nextIdx = (currentPt.x+nextShots[shot].x) + (currentPt.y+nextShots[shot].y)*imageWidth
             if(nextIdx >= 0 && nextIdx <= imageLength) {
                 if(resultData["magGradient"][nextIdx] >= 75) {
-                    var nextMagIsSimilar = numberInRange(resultData["magGradient"][nextIdx], currentPt.magGradient, 25)
                     var nextTheta = resultData["thetaGradient"][nextIdx];
-                    // var thetaDiff = (nextTheta>currentTheta?nextTheta:currentTheta) - (nextTheta>currentTheta?currentTheta:nextTheta);
-                    // var isStraight = numberInRange(thetaDiff, Math.PI, .087266);
-                    
-                    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
-                    var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, .26179);
+                    var nextMag = resultData["magGradient"][nextIdx]
+                    var nextMagIsSimilar = numberInRange(nextMag, currentPt.magGradient, 25)
+                    var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, .26179);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
         
                     if(nextThetaIsSimilar && nextMagIsSimilar) {
                         var nextObj = {x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], thetaGradient:nextTheta};
@@ -281,12 +261,8 @@ class FileManipPage extends React.Component {
                         break;
                     }
                 }
-                
             }
         }
-        
-        
-
         return dataPts;
     }
 
@@ -297,72 +273,9 @@ class FileManipPage extends React.Component {
         for(let l =0; l < imageLayers.length; ++l) {
             var layerName = `Layer ${l} | Sigma=${imageLayers[l]["component"].sig}`
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
-            console.log("preClusteringGroups of "+ l, imageLayers[l]["resultData"]["preClusteringGroups"])
         }
-        var pathAmount = 0, windowR = 0;
         var resultData = imageLayers[0]["resultData"];
-        // var preClusteringGroups = resultData["preClusteringGroups"];
-        // var cornerLocations = resultData["cornerLocations"];
-        // var H = preClusteringGroups.length
-        // var W = preClusteringGroups[0].length 
         this.edgeTracer(resultData);
-        
-        // for(let j=windowR; j < H-windowR; ++j) {
-        //     for(let i=windowR; i < W-windowR; ++i) {
-        //         var rangeKeys = Object.keys(preClusteringGroups[j][i]);
-        //         // for(let key=0; key < rangeKeys.length; ++key) {
-                    
-        //             var maxRangeKey = rangeKeys[0];
-        //             for(let key=0; key < rangeKeys.length; ++key) {
-        //                 if(preClusteringGroups[j][i][rangeKeys[key]].length > preClusteringGroups[j][i][maxRangeKey].length) maxRangeKey=rangeKeys[key];
-        //             }
-        //             if(preClusteringGroups[j][i][maxRangeKey].length==0) continue;        //was formerly '150,300'
-
-        //             var clusterOperations = [
-        //                 {name:'density',epsilon:W/4, minPts:4, epsilonMultiplier:1}
-        //             ]
-        //             // var numCornersInRegion  = groupInRegion(resultData.cornerLocations, {top:j, left:i, width:W, height:H})
-        //             // if(numCornersInRegion > 0) clusterOperations.push({name:'thetaGradient', minPts:3, epsilonMultiplier:.125})
-                    
-        //             var clusterObj = new Cluster(preClusteringGroups[j][i][maxRangeKey], clusterOperations);
-
-        //             var curveObjs = [];
-        //             for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
-        //                 var curve = new Curve(clusterObj.subClusters[cl],`${j}${i}_${cl}`,2);
-        //                 if(curve.pts.length ==0) continue;
-        //                 curveObjs.push(curve)
-        //             }
-        //             for(let curve=0; curve < curveObjs.length; ++curve) {
-        //                 var curveObj = curveObjs[curve];
-        //                 console.log("curveObj",curveObj);
-        //                 geval(curveObj["currentEquationStr"])
-        //                 var thisCurveFunc = geval(curveObj.currentEquationName)
-
-        //                 let xMin = curveObj.xRange[0];
-        //                 let xMax = curveObj.xRange[1];
-
-        //                 var P1 = {x:xMin, y:thisCurveFunc(xMin)}
-        //                 var P2 = {x:xMax, y:thisCurveFunc(xMax)}
-        //                 var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
-
-        //                 var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
-        //                 var d2 = `M${P1.x},${P1.y} Q${C.x+25},${C.y},${P2.x},${P2.y} `
-        //                 var d3 = `M${P1.x},${P1.y} Q${C.x+25},${C.y+25},${P2.x},${P2.y} `
-
-        //                 var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-        //                 path.setAttribute("id",`curve${curve}_${j}_${i}`)
-        //                 path.setAttribute("d",d);
-        //                 path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
-        //                 path.setAttribute("fill","none");
-        //                 // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${j}_${i}" id="pathAnimate${curve}_${j}_${i}" attributeName="d" attributeType="XML" dur="3s" begin="0s" repeatCount="indefinite" values="${d}; ${d2}; ${d3}"></animate>`)
-        //                 document.getElementById("curveGroup").append(path);
-        //                 ++pathAmount;
-        //             }
-
-        //         // }
-                
-        //     }
-        // }
         return new Promise((resolve,reject)=> { resolve("here"); });
     }
     
@@ -379,7 +292,7 @@ class FileManipPage extends React.Component {
         this.currentScanObj = new ImageScan('testCanvas',filterInfo);
         var imageReadPromise = this.currentScanObj.imageReader()
         imageReadPromise.then(result => {this.setImageLayers()});
-        document.getElementById("testCanvas").onmousemove = (e) => this.showSigmaLayersOnHover(e);
+        document.getElementById("testCanvas").onmousemove = (e) => this.showValuesOnHover(e);
         this.selectedImage = this.currentScanObj.selectedFile;
         return;
 	}

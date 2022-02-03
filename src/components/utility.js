@@ -23,6 +23,53 @@ export function partitionItems(items,k,remPos = 0) {
     return segments;
 }
 
+export function hasIntersection2D(segment1,segment2) {
+    let x1 = segment1[0].x;
+    let y1 = segment1[0].y;
+    let x2 = segment1[1].x;
+    let y2 = segment1[1].y;
+
+    let x3 = segment2[0].x;
+    let y3 = segment2[0].y;
+    let x4 = segment2[1].x;
+    let y4 = segment2[1].y;
+
+    let upperLeft = det(x1,y1,x2,y2)
+    let lowerLeft = det(x3,y3,x4,y4)
+
+    let denominator = det(x1-x2, y1-y2, x3-x4, y3-y4);
+
+    let xNumerator = det(upperLeft, x1-x2, lowerLeft, x3-x4);
+    let yNumerator = det(upperLeft, y1-y2, lowerLeft, y3-y4);
+
+
+    let xCoord = xNumerator/denominator;
+    let yCoord = yNumerator/denominator;
+
+    
+    if((xCoord==segment1[0].x && yCoord==segment1[0].y) ||  (xCoord==segment1[1].x && yCoord==segment1[1].y) ||  (xCoord==segment2[0].x && yCoord==segment2[0].y) ||  (xCoord==segment2[1].x && yCoord==segment2[1].y)) {
+        return false;   }
+
+    
+    let onSegment1X = Math.min(segment1[0].x,segment1[1].x) <= xCoord &&  xCoord <= Math.max(segment1[0].x,segment1[1].x);
+    let onSegment1Y = Math.min(segment1[0].y,segment1[1].y) <= yCoord <= Math.max(segment1[0].y,segment1[1].y);
+    let onSegment1 = onSegment1X && onSegment1Y;
+
+    let onSegment2X = Math.min(segment2[0].x,segment2[1].x) <= xCoord &&  xCoord <= Math.max(segment2[0].x,segment2[1].x);
+    let onSegment2Y = Math.min(segment2[0].y,segment2[1].y) <= yCoord <= Math.max(segment2[0].y,segment2[1].y);
+    let onSegment2 = onSegment2X && onSegment2Y;
+    return onSegment1 && onSegment2;
+
+}
+
+
+export function mergeSubElements(array, mergeToIdx, mergedIdx) {        //array is supposed to be an Array of Arrays
+    array = [...array];
+    array[mergeToIdx] = array[mergeToIdx].concat(array[mergedIdx]);
+    array.splice(mergedIdx,1)
+    return array;
+
+}
 
 export function objExistsInArray(array, obj, attrs=['x','y']) {
     return array.some(function(el) {
@@ -197,6 +244,59 @@ export function groupInRegion(pts, region) {
 
 export function itemCountInArray(array,item) {
     return array.reduce((total,x) => (x==item ? total+1 : total), 0)
+}
+
+
+export function generateLagrangePolyString(pts,equationId) {
+    var terms = [];
+    var xVals = pts.map(a=>a.x);
+    var leastX=99999999, mostX = -99999999;
+    for(let x=0; x < xVals.length; ++x) {
+        if(xVals[x] > mostX) mostX=xVals[x];
+        if(xVals[x] < leastX) leastX = xVals[x];
+    }
+    var yVals = pts.map(a=> a.y);
+    for(let p=0; p < pts.length; ++p) {
+        var numerator=`${yVals[p]}`
+        var denominator = 1;
+        for(let pk=0; pk < pts.length; ++pk) {
+            if(p==pk) continue;
+            numerator += `*(x - ${xVals[pk]})`
+            denominator *= (xVals[p]-xVals[pk]);
+        }
+        terms.push("("+numerator+`/${denominator}`+")")
+    }
+    var equation = `var curvePoly${equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
+//    lagrangePolys.push({xRange:[leastX, mostX],equationStr:equation, equationName:`curvePoly${equationId.toString()}`});
+    return equation; 
+}
+
+
+
+export function testLagrangePolyString(equationId,pts, range=null) {
+    //range[0] is xMin,     range[1] is xMax
+    range = range==null? this.xRange : range;
+    var selectedPts = pts.slice(range[0],range[1]);
+    var xVals = pts.map((a)=> {return a.x});
+    var yVals = pts.map((a)=> {return a.y});
+    var selectedXVals = xVals.slice(range[0],range[1]);
+    var selectedYVals = yVals.slice(range[0],range[1]);
+    var terms = [];
+
+    for(let p=0; p < selectedPts.length; ++p) {
+        var numerator=`${selectedYVals[p]}`
+        var denominator = 1;
+        for(let pk=0; pk < selectedPts.length; ++pk) {
+            if(p==pk) continue;
+            numerator += `*(x - ${selectedXVals[pk]})`
+            denominator *= (selectedXVals[p]-selectedXVals[pk]);
+        }
+        if(denominator==0) terms.push("(0)")
+        else terms.push("("+numerator+`/${denominator}`+")")
+    }
+    var equation = `var curvePoly${equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
+    var result = {pts:selectedPts, xRange:[range[0], range[1]],equationOrder:terms.length-1, equationStr:equation, equationName:`curvePoly${equationId.toString()}`}
+    return result; 
 }
 
 

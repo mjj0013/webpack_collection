@@ -2,7 +2,6 @@ import { Matrix, solve } from 'ml-matrix';
 // import {getStdDev, partitionItems, binomialCoeff} from './utility.js'           //distance, numberInRange, 
 export class Curve {
     constructor(pts,equationId,order=2) {
-        this.testLagrangePolyString = this.testLagrangePolyString.bind(this);
         this.fitCurveToPts = this.fitCurveToPts.bind(this);
         this.getXRange = this.getXRange.bind(this);
 
@@ -85,27 +84,5 @@ export class Curve {
         }
         return [xMin, xMax]
     }
-    testLagrangePolyString(range=null) {
-        //range[0] is xMin,     range[1] is xMax
-        range = range==null? this.xRange : range;
-        var selectedPts = this.pts.slice(range[0],range[1]);
-        var selectedXVals = this.xVals.slice(range[0],range[1]);
-        var selectedYVals = this.yVals.slice(range[0],range[1]);
-        var terms = [];
-
-        for(let p=0; p < selectedPts.length; ++p) {
-            var numerator=`${selectedYVals[p]}`
-            var denominator = 1;
-            for(let pk=0; pk < selectedPts.length; ++pk) {
-                if(p==pk) continue;
-                numerator += `*(x - ${selectedXVals[pk]})`
-                denominator *= (selectedXVals[p]-selectedXVals[pk]);
-            }
-            if(denominator==0) terms.push("(0)")
-            else terms.push("("+numerator+`/${denominator}`+")")
-        }
-        var equation = `var curvePoly${this.equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
-        var result = {pts:selectedPts, xRange:[range[0], range[1]],equationOrder:terms.length-1, equationStr:equation, equationName:`curvePoly${this.equationId.toString()}`}
-        return result; 
-    }
+    
 }

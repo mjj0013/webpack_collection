@@ -67,8 +67,7 @@ export class ImageScan {
         return new Promise((resolve,reject)=> {
             this.originalData = this.originalImageData.data;
             var data = this.imageData.data;     //should normally be this.originalImageData.data;
-            
-            gaussLength = 7;
+            gaussLength = 7       //was 7
             var componentLength = gaussLength;   //15 works good with space & rocket center, trying 7 for Red&Black checker board
             let sig0 = 1;
             var sigStack = []
@@ -86,7 +85,7 @@ export class ImageScan {
                 var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
                 var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
                 layerStack.push({ "component":component, "resultData": { "RGB":data.map((x)=>x), "imageData":null, "mags":[], "yGradient1":[], "xGradient1":[],
-                 "magGradient":[], "thetaGradient":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[], "cornerLocations":[], "laplacian":[], "eigenVals":[]
+                 "magGradient":[], "thetaGradient":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[], "cornerLocations":[], "laplacian":[], "eigenVals":[], "eigenVectors":[]
                 }});
             }
             var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
@@ -190,36 +189,44 @@ export class ImageScan {
                 // https://mathinsight.org/directional_derivative_gradient_introduction
 
                 // Harris corner detector
-                for(var imgY=windowR; imgY < this.imageHeight-windowR; imgY+=1) {      
-                    for(var imgX=windowR; imgX < this.imageWidth-windowR; imgX+=1) {   
-                        let Ixx = [], Iyy = [], Ixy = [];
+                for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
+                    for(var imgX=0; imgX < this.imageWidth; imgX+=1) {   
+                        var Ixx = [], Iyy = [], Ixy = [];
                         var isLocalPeak = true;
                         var centerMag = parallelComponent["resultData"]["laplacian"][((imgX) + (imgY)*this.imageWidth)]
-                      
-                        for(var kY=-windowR; kY <= windowR; ++kY) {  
-                            var xRow = [], yRow = [], xyRow = [];
-                            for(var kX=-windowR; kX <= windowR; ++kX) {   
-                                if(parallelComponent["resultData"]["laplacian"][((imgX-kX) + (imgY-kY)*this.imageWidth)] > centerMag) {
-                                    isLocalPeak = false;
-                                    // parallelComponent["resultData"]["harrisResponse"].push(0);
-                                    // parallelComponent["resultData"]["eigenVals"].push(null);
-                                    // break;
-                                }
-                                let xComp = parallelComponent["resultData"]["xGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
-                                let yComp = parallelComponent["resultData"]["yGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
-                                xRow.push(xComp*xComp)
-                                xyRow.push(xComp*yComp)
-                                yRow.push(yComp*yComp)
-                            }
-                            // if(!isLocalPeak) break;
-                            Ixx.push(xRow);
-                            Ixy.push(xyRow);
-                            Iyy.push(yRow);
+                        if(imgY <= windowR || imgY>=this.imageHeight-windowR || imgX <= windowR || imgX>=this.imageWidth-windowR) {
+                            Ixx = Matrix.zeros(10, 10)
+                            Iyy = Matrix.zeros(10, 10)
+                            Ixy = Matrix.zeros(10, 10)
                         }
+                        else {
+                            for(var kY=-windowR; kY <= windowR; ++kY) {  
+                                var xRow = [], yRow = [], xyRow = [];
+                                for(var kX=-windowR; kX <= windowR; ++kX) {   
+                                    if(parallelComponent["resultData"]["laplacian"][((imgX-kX) + (imgY-kY)*this.imageWidth)] > centerMag) {
+                                        isLocalPeak = false;
+                                        // parallelComponent["resultData"]["harrisResponse"].push(0);
+                                        // parallelComponent["resultData"]["eigenVals"].push(null);
+                                        // break;
+                                    }
+                                    let xComp = parallelComponent["resultData"]["xGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
+                                    let yComp = parallelComponent["resultData"]["yGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
+                                    xRow.push(xComp*xComp)
+                                    xyRow.push(xComp*yComp)
+                                    yRow.push(yComp*yComp)
+                                }
+                                // if(!isLocalPeak) break;
+                                Ixx.push(xRow);
+                                Ixy.push(xyRow);
+                                Iyy.push(yRow);
+                            }
+                            Ixx = new Matrix(Ixx);
+                            Ixy = new Matrix(Ixy);
+                            Iyy = new Matrix(Iyy);
+                        }
+                        
                         // if(!isLocalPeak) continue;
-                        Ixx = new Matrix(Ixx);
-                        Ixy = new Matrix(Ixy);
-                        Iyy = new Matrix(Iyy);
+                        
 
                         //this gives more weight to the pixels closer to the center pixel
                         // Ixx = Ixx.mmul(gaussKernel);
@@ -233,10 +240,17 @@ export class ImageScan {
                         var det = (IxxSum*IyySum) - (IxySum*IxySum);
                         var trace = IxxSum + IyySum;
                         var eigs = new EigenvalueDecomposition(M);
+                        var eigVectors = eigs.eigenvectorMatrix;
+                        eigVectors = [[eigVectors.get(0,0), eigVectors.get(0,1)],
+                        [eigVectors.get(1,0), eigVectors.get(1,1)]];
+
+                        //NOTE: Eigenvectors are axes/vectors that remain the same during a linear transformation.
+                        // a 3D example: for a 3D rotation, the axis of rotation would be the eigenvector.
                         
                         var R = det - k*(trace*trace);      //measure of corner response
                         parallelComponent["resultData"]["harrisResponse"].push(R);
                         parallelComponent["resultData"]["eigenVals"].push(eigs);
+                        parallelComponent["resultData"]["eigenVectors"].push(eigVectors);
                         if(!isLocalPeak) continue;
                         if(R>0) {
                             var real = eigs.realEigenvalues;
@@ -245,7 +259,7 @@ export class ImageScan {
                                 var thetaGradient = parallelComponent["resultData"]["thetaGradient"][pixelIdx]
                                 var slopeRateX1 = parallelComponent["resultData"]["slopeRateX1"][pixelIdx]
                                 var slopeRateY1 = parallelComponent["resultData"]["slopeRateY1"][pixelIdx]
-                                parallelComponent["resultData"]["cornerLocations"].push({x:imgX, y:imgY,thetaGradient:thetaGradient, slope:slopeRateY1/slopeRateX1, pixelIdx:pixelIdx, magGradient: parallelComponent["resultData"]["magGradient"][pixelIdx]});
+                                parallelComponent["resultData"]["cornerLocations"].push({eigenVectors:eigVectors,eigenVals:eigs, x:imgX, y:imgY,thetaGradient:thetaGradient, slope:slopeRateY1/slopeRateX1, pixelIdx:pixelIdx, magGradient: parallelComponent["resultData"]["magGradient"][pixelIdx]});
                             }
                         }
                     }
@@ -328,7 +342,7 @@ export class ImageScan {
                                     OBJ.data[pixelIdx + 3] = newRGBA[3]
                                 }
                                 else if(component.type=="blackWhiteTransfer") {
-                                    let [R,G,B,A] = [...OBJ.data[pixelIdx]]
+                                    let [R,G,B,A] = OBJ.data.slice(pixelIdx,pixelIdx+4)
                                     var newRGBA = OBJ.colorBlackWhiteTransferComponent([R,G,B,A]);
                                     OBJ.data[pixelIdx] = newRGBA[0];
                                     OBJ.data[pixelIdx + 1] = newRGBA[1]
@@ -336,14 +350,15 @@ export class ImageScan {
                                     OBJ.data[pixelIdx + 3] = newRGBA[3]
                                 }
                                 else if(component.type=="gammaTransfer") {
-                                    let [R,G,B,A] = [...OBJ.data[pixelIdx]]
+                                    let [R,G,B,A] = OBJ.data.slice(pixelIdx,pixelIdx+4)
+                                    
                                     OBJ.data[pixelIdx] = component.applyTo.includes("R")?     OBJ.colorGammaTransferComponent(R, component.amplitude, component.exponent, component.offset):R;
                                     OBJ.data[pixelIdx + 1] = component.applyTo.includes("G")? OBJ.colorGammaTransferComponent(G, component.amplitude, component.exponent, component.offset):G;
                                     OBJ.data[pixelIdx + 2] = component.applyTo.includes("B")? OBJ.colorGammaTransferComponent(B, component.amplitude, component.exponent, component.offset):B;
                                     OBJ.data[pixelIdx + 3] = component.applyTo.includes("A")? OBJ.colorGammaTransferComponent(A, component.amplitude, component.exponent, component.offset):A;
                                 }
                                 else if(component.type=="discreteTransfer") {
-                                    let [R,G,B,A] = [...OBJ.data[pixelIdx]]
+                                    let [R,G,B,A] = OBJ.data.slice(pixelIdx,pixelIdx+4)
                                     OBJ.data[pixelIdx] = component.applyTo.includes("R")? OBJ.colorDiscreteTransferComponent(R, component.tableValues):R;
                                     OBJ.data[pixelIdx + 1] = component.applyTo.includes("G")? OBJ.colorDiscreteTransferComponent(G, component.tableValues):G;
                                     OBJ.data[pixelIdx + 2] = component.applyTo.includes("B")? OBJ.colorDiscreteTransferComponent(B, component.tableValues):B;
@@ -419,6 +434,8 @@ export class ImageScan {
                         let mag = this.imageLayers[layerIndex]["resultData"]["magGradient"][imgX + (imgY*this.imageWidth)];
                         let theta = this.imageLayers[layerIndex]["resultData"]["thetaGradient"][imgX + (imgY*this.imageWidth)];
                         let R = (mag)*Math.cos(theta),  G = 0,  B = (mag)*Math.sin(theta);
+                        
+                        
                         dataCopy[4*(imgX + imgY*this.imageWidth)] = R;
                         dataCopy[4*(imgX + imgY*this.imageWidth)+1] = G;
                         dataCopy[4*(imgX + imgY*this.imageWidth)+2] = B;

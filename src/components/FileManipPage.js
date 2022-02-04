@@ -7,10 +7,10 @@ import { documentElement } from 'min-document';
 import {ImageScan} from './imageManip.js'
 import {Curve} from './Curve.js'
 import {Cluster} from './Cluster.js';
-import {mergeSubElements, hasIntersection2D, numberInRange,distance} from './utility.js'
+import {getRandomInt,mergeSubElements, hasIntersection2D, numberInRange,distance} from './utility.js'
 
 var geval = eval;
-// import { Matrix, solve } from 'ml-matrix';
+import { Matrix, solve } from 'ml-matrix';
 
 class FileManipPage extends React.Component {
     constructor(props) {
@@ -64,7 +64,13 @@ class FileManipPage extends React.Component {
             }   
         }
     }
+    // componentDidMount() {
+        
+    //     console.log(Matrix.zeros(3, 2))
+    // }
     showValuesOnHover(e) {
+        var canvas = document.getElementById("testCanvas");
+        var context = document.getElementById("testCanvas").getContext('2d');
         var x = e.layerX;
         var y = e.layerY;
         var idx = (x) + (y)*this.currentScanObj.imageWidth;
@@ -72,11 +78,38 @@ class FileManipPage extends React.Component {
         var mag = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["magGradient"][idx]  
         var laplacian =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["laplacian"][idx]  
         var theta = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["thetaGradient"][idx]         //subtract 90 degrees (1.570795 in radians) from this to get actual theta
+        var eigenVals = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["eigenVals"][idx];
         
         var e1 = document.getElementById("e1");
-        e1.setAttribute("x2", (mag+laplacian)*Math.cos(1.57079+theta)*100);
-        e1.setAttribute("y2",(mag+laplacian)*Math.sin(1.57079+theta)*100);
-        console.log(`theta=${theta}  |  1st gradient mag=${mag}  |  2nd gradient mag (laplacian)=${laplacian}`)
+        var e2 = document.getElementById("e2");
+        // e1.setAttribute("x2", (mag+laplacian)*Math.cos(1.57079+theta)*100);
+        // e1.setAttribute("y2",(mag+laplacian)*Math.sin(1.57079+theta)*100);
+
+        var eigenVal1 = eigenVals.realEigenvalues[0]
+        var eigenVec1 = {x:eigenVals.eigenvectorMatrix.get(0,0), y:eigenVals.eigenvectorMatrix.get(1,0)}
+        var eigenTheta1 = Math.atan(eigenVec1.y/eigenVec1.x)
+        e1.setAttribute("x2", eigenVal1*Math.cos(eigenTheta1)*100);
+        e1.setAttribute("y2",eigenVal1*Math.sin(eigenTheta1)*100);
+
+        var eigenVal2 = eigenVals.realEigenvalues[1]
+        var eigenVec2 = {x:eigenVals.eigenvectorMatrix.get(0,1), y:eigenVals.eigenvectorMatrix.get(1,1)}
+        var eigenTheta2 = Math.atan(eigenVec2.y/eigenVec2.x)
+        e2.setAttribute("x2", eigenVal2*Math.cos(1.57079+theta)*100);
+        e2.setAttribute("y2",eigenVal2*Math.sin(1.57079+theta)*100);
+        // e1.setAttribute("x2", (mag+laplacian)*Math.cos(1.57079+theta)*100);
+        //e1.setAttribute("y2",(mag+laplacian)*Math.sin(1.57079+theta)*100);
+        // console.log(eigenVal2*Math.cos(eigenTheta2), eigenVal2*Math.sin(eigenTheta2))
+       // console.log(x+eigenVec2.x, y+eigenVec2.y)
+        // context.beginPath();
+        // context.moveTo(x,y);
+        // context.lineTo(x+eigenVec2.x*eigenVal2, y+eigenVec2.y*eigenVal2);
+        // context.strokeStyle = "white"
+        
+        // context.stroke();
+        //console.log(`theta=${theta}  |  1st gradient mag=${mag}  |  2nd gradient mag (laplacian)=${laplacian}`)
+        // console.log('eigenVals',eigenVals.realEigenvalues,'eigenVector', eigenVals.eigenvectorMatrix.get(0,0), eigenVals.eigenvectorMatrix.get(0,1),
+        //             eigenVals.eigenvectorMatrix.get(1,0), eigenVals.eigenvectorMatrix.get(1,1))
+
     }
     
     async loadText(e) {
@@ -103,95 +136,124 @@ class FileManipPage extends React.Component {
         var clusterMatrix=[];
 
        
-
+       
         for(let corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
             var currentTheta = resultData["thetaGradient"][currentCorner.pixelIdx];
+           
+            // searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
+            var currentEigenVectors = currentCorner.eigenVectors;
+           
+            var eigenTheta1 = Math.atan(currentEigenVectors[1][0]/currentEigenVectors[0][0])
+            //currentCorner['eigenVals'] = resultData["eigenVals"][currentCorner.pixelIdx]
+            
+            var foundEdges = [];
 
-            //searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
-            var foundEdges = [];        //will consist of objects w/ form : {theta:relativeTheta, thetaRange:[relativeTheta-.261799, relativeTheta+.261799], pt1:{x:..,y:..}, pt2:{x:..,y:..} }
-            for(let wY=-5; wY < 5; ++wY) {
-                for(let wX=-5; wX < 5; ++wX) {
+            for(let wY=-7; wY < 7; ++wY) {        //try -15 to 15
+                for(let wX=-7; wX < 7; ++wX) {
                     if(wY==0 && wX==0) continue;
                     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
                     if(resultData["harrisResponse"][relativeIdx] < 0) {     // < 0 means its classified as an edge by Harris Response
-                        var relativeTheta = resultData["thetaGradient"][relativeIdx];
+                        
+
+
+                        var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
+                       
+                        
+                        
+                        var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
+                        
+                       
                         var edgeIsUnique = true;
                         for(let edge=0; edge < foundEdges.length; ++edge) {
-                            let lowerTheta = foundEdges[edge].thetaRange[0];
-                            let upperTheta = foundEdges[edge].thetaRange[1];
-                            
-                            if(relativeTheta >= lowerTheta && relativeTheta <= upperTheta) {      //two angles are relatively the same
+                            var nextThetaIsSimilar = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.13089);
+                            var nextThetaIsParallel = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.13089);
+                            if((nextThetaIsSimilar || nextThetaIsParallel)) {
                                 edgeIsUnique=false;
                                 break;
                             }
                         }
                         if(edgeIsUnique) {       //edge is completely different from other edges
-                            // +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees)
-                            foundEdges.push({theta:relativeTheta, thetaRange: [relativeTheta-.261799, relativeTheta+.261799], pt1:{x:currentCorner.x, y:currentCorner.y}, pt2:{x:currentCorner.x+wX, y:currentCorner.y+wY}}) 
+                            // +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
+                            foundEdges.push({eigenVectors:relativeEigenVectors, theta:relativeTheta, pt1:{x:currentCorner.x, y:currentCorner.y}, pt2:{x:currentCorner.x+wX, y:currentCorner.y+wY}}) 
 
-                            var relativePt = {magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+wX, y:currentCorner.y+wY}
-                            var edgePts = this.tracingWindow(resultData, relativePt,movWinRadius)  //make this a cluster
+                            var relativePt = {eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+wX, y:currentCorner.y+wY}
+                            var edgePts = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
                             clusterMatrix.push(edgePts);
                         }
                     }
                 }
             }
-            var edgePts = this.tracingWindow(resultData, currentCorner,movWinRadius)  //make this a cluster
-            clusterMatrix.push(edgePts);
+            // var edgePts = this.tracingWindow(resultData, currentCorner,movWinRadius)  //make this a cluster
+            // clusterMatrix.push(edgePts);
         }
         console.log('clusterMatrix',clusterMatrix)
         
-        // for(let clm=0; clm < clusterMatrix.length; ++clm) {
+        // var clm =0;
+        // var clm2=0;
+        // var matrixLen = clusterMatrix.length
+        // while(clm < matrixLen) {
         //     var preCluster1 = clusterMatrix[clm];
-        //     if(preCluster1==undefined) continue;
-        //     for(let clm2=0; clm2 < clusterMatrix.length; ++clm2) {
-        //         if(clm==clm2) continue;
+        //     if(preCluster1==undefined) {++clm;continue};
+        //     while(clm2 < matrixLen) {
+        //         if(clm==clm2) {++clm2;continue;}
         //         var preCluster2 = clusterMatrix[clm2];
-        //         if(preCluster2==undefined) continue;
-
+        //         if(preCluster2==undefined) {++clm2;continue;}
+                
         //         for(let pt=0; pt < preCluster1.length; ++pt) {
         //             var edge1 = [preCluster1[pt], pt+1<preCluster1.length? preCluster1[pt+1] : -1]
+        //             console.log("here", edge1);
         //             if(edge1[1]==-1 || edge1[1]==undefined) break;
+                   
         //             for(let pt2=0; pt2 < preCluster2.length; ++pt2) {
         //                 var edge2 = [preCluster2[pt2], pt2+1<preCluster2.length? preCluster2[pt2+1] : -1]
                         
         //                 if(edge2[1]==-1 || edge2[1]==undefined) break;
         //                 // console.log('edge1,edge2',edge1,edge2)
-        //                 if(numberInRange(edge1[0].thetaGradient, edge2[0].thetaGradient,.13089) || numberInRange(edge1[1].thetaGradient, edge2[1].thetaGradient, .13089) ) {
-        //                     if(distance(edge1[0],edge2[0]) <= 5) {        //merge these edges into 1
-        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                     }
-        //                     else if(distance(edge1[0],edge2[1]) <= 5) {        //merge these edges into 1
-        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                     }
-        //                     else if(distance(edge1[1],edge2[0]) <= 5) {        //merge these edges into 1
-        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                     }
-        //                     else if(distance(edge1[1],edge2[1]) <= 5) {        //merge these edges into 1
-        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                     }
-        //                     // hasIntersection2D
+        //                 //.13089  .261799
+                        
+        //                 if(hasIntersection2D(edge1, edge2)) {
+        //                     clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                     console.log("merging clusters")
+        //                     matrixLen = clusterMatrix.length;
         //                 }
+        //                 //if(numberInRange(edge1[0].thetaGradient, edge2[0].thetaGradient,.261799) || numberInRange(edge1[1].thetaGradient, edge2[1].thetaGradient, .261799) ) {
+        //                 //if(numberInRange(edge1[0].thetaGradient, edge2[0].thetaGradient,.13089) || numberInRange(edge1[1].thetaGradient, edge2[1].thetaGradient, .13089) ) {
+                            
+        //                     // if(distance(edge1[0],edge2[0]) <= 25) {        //merge these edges into 1
+        //                     //     clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                     //     matrixLen = clusterMatrix.length;
+        //                     // }
+        //                     // else if(distance(edge1[0],edge2[1]) <= 25) {        //merge these edges into 1
+        //                     //     clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                     //     matrixLen = clusterMatrix.length;
+        //                     // }
+        //                     // else if(distance(edge1[1],edge2[0]) <= 25) {        //merge these edges into 1
+        //                     //     clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                     //     matrixLen = clusterMatrix.length;
+        //                     // }
+        //                     // else if(distance(edge1[1],edge2[1]) <= 25) {        //merge these edges into 1
+        //                     //     clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                     //     matrixLen = clusterMatrix.length;
+        //                     // }
+                           
+                      
+        //                // }
         //             }
         //         }
+        //         ++clm2;
         //     }
+        //     ++clm;
         // }
+        
         var clusterOperations = [
-            {name:'density',epsilon:null, minPts:3, epsilonMultiplier:1}
+            
+            // {name:'density', epsilonMultiplier:1, minPts:2, epsilon:null},
+            {name:'thetaGradient',epsilon:null, minPts:2, epsilonMultiplier:1},
+            // {name:'slope',epsilon:null, minPts:4, epsilonMultiplier:1},
         ]
         for(let clm=0; clm < clusterMatrix.length; ++clm) {
-            for(let pt=0; pt < clusterMatrix[clm].length; ++pt) {
-                var pt1 = clusterMatrix[clm][pt];
-                var pt2 = pt+1 < clusterMatrix[clm].length ? clusterMatrix[clm][pt+1] : -1;
-                if(pt2==-1) break;
-                if((currentCorner.x==pt1.x && currentCorner.y==pt1.y) || (currentCorner.x==pt2.x && currentCorner.y==pt2.y)) continue;      //two edges are just edges from currentCorner
-                
 
-            }
-            
-            
-            
             var clusterObj = new Cluster(clusterMatrix[clm], clusterOperations);
 
             var curveObjs = [];
@@ -213,56 +275,81 @@ class FileManipPage extends React.Component {
                 var P2 = {x:xMax, y:thisCurveFunc(xMax)}
                 var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
                 var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
-          
+                //var d2 = `M${P1.x+getRandomInt(-150,150)},${P1.y+getRandomInt(-150,150)} Q${C.x+getRandomInt(-150,150)},${C.y+getRandomInt(-150,150)},${P2.x},${P2.y} `
                 var path = document.createElementNS("http://www.w3.org/2000/svg","path");
                 path.setAttribute("id",`curve${curve}_${clm}`)
                 path.setAttribute("d",d);
                 // path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                 path.setAttribute("stroke",`black`);
                 path.setAttribute("fill","none");
-                // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="3s" begin="0s" repeatCount="indefinite" values="${d}; ${d2}; ${d3}"></animate>`)
+                //path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
                 document.getElementById("curveGroup").append(path);
             }
         }
+        console.log('***done with edgeTracer***')
     }
 
     tracingWindow(resultData, currentPt, movWinRadius=7) {      
         //gathers data points by following/tracing a line with common gradient value and  with 15 degrees of flexibility between each data point (so it results in a curve if applicable). Clustering happens after this function, not during
 
         //currentPt is object {x:..., y:...}
-        var imageWidth = this.currentScanObj.imageWidth;
-        var imageHeight  =this.currentScanObj.imageHeight;
-        var imageLength=imageWidth*imageHeight;
-        var dataPts = [currentPt]
+        let imageWidth = this.currentScanObj.imageWidth;
+        let imageHeight  =this.currentScanObj.imageHeight;
+        let imageLength=imageWidth*imageHeight;
+        let dataPts = [currentPt]
+        
+        // let currentTheta = currentPt.thetaGradient;       
 
-        var currentTheta = currentPt.thetaGradient;       
-        // var currentLaplacian = resultData["laplacian"][currentIdx]
+    
+        var currentEigenVectors = currentPt.eigenVectors;
+     
+        //searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
+        
+       
+        let currentTheta = Math.atan(currentEigenVectors[1][0]/currentEigenVectors[0][0])
 
-        //for testing different lengths of edges
+        // //for testing different lengths of edges
         var nextShots = [];
-        for(let i=movWinRadius; i > 0; --i) {
-            var nextX = Math.round(i*Math.cos(currentTheta-1.57079))
-            var nextY = Math.round(i*Math.sin(currentTheta-1.57079))
+        // for(let i=movWinRadius; i > 0; --i) {
+        for(let i=1; i < 25; ++i) {
+            if(i==0) continue;
+            var nextX = Math.round(i*Math.cos(currentTheta))    //-1.57079 ( -90 deg)
+            var nextY = Math.round(i*Math.sin(currentTheta))
+            
             nextShots.push({x:nextX, y:nextY})
+            
         }
+
+        var lastValidObj = null;
         for(let shot=0; shot < nextShots.length; ++shot) {
             var nextIdx = (currentPt.x+nextShots[shot].x) + (currentPt.y+nextShots[shot].y)*imageWidth
             if(nextIdx >= 0 && nextIdx <= imageLength) {
-                if(resultData["magGradient"][nextIdx] >= 75) {
-                    var nextTheta = resultData["thetaGradient"][nextIdx];
-                    var nextMag = resultData["magGradient"][nextIdx]
-                    var nextMagIsSimilar = numberInRange(nextMag, currentPt.magGradient, 25)
-                    var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, .26179);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
-        
-                    if(nextThetaIsSimilar && nextMagIsSimilar) {
-                        var nextObj = {x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], thetaGradient:nextTheta};
-                        var nextResult = this.tracingWindow(resultData, nextObj, movWinRadius)
-                        dataPts = dataPts.concat(nextResult);
-                        break;
-                    }
+
+                var nextEigenVectors = resultData["eigenVectors"][nextIdx];
+                
+                var nextTheta =Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0]) //resultData["thetaGradient"][nextIdx];
+                var nextMag = resultData["magGradient"][nextIdx]
+                var nextMagIsSimilar = numberInRange(nextMag, currentPt.magGradient, 100) && nextMag > 50;
+          
+                var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.26179);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
+                var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.26179);
+                if((nextThetaIsSimilar || nextThetaIsParallel) && nextMagIsSimilar) {
+                    var slope = resultData["slopeRateY1"][nextIdx]/resultData["slopeRateX1"][nextIdx];
+                    var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx],slope:slope, x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], thetaGradient:nextTheta};
+                    lastValidObj = nextObj;
+
                 }
+                else if(lastValidObj!=null) {
+                    var nextResult = this.tracingWindow(resultData, lastValidObj, movWinRadius)
+                    dataPts = dataPts.concat(nextResult);
+                    break;
+                    
+                }
+               
             }
         }
+        
+
         return dataPts;
     }
 
@@ -285,7 +372,6 @@ class FileManipPage extends React.Component {
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
             // {type:"gaussBlur", kernelLength:7, sig:4000}
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.5,.9,1.0]},
-            // {type:"edgeDetect", kernelLength:7,middleValue:20, fillValue:-1, cornerValue:-1},
             // {type:"blackWhiteTransfer"},
             // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
         ]
@@ -306,16 +392,15 @@ class FileManipPage extends React.Component {
                 </Container>
                 
                 <svg id="mainSVG" style={{display:"none"}} width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"></svg>
-                <div id="windowTest" style={{backgroundColor:'black', top:'100px', left:'30px', width:100, height:100} } />
-
+               
 
                 <svg id="eigenVectors" width="200" height="200" xmlns="http://www.w3.org/2000/svg" style={{left:"80vw", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}}>
                     <line id='e1' x1="100" y1="100" x2="100" y2="0" stroke="red" />
-                    {/* <line id='e2' x1="100" y1="100" x2="100" y2="0" stroke="blue" /> */}
+                    <line id='e2' x1="100" y1="100" x2="100" y2="0" stroke="blue" />
                 </svg>
                 <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
                 <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}></select>
-                <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"110vh",position:"absolute",display:"block", border:"1px solid black"}}>
+                <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"130vh",position:"absolute",display:"block", border:"1px solid black"}}>
                     <g id="curveGroup"></g>
                     <g id="ptGroup"></g>
                 </svg>

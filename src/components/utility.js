@@ -22,45 +22,66 @@ export function partitionItems(items,k,remPos = 0) {
     }
     return segments;
 }
+export function hasIntersection2D(line1,line2) {
+    var a=line1[0].x;
+    var b=line1[0].y;
+    var c=line1[1].x;
+    var d=line1[1].y;
 
-export function hasIntersection2D(segment1,segment2) {
-    let x1 = segment1[0].x;
-    let y1 = segment1[0].y;
-    let x2 = segment1[1].x;
-    let y2 = segment1[1].y;
+    var p=line2[0].x;
+    var q=line2[0].y;
+    var r=line2[1].x;
+    var s=line2[1].y;
 
-    let x3 = segment2[0].x;
-    let y3 = segment2[0].y;
-    let x4 = segment2[1].x;
-    let y4 = segment2[1].y;
+    var det, gamma, lambda;
+    det = (c - a) * (s - q) - (r - p) * (d - b);
+    if (det === 0) {
+      return false;
+    } else {
+      lambda = ((s - q) * (r - a) + (p - r) * (s - b)) / det;
+      gamma = ((b - d) * (r - a) + (c - a) * (s - b)) / det;
+      return (0 < lambda && lambda < 1) && (0 < gamma && gamma < 1);
+    }
+  };
 
-    let upperLeft = det(x1,y1,x2,y2)
-    let lowerLeft = det(x3,y3,x4,y4)
+// export function hasIntersection2D(segment1,segment2) {
+//     let x1 = segment1[0].x;
+//     let y1 = segment1[0].y;
+//     let x2 = segment1[1].x;
+//     let y2 = segment1[1].y;
 
-    let denominator = det(x1-x2, y1-y2, x3-x4, y3-y4);
+//     let x3 = segment2[0].x;
+//     let y3 = segment2[0].y;
+//     let x4 = segment2[1].x;
+//     let y4 = segment2[1].y;
 
-    let xNumerator = det(upperLeft, x1-x2, lowerLeft, x3-x4);
-    let yNumerator = det(upperLeft, y1-y2, lowerLeft, y3-y4);
+//     let upperLeft = det(x1,y1,x2,y2)
+//     let lowerLeft = det(x3,y3,x4,y4)
+
+//     let denominator = det(x1-x2, y1-y2, x3-x4, y3-y4);
+
+//     let xNumerator = det(upperLeft, x1-x2, lowerLeft, x3-x4);
+//     let yNumerator = det(upperLeft, y1-y2, lowerLeft, y3-y4);
 
 
-    let xCoord = xNumerator/denominator;
-    let yCoord = yNumerator/denominator;
+//     let xCoord = xNumerator/denominator;
+//     let yCoord = yNumerator/denominator;
 
     
-    if((xCoord==segment1[0].x && yCoord==segment1[0].y) ||  (xCoord==segment1[1].x && yCoord==segment1[1].y) ||  (xCoord==segment2[0].x && yCoord==segment2[0].y) ||  (xCoord==segment2[1].x && yCoord==segment2[1].y)) {
-        return false;   }
+//     if((xCoord==segment1[0].x && yCoord==segment1[0].y) ||  (xCoord==segment1[1].x && yCoord==segment1[1].y) ||  (xCoord==segment2[0].x && yCoord==segment2[0].y) ||  (xCoord==segment2[1].x && yCoord==segment2[1].y)) {
+//         return false;   }
 
     
-    let onSegment1X = Math.min(segment1[0].x,segment1[1].x) <= xCoord &&  xCoord <= Math.max(segment1[0].x,segment1[1].x);
-    let onSegment1Y = Math.min(segment1[0].y,segment1[1].y) <= yCoord <= Math.max(segment1[0].y,segment1[1].y);
-    let onSegment1 = onSegment1X && onSegment1Y;
+//     let onSegment1X = Math.min(segment1[0].x,segment1[1].x) <= xCoord &&  xCoord <= Math.max(segment1[0].x,segment1[1].x);
+//     let onSegment1Y = Math.min(segment1[0].y,segment1[1].y) <= yCoord <= Math.max(segment1[0].y,segment1[1].y);
+//     let onSegment1 = onSegment1X && onSegment1Y;
 
-    let onSegment2X = Math.min(segment2[0].x,segment2[1].x) <= xCoord &&  xCoord <= Math.max(segment2[0].x,segment2[1].x);
-    let onSegment2Y = Math.min(segment2[0].y,segment2[1].y) <= yCoord <= Math.max(segment2[0].y,segment2[1].y);
-    let onSegment2 = onSegment2X && onSegment2Y;
-    return onSegment1 && onSegment2;
+//     let onSegment2X = Math.min(segment2[0].x,segment2[1].x) <= xCoord &&  xCoord <= Math.max(segment2[0].x,segment2[1].x);
+//     let onSegment2Y = Math.min(segment2[0].y,segment2[1].y) <= yCoord <= Math.max(segment2[0].y,segment2[1].y);
+//     let onSegment2 = onSegment2X && onSegment2Y;
+//     return onSegment1 && onSegment2;
 
-}
+// }
 
 
 export function mergeSubElements(array, mergeToIdx, mergedIdx) {        //array is supposed to be an Array of Arrays

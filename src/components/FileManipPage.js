@@ -7,7 +7,7 @@ import { documentElement } from 'min-document';
 import {ImageScan} from './imageManip.js'
 import {Curve} from './Curve.js'
 import {Cluster} from './Cluster.js';
-import {getStdDev,getTransformedPt, numberInRange,distance} from './utility.js'
+import {getRandomInt,getStdDev,getTransformedPt, numberInRange,distance} from './utility.js'
 
 var geval = eval;
 import { Matrix, solve } from 'ml-matrix';
@@ -245,32 +245,34 @@ class FileManipPage extends React.Component {
         for(let corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
             var currentTheta = resultData["thetaGradient"][currentCorner.pixelIdx];
-           
+            var currentMag = resultData["magGradient"][currentCorner.pixelIdx];
             // searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
             var currentEigenVectors = currentCorner.eigenVectors;
            
             var eigenTheta1 = Math.atan(currentEigenVectors[1][0]/currentEigenVectors[0][0])
-            //currentCorner['eigenVals'] = resultData["eigenVals"][currentCorner.pixelIdx]
-            
             var foundEdges = [];
 
-            for(let wY=-7; wY < 7; ++wY) {        //try -15 to 15
-                for(let wX=-7; wX < 7; ++wX) {
+            for(let wY=-movWinRadius; wY < movWinRadius; ++wY) {        //try -15 to 15
+                for(let wX=-movWinRadius; wX < movWinRadius; ++wX) {
                     if(wY==0 && wX==0) continue;
                     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
                     if(resultData["harrisResponse"][relativeIdx] < 0) {     // < 0 means its classified as an edge by Harris Response
+                        var relativeMag = resultData["magGradient"][relativeIdx];
                         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
                         var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
                         
                         var edgeIsUnique = true;
-                        for(let edge=0; edge < foundEdges.length; ++edge) {
-                            var nextThetaIsSimilar = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.13089);
-                            var nextThetaIsParallel = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.13089);
-                            if((nextThetaIsSimilar || nextThetaIsParallel)) {
-                                edgeIsUnique=false;
-                                break;
-                            }
-                        }
+                        // for(let edge=0; edge < foundEdges.length; ++edge) {
+                        //     var nextThetaIsSimilar = numberInRange(relativeTheta, foundEdges[edge].theta, 0.13089);
+                        //     var nextThetaIsParallel = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.13089);
+                           
+                        //     if((nextThetaIsSimilar)) {
+                        //         edgeIsUnique=false;
+                        //         // var relativePt = {eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+wX, y:currentCorner.y+wY}
+                        //         // clusterMatrix[edge].push(relativePt)
+                        //         break;
+                        //     }
+                        // }
                         if(edgeIsUnique) {       //edge is completely different from other edges
                             // +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
                             foundEdges.push({eigenVectors:relativeEigenVectors, theta:relativeTheta, pt1:{x:currentCorner.x, y:currentCorner.y}, pt2:{x:currentCorner.x+wX, y:currentCorner.y+wY}}) 
@@ -339,8 +341,9 @@ class FileManipPage extends React.Component {
         
         var clusterOperations = [
             
-            // {name:'density', epsilonMultiplier:1, minPts:2, epsilon:null},
-            {name:'thetaGradient',epsilon:null, minPts:2, epsilonMultiplier:1},
+            {name:'density', epsilonMultiplier:1, minPts:3, epsilon:movWinRadius},
+            
+            // {name:'thetaGradient',epsilon:null, minPts:3, epsilonMultiplier:1},
             // {name:'slope',epsilon:null, minPts:4, epsilonMultiplier:1},
         ]
         for(let clm=0; clm < clusterMatrix.length; ++clm) {
@@ -384,26 +387,28 @@ class FileManipPage extends React.Component {
                 }
                 var thetaStdDev = getStdDev(curveEigenThetas);
                 var magStdDev = getStdDev(curveMags);
-                //console.log('curveEigenThetas',curveEigenThetas,'thetaStdDev',thetaStdDev)
-                if(thetaStdDev > 1 && magStdDev >= 25) {
+                
+                if(thetaStdDev > .5) {
                     console.log("Removing inconsitent curve")
                     curveObjs.splice(curve,1); 
                     continue;
                 }
-
-
                 var P1 = {x:xMin, y:thisCurveFunc(xMin)}
                 var P2 = {x:xMax, y:thisCurveFunc(xMax)}
+
+                
                 var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
+      
                 var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
-                //var d2 = `M${P1.x+getRandomInt(-150,150)},${P1.y+getRandomInt(-150,150)} Q${C.x+getRandomInt(-150,150)},${C.y+getRandomInt(-150,150)},${P2.x},${P2.y} `
+                // var d2 = `M${P1.x + getRandomInt(-25,25)},${P1.y+ getRandomInt(-25,25)} Q${C.x+ getRandomInt(-25,25)},${C.y+ getRandomInt(-25,25)},${P2.x+ getRandomInt(-25,25)},${P2.y+ getRandomInt(-25,25)} `
+               
                 var path = document.createElementNS("http://www.w3.org/2000/svg","path");
                 path.setAttribute("id",`curve${curve}_${clm}`)
                 path.setAttribute("d",d);
                 // path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                 path.setAttribute("stroke",`black`);
                 path.setAttribute("fill","none");
-                //path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
+                // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
                 document.getElementById("curveGroup").append(path);
             }
         }

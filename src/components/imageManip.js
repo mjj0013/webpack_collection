@@ -160,29 +160,6 @@ export class ImageScan {
                         parallelComponent["resultData"]["thetaGradient"].push(theta); 
                         parallelComponent["resultData"]["slopeRateX1"].push(slopeRate1.x)       //measure of horizontal-ness
                         parallelComponent["resultData"]["slopeRateY1"].push(slopeRate1.y)       //measure of vertical-ness
-                        
-                        
-                        //before clustering, divide image into grid of regions. For each region, have array of Objects that contain predefined  magnitude ranges and the pixels that fall into those ranges.
-                        // Example:  [y][x] => {'50,100': [{x:.., y:..}, {x:.., y:..}],  '100,150': [{x:.., y:..}, {x:.., y:..}], '200,250': [{x:.., y:..}, {x:.., y:..}], }
-
-                        // var preClusteringGroups = parallelComponent["resultData"]["preClusteringGroups"]
-                        // if(Math.round(laplacian) > 5 || Math.round(laplacian) < -5) {
-                        //     var regionX = Math.floor(imgX/preClusteringRegion.w)
-                        //     var regionY = Math.floor(imgY/preClusteringRegion.h)
-                        //     var regionObj = preClusteringGroups[regionY][regionX];
-                        //     var regionObjKeys = Object.keys(regionObj);
-                        //     for(let key=0; key < regionObjKeys.length; ++key) {
-                        //         let keyRange = regionObjKeys[key].split(',')
-                        //         let lowerLim = parseInt(keyRange[0]);
-                        //         let upperLim = parseInt(keyRange[1]);
-                        //         let roundedMag = Math.round(magGrad);
-                        //         if(roundedMag >= lowerLim && roundedMag < upperLim) {
-                        //             if(!objExistsInArray(regionObj[regionObjKeys[key]],{x:imgX, y:imgY})) {
-                        //                 regionObj[regionObjKeys[key]].push({x:imgX, y:imgY, thetaGradient:theta, magGradient:magGrad});
-                        //             }
-                        //         }
-                        //     }                            
-                        // }
                     }
                 }
                 // https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
@@ -195,9 +172,9 @@ export class ImageScan {
                         var isLocalPeak = true;
                         var centerMag = parallelComponent["resultData"]["laplacian"][((imgX) + (imgY)*this.imageWidth)]
                         if(imgY <= windowR || imgY>=this.imageHeight-windowR || imgX <= windowR || imgX>=this.imageWidth-windowR) {
-                            Ixx = Matrix.zeros(10, 10)
-                            Iyy = Matrix.zeros(10, 10)
-                            Ixy = Matrix.zeros(10, 10)
+                            Ixx = Matrix.zeros(windowR*2, windowR*2)
+                            Iyy = Matrix.zeros(windowR*2, windowR*2)
+                            Ixy = Matrix.zeros(windowR*2, windowR*2)
                         }
                         else {
                             for(var kY=-windowR; kY <= windowR; ++kY) {  
@@ -205,9 +182,6 @@ export class ImageScan {
                                 for(var kX=-windowR; kX <= windowR; ++kX) {   
                                     if(parallelComponent["resultData"]["laplacian"][((imgX-kX) + (imgY-kY)*this.imageWidth)] > centerMag) {
                                         isLocalPeak = false;
-                                        // parallelComponent["resultData"]["harrisResponse"].push(0);
-                                        // parallelComponent["resultData"]["eigenVals"].push(null);
-                                        // break;
                                     }
                                     let xComp = parallelComponent["resultData"]["xGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
                                     let yComp = parallelComponent["resultData"]["yGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];
@@ -224,10 +198,6 @@ export class ImageScan {
                             Ixy = new Matrix(Ixy);
                             Iyy = new Matrix(Iyy);
                         }
-                        
-                        // if(!isLocalPeak) continue;
-                        
-
                         //this gives more weight to the pixels closer to the center pixel
                         // Ixx = Ixx.mmul(gaussKernel);
                         // Ixy = Ixy.mmul(gaussKernel);
@@ -296,28 +266,37 @@ export class ImageScan {
     colorGammaTransferComponent(inColor, amplitude, exponent, offset, isAlpha=false) { return amplitude*Math.pow(inColor,exponent) + offset; }
 
     async imageReader(addr=null) {
+        //from https://www.youtube.com/watch?v=-AR-6X_98rM&ab_channel=KyleRobinsonYoung
+        //filterInfo will be a list of component-objects of form-> {type:"gauss", kernelLength:5, sig:1};    components will be applied in order
         return new Promise((resolve,reject)=> {
-            var canvas = document.getElementById(this.canvasId)
+
+            var canvas = document.getElementById(this.canvasId);
             var context = canvas.getContext("2d");
-            //from https://www.youtube.com/watch?v=-AR-6X_98rM&ab_channel=KyleRobinsonYoung
-            //filterInfo will be a list of component-objects of form-> {type:"gauss", kernelLength:5, sig:1}
-            //components will be applied in order
-            var input = addr==null? document.querySelector('input[type="file"]'): addr
+            // var input = addr==null? document.querySelector('input[type="file"]'): addr
             // const preview = document.querySelector('img');
+
             const file = document.querySelector('input[type=file]').files[0];
             const reader = new FileReader();
             this.selectedImage = file;
             var OBJ = this;
             reader.addEventListener("load", function () {
                 const img = new Image();
+                
                 img.onload = function() {
-                    context.drawImage(img,0,0);
-                    OBJ.originalImageData = context.getImageData(0,0,canvas.width,canvas.height);
-                    OBJ.imageData = context.getImageData(0,0,canvas.width,canvas.height);
+                    var dummyCanvas = document.createElement("canvas");     //isn't a visible canvas, holds data for the entire image.
+                    dummyCanvas.id = "dummyCanvas";
+                    dummyCanvas.width = img.naturalWidth;
+                    dummyCanvas.height= img.naturalHeight;
+                    var dummyContext = dummyCanvas.getContext('2d')
+
+                    dummyContext.drawImage(img,0,0);
+                    OBJ.originalImageData = dummyContext.getImageData(0,0,dummyCanvas.width,dummyCanvas.height);
+                    OBJ.imageData = dummyContext.getImageData(0,0,dummyCanvas.width,dummyCanvas.height);
                     OBJ.data = OBJ.imageData.data;
                     OBJ.imageWidth = OBJ.imageData.width;
                     OBJ.imageHeight= OBJ.imageData.height;
                     OBJ.pixelData = Array(OBJ.imageHeight).fill(Array(OBJ.imageWidth).fill({gradientX:0, gradientY:0, mag:0}))
+                    context.drawImage(img,0,0);
                     OBJ.filterInfo.forEach(component => {
                         let componentLength = component.kernelLength ? component.kernelLength : 2;
                         let filterSig = component.sig ? component.sig : 5;
@@ -383,32 +362,7 @@ export class ImageScan {
                             }
                         }
                     })
-                    //calculating values and gradients of every pixel
-                    for(var imgY=0; imgY < OBJ.imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
-                        for(var imgX=0; imgX < OBJ.imageWidth; imgX+=1) {
-                            var [thisR,thisG,thisB,thisA] = OBJ.data.slice(4*(imgY*OBJ.imageWidth + imgX),4*(imgY*OBJ.imageWidth + imgX) + 4);
-                            let leftVal=-1, rightVal=-1, topVal=-1, bottomVal=-1;
-                            if(imgX>0) {
-                                let [leftR,leftG,leftB,leftA] = OBJ.data.slice(4*(imgY*OBJ.imageWidth + (imgX-1)),4*(imgY*OBJ.imageWidth + (imgX-1)) + 4);
-                                leftVal = (leftR + leftG + leftB)/3;
-                            }
-                            if(imgX < OBJ.imageWidth-1) {
-                                let [rightR,rightG,rightB,rightA] = OBJ.data.slice(4*(imgY*OBJ.imageWidth + (imgX+1)),4*(imgY*OBJ.imageWidth + (imgX+1)) + 4);
-                                rightVal = (rightR + rightG + rightB)/3;
-                            }
-                            if(imgY>0) {
-                                let [topR,topG,topB,topA] = OBJ.data.slice(4*((imgY-1)*OBJ.imageWidth + (imgX)),4*((imgY-1)*OBJ.imageWidth + (imgX)) + 4);
-                                topVal = (topR + topG + topB)/3;
-                            }
-                            if(imgY < OBJ.imageHeight-1) {
-                                let [bottomR,bottomG,bottomB,bottomA] = OBJ.data.slice(4*((imgY+1)*OBJ.imageWidth + (imgX)),4*((imgY+1)*OBJ.imageWidth + (imgX)) + 4);
-                                bottomVal = (bottomR + bottomG + bottomB)/3;
-                            }
-                            OBJ.pixelData[imgY][imgX].mag = (thisR + thisG + thisB)/3;
-                            OBJ.pixelData[imgY][imgX].gradientX = leftVal==-1||rightVal==-1?0:leftVal - rightVal;
-                            OBJ.pixelData[imgY][imgX].gradientY = topVal==-1||bottomVal==-1?0:topVal - bottomVal;
-                        }
-                    }
+                    dummyContext.putImageData(OBJ.imageData, 0,0)
                     context.putImageData(OBJ.imageData, 0,0);
                     var detectBlobPromise =  OBJ.detectBlobs();      //detects blobs on each layer
                     detectBlobPromise.then(result => {
@@ -418,6 +372,7 @@ export class ImageScan {
                         })
                     })        
                 }
+             
                 img.src = reader.result;
             }, false);
             if (file) reader.readAsDataURL(file);    

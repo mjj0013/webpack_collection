@@ -169,6 +169,15 @@ export function binomialCoeff(n,i) {
 }
 
 
+export function getTransformedPt(x,y, transformMatrix) {
+    var focalPt = new DOMPoint();
+    focalPt.x = x;
+    focalPt.y = y;
+    var matrix = new DOMMatrix(transformMatrix)
+    return focalPt.matrixTransform(matrix.inverse());
+}
+
+
 
 //NOTE: BEZIER PARAMETRIC FUNCTIONS BELOW ARE NOT THE SAME AS THE LAGRANGE POLYNOMIAL!!
 export function getBezierParametricFunctions(order) {

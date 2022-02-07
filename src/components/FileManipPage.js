@@ -7,7 +7,7 @@ import { documentElement } from 'min-document';
 import {ImageScan} from './imageManip.js'
 import {Curve} from './Curve.js'
 import {Cluster} from './Cluster.js';
-import {getRandomInt,mergeSubElements, hasIntersection2D, numberInRange,distance} from './utility.js'
+import {getStdDev,getTransformedPt, numberInRange,distance} from './utility.js'
 
 var geval = eval;
 import { Matrix, solve } from 'ml-matrix';
@@ -25,13 +25,121 @@ class FileManipPage extends React.Component {
         this.tracingWindow = this.tracingWindow.bind(this);
         this.edgeTracer = this.edgeTracer.bind(this);
         this.selectedImage = null
-        
+
         this.curveObjs = [];
         this.setImageLayers = this.setImageLayers.bind(this);
         
         this.currentPts = [];//for testing clustering algorithm
         this.keyMag = 2;    //for testing clustering algorithm
         this.currentImageLayerIdx = 0;
+
+        //SVG zoom handling functions
+        this.captureZoomEvent = this.captureZoomEvent.bind(this);
+        this.lastZoom = {x:0,y:0};
+        this.zoomHasHappened = false;
+        this.updateZoom = this.updateZoom.bind(this);
+        this.zoomIntensity = 0.2;
+        this.transformMatrix = [1, 0, 0, 1, 0, 0];
+
+        //SVG drag handling functions
+        this.makeDraggable = this.makeDraggable.bind(this);
+        this.closeDragElement = this.closeDragElement.bind(this);
+        this.elementDrag = this.elementDrag.bind(this);
+        this.dragMouseDown = this.dragMouseDown.bind(this);
+        this.panSVG = this.panSVG.bind(this);
+        this.currentlyDragging = null;
+    }
+    componentDidMount() {
+        var resultSVG = document.getElementById("resultSVG")
+        resultSVG.addEventListener("wheel",this.captureZoomEvent,false);
+        resultSVG.addEventListener("DOMMouseScroll", this.captureZoomEvent,false);
+        this.makeDraggable('resultSVG');
+    }
+
+    makeDraggable(item_id) {
+        var item = document.getElementById(item_id)
+        item.onmousedown = this.dragMouseDown;
+    }
+    closeDragElement() {
+        this.currentlyDragging = null;
+        document.getElementById("resultSVG").style.cursor = 'grab';
+        document.onmouseup = null;
+        document.onmousemove = null;
+    }
+    panSVG(dx,dy) {
+        this.transformMatrix[4] += dx;
+        this.transformMatrix[5] += dy;
+        document.getElementById('curveGroup').setAttributeNS(null, "transform", `matrix(${this.transformMatrix.join(' ')})`);
+        document.getElementById('ptGroup').setAttributeNS(null, "transform", `matrix(${this.transformMatrix.join(' ')})`);
+    }
+
+    elementDrag(e) {    
+        if(!(e.target.id.substr(0,2)=='pt' || e.target.id=="resultSVGBackground")) return e;
+        e = e || window.event;
+        console.log("dragging " + e.target.id);
+        this.lastZoom = {x:e.offsetX, y:e.offsetY}
+       
+        if(this.dragStart) {
+            var pt = getTransformedPt(this.lastZoom.x, this.lastZoom.y, this.transformMatrix);
+            
+            if(e.target.id=='resultSVGBackground') {
+                this.panSVG((pt.x-this.dragStart.x)/4, (pt.y-this.dragStart.y)/4)
+            }
+            else if(e.target.id.substr(0,2)=='pt') {
+                let ptIndex = parseInt(e.target.id.substr(2));
+                this.regionPts[ptIndex].x = pt.x;
+                this.regionPts[ptIndex].y = pt.y;
+                let d =  `M ${this.regionPts[ptIndex].x},                               ${this.regionPts[ptIndex].y}`;
+                    d += `L ${this.regionPts[this.ptData[ptIndex].connections[0]].x}, ${this.regionPts[this.ptData[ptIndex].connections[0]].y}`
+                    d += `L ${this.regionPts[this.ptData[ptIndex].connections[1]].x}, ${this.regionPts[this.ptData[ptIndex].connections[1]].y}`
+                    d += `L ${this.regionPts[ptIndex].x}, ${this.regionPts[ptIndex].y}`;
+                e.target.setAttributeNS(null,'d', d);
+                e.target.setAttributeNS(null,'cx', pt.x);
+                e.target.setAttributeNS(null,'cy', pt.y);
+            }   
+        }
+        return e.preventDefault() && false;
+    }
+
+    dragMouseDown(e) {
+        e = e || window.event;
+        //e.preventDefault();
+        console.log(e.target.id);
+
+        if(this.currentlyDragging==null) this.currentlyDragging = e.target.id
+        else return e.preventDefault() && false;
+        if(e.target.id=="resultSVGBackground") {
+            var resultSVG = document.getElementById("resultSVG");
+            resultSVG.style.cursor = 'grabbing'
+        }
+        this.lastZoom.x = e.offsetX;
+        this.lastZoom.y = e.offsetY;
+        this.dragStart = getTransformedPt(this.lastZoom.x, this.lastZoom.y, this.transformMatrix);
+
+        document.onmouseup = this.closeDragElement;
+        document.onmousemove = this.elementDrag;
+        return e.preventDefault() && false;
+    }
+
+    captureZoomEvent = (e) => {
+        this.lastZoom.x = e.offsetX;
+        this.lastZoom.y = e.offsetY;
+        let delta = e.wheelDelta/1000;
+        if(delta) this.updateZoom(delta);
+        this.zoomHasHappened = 1;
+        return e.preventDefault() && false;
+    }
+    updateZoom = (delta) => {
+        let wheelNorm = delta;
+        let zoomVar = Math.pow(this.zoomIntensity,wheelNorm);
+        for(var i =0; i < 6; ++i) this.transformMatrix[i] *=(zoomVar)
+        
+        this.transformMatrix[4] += (1-zoomVar)*(this.lastZoom.x);
+        this.transformMatrix[5] += (1-zoomVar)*(this.lastZoom.y);
+
+        document.getElementById('curveGroup').setAttributeNS(null, "transform", `matrix(${this.transformMatrix.join(' ')})`);
+        document.getElementById('ptGroup').setAttributeNS(null, "transform", `matrix(${this.transformMatrix.join(' ')})`);
+        this.zoomHasHappened = 0;
     }
 
     selectImageLayerToDisplay(e) {
@@ -64,10 +172,7 @@ class FileManipPage extends React.Component {
             }   
         }
     }
-    // componentDidMount() {
-        
-    //     console.log(Matrix.zeros(3, 2))
-    // }
+
     showValuesOnHover(e) {
         var canvas = document.getElementById("testCanvas");
         var context = document.getElementById("testCanvas").getContext('2d');
@@ -154,16 +259,9 @@ class FileManipPage extends React.Component {
                     if(wY==0 && wX==0) continue;
                     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
                     if(resultData["harrisResponse"][relativeIdx] < 0) {     // < 0 means its classified as an edge by Harris Response
-                        
-
-
                         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
-                       
-                        
-                        
                         var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
                         
-                       
                         var edgeIsUnique = true;
                         for(let edge=0; edge < foundEdges.length; ++edge) {
                             var nextThetaIsSimilar = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.13089);
@@ -202,43 +300,36 @@ class FileManipPage extends React.Component {
                 
         //         for(let pt=0; pt < preCluster1.length; ++pt) {
         //             var edge1 = [preCluster1[pt], pt+1<preCluster1.length? preCluster1[pt+1] : -1]
-        //             console.log("here", edge1);
+        //             //console.log("here", edge1);
         //             if(edge1[1]==-1 || edge1[1]==undefined) break;
                    
         //             for(let pt2=0; pt2 < preCluster2.length; ++pt2) {
         //                 var edge2 = [preCluster2[pt2], pt2+1<preCluster2.length? preCluster2[pt2+1] : -1]
                         
         //                 if(edge2[1]==-1 || edge2[1]==undefined) break;
-        //                 // console.log('edge1,edge2',edge1,edge2)
-        //                 //.13089  .261799
-                        
-        //                 if(hasIntersection2D(edge1, edge2)) {
-        //                     clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                     console.log("merging clusters")
-        //                     matrixLen = clusterMatrix.length;
-        //                 }
+
         //                 //if(numberInRange(edge1[0].thetaGradient, edge2[0].thetaGradient,.261799) || numberInRange(edge1[1].thetaGradient, edge2[1].thetaGradient, .261799) ) {
-        //                 //if(numberInRange(edge1[0].thetaGradient, edge2[0].thetaGradient,.13089) || numberInRange(edge1[1].thetaGradient, edge2[1].thetaGradient, .13089) ) {
-                            
-        //                     // if(distance(edge1[0],edge2[0]) <= 25) {        //merge these edges into 1
-        //                     //     clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                     //     matrixLen = clusterMatrix.length;
-        //                     // }
-        //                     // else if(distance(edge1[0],edge2[1]) <= 25) {        //merge these edges into 1
-        //                     //     clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                     //     matrixLen = clusterMatrix.length;
-        //                     // }
-        //                     // else if(distance(edge1[1],edge2[0]) <= 25) {        //merge these edges into 1
-        //                     //     clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                     //     matrixLen = clusterMatrix.length;
-        //                     // }
-        //                     // else if(distance(edge1[1],edge2[1]) <= 25) {        //merge these edges into 1
-        //                     //     clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                     //     matrixLen = clusterMatrix.length;
-        //                     // }
+        //                 if(numberInRange(edge1[0].theta, edge2[0].theta,.261799) || numberInRange(edge1[1].theta, edge2[1].theta, .261799) ) {
+        //                     console.log("made it here")
+        //                     if(distance(edge1[0],edge2[0]) <= 25) {        //merge these edges into 1
+        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                         matrixLen = clusterMatrix.length;
+        //                     }
+        //                     else if(distance(edge1[0],edge2[1]) <= 25) {        //merge these edges into 1
+        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                         matrixLen = clusterMatrix.length;
+        //                     }
+        //                     else if(distance(edge1[1],edge2[0]) <= 25) {        //merge these edges into 1
+        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                         matrixLen = clusterMatrix.length;
+        //                     }
+        //                     else if(distance(edge1[1],edge2[1]) <= 25) {        //merge these edges into 1
+        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
+        //                         matrixLen = clusterMatrix.length;
+        //                     }
                            
                       
-        //                // }
+        //                }
         //             }
         //         }
         //         ++clm2;
@@ -271,6 +362,36 @@ class FileManipPage extends React.Component {
                 let xMin = curveObj.xRange[0];
                 let xMax = curveObj.xRange[1];
     
+
+                //testing curve.. testing if every pt on curve has similar pixel data
+                var curveEigenThetas = [];
+                var curveMags = [];
+                for(let x=xMin; x < xMax; ++x) {
+                    let y = Math.round(thisCurveFunc(x));
+                    var pixelIdx = x + y*this.currentScanObj.imageWidth;
+                   
+                    var ptEigenVectors = resultData["eigenVectors"][pixelIdx]
+                    var ptMag = resultData["magGradient"][pixelIdx]
+                    var ptEigenTheta = Math.atan(ptEigenVectors[1][0]/ptEigenVectors[0][0]);
+
+                    curveEigenThetas.push(ptEigenTheta);
+                    curveMags.push(ptMag);
+
+                }
+                if(curveEigenThetas.length==1) {
+                    curveObjs.splice(curve,1); 
+                    continue;
+                }
+                var thetaStdDev = getStdDev(curveEigenThetas);
+                var magStdDev = getStdDev(curveMags);
+                //console.log('curveEigenThetas',curveEigenThetas,'thetaStdDev',thetaStdDev)
+                if(thetaStdDev > 1 && magStdDev >= 25) {
+                    console.log("Removing inconsitent curve")
+                    curveObjs.splice(curve,1); 
+                    continue;
+                }
+
+
                 var P1 = {x:xMin, y:thisCurveFunc(xMin)}
                 var P2 = {x:xMax, y:thisCurveFunc(xMax)}
                 var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
@@ -401,6 +522,7 @@ class FileManipPage extends React.Component {
                 <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
                 <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}></select>
                 <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"130vh",position:"absolute",display:"block", border:"1px solid black"}}>
+                    <rect id="resultSVGBackground" width="100%" height="100%" fill='white' />
                     <g id="curveGroup"></g>
                     <g id="ptGroup"></g>
                 </svg>

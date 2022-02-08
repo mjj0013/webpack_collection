@@ -10,8 +10,36 @@ body {
 	font-size:18px;
 	
 	--gradientColor:rgb(107, 76, 219);
-	
-	
+}
+#eigenVectors {
+	border:1px solid black;
+	width:200;
+	height:200;
+}
+.inputImage {
+	top: 15px;
+	left: 0px;
+	width:1000px;
+	height:1000px;
+}
+.resultImage {
+	top: 15px;
+	left: 0px;
+	width:1000px;
+	height:1000px;
+}
+.imageContainer {
+	border:1px solid black;
+	position:relative;
+	display:block;
+}
+
+#tabsContainer{
+	position: absolute;
+	top:50px;
+	left:50px;
+	width:80vw;
+	height:200px;
 }
 
 #navBarContainer {

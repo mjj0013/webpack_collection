@@ -1,6 +1,9 @@
 import React, {useState} from 'react';
-import {Tab, Container, Progress } from 'semantic-ui-react';
+import {Container } from 'semantic-ui-react';
 
+import Tabs from 'react-bootstrap/Tabs';
+import Tab from 'react-bootstrap/Tab';
+import ProgressBar from 'react-bootstrap/ProgressBar'
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
 import { documentElement } from 'min-document';
@@ -26,6 +29,8 @@ class FileManipPage extends React.Component {
         this.edgeTracer = this.edgeTracer.bind(this);
         this.selectedImage = null
 
+        this.state = {completionPercentage:0}
+        this.incrementCompletion = this.incrementCompletion.bind(this);
         this.curveObjs = [];
         this.setImageLayers = this.setImageLayers.bind(this);
         
@@ -48,35 +53,21 @@ class FileManipPage extends React.Component {
         this.dragMouseDown = this.dragMouseDown.bind(this);
         this.panSVG = this.panSVG.bind(this);
         this.currentlyDragging = null;
-        this.panes = [
-            {
-                menuItem: 'Tab 1', render: ()=>
-                <Tab.Pane>
-                    <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}></select>
-                    <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
-                    <svg id="eigenVectors" width="200" height="200" xmlns="http://www.w3.org/2000/svg" style={{left:"80vw", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}}>
-                        <line id='e1' x1="100" y1="100" x2="100" y2="0" stroke="red" />
-                        <line id='e2' x1="100" y1="100" x2="100" y2="0" stroke="blue" />
-                    </svg>
-                </Tab.Pane>
-            },
-            {
-                menuItem: 'Tab 2', render: ()=>
-                <Tab.Pane>
-                    <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"130vh",position:"absolute",display:"block", border:"1px solid black"}}>
-                        <rect id="resultSVGBackground" width="100%" height="100%" fill='white' />
-                        <g id="curveGroup"></g>
-                        <g id="ptGroup"></g>
-                    </svg>
-                </Tab.Pane>
-            }
-        ]
     }
     componentDidMount() {
         var resultSVG = document.getElementById("resultSVG")
         resultSVG.addEventListener("wheel",this.captureZoomEvent,false);
         resultSVG.addEventListener("DOMMouseScroll", this.captureZoomEvent,false);
         this.makeDraggable('resultSVG');
+    }
+
+    async incrementCompletion(newPercentage) {
+       
+        return new Promise((resolve,reject)=> {
+            this.setState({completionPercentage:newPercentage})
+            // document.getElementById('processProgressBar').setAttribute('now',newPercentage);
+            resolve();
+        })
     }
 
     makeDraggable(item_id) {
@@ -256,19 +247,17 @@ class FileManipPage extends React.Component {
 
     numOfPagesChanged(e) { this.setState({num: e.target.value});  }
 
-    edgeTracer(resultData,movWinRadius=10) {
+    async edgeTracer(resultData,movWinRadius=10) {
         // Traces edges starting from each detected corner. A 5x5 window is mapped around each corner to account for multiple edges coming from corner. Duplicates edges are detected 
         // Calls 'tracingWindow' recursively when an edge continues in a specific direction.
         // TODO: add Hough Transform for ellipse detection (iterating through different radius lengths to see which radius has most 'votes'/ fits data points)
         var cornerLocations = resultData["cornerLocations"];
         var clusterMatrix=[];
 
-       
-       
         for(let corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
-            var currentTheta = resultData["thetaGradient"][currentCorner.pixelIdx];
-            var currentMag = resultData["magGradient"][currentCorner.pixelIdx];
+            // var currentTheta = resultData["thetaGradient"][currentCorner.pixelIdx];
+            // var currentMag = resultData["magGradient"][currentCorner.pixelIdx];
             // searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
             var currentEigenVectors = currentCorner.eigenVectors;
            
@@ -424,8 +413,14 @@ class FileManipPage extends React.Component {
                 document.getElementById("curveGroup").append(path);
 
                 // console.log(`CURVE ${curve} of ${curveObjs.length} in CLUSTER ${clm} of ${clusterMatrix.length}`);
-               console.log("Percent done: ",(clm/clusterMatrix.length))
+               
+               
+                
             }
+            var promise = this.incrementCompletion(100*clm/clusterMatrix.length);
+            promise.then(result => {});
+           
+            console.log("Percent done: ",(clm/clusterMatrix.length))
         }
         console.log('***Done tracing edges***')
     }
@@ -467,7 +462,7 @@ class FileManipPage extends React.Component {
           
                 var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.26179);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
                 var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.26179);
-                if((nextThetaIsSimilar || nextThetaIsParallel)  && nextLaplacian >0) {          //&& nextMagIsSimilar
+                if((nextThetaIsSimilar || nextThetaIsParallel)&& nextMagIsSimilar  && nextLaplacian >0) {          //&& nextMagIsSimilar
                     var slope = resultData["slopeRateY1"][nextIdx]/resultData["slopeRateX1"][nextIdx];
                     var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx],slope:slope, x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], thetaGradient:nextTheta};
                     lastValidObj = nextObj;
@@ -514,20 +509,41 @@ class FileManipPage extends React.Component {
         this.selectedImage = this.currentScanObj.selectedFile;
         return;
 	}
-    
+    // style={{top:"50%", position:"absolute"}}      
+    // style={{left:"150px",top:"130vh",position:"absolute",display:"block", border:"1px solid black"}} for resultSVG
+    // style={{left:"80vw", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}}  for eigenVectors
+    // style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} for testCanvas
     render() {
-        
+       
         return (
             <Layout title="File Loading Page" description="Description about file">
-                
-                <Container id="imageFileLoader" style={{top:"50%", position:"absolute"}}>
+                 <ProgressBar id="processProgressBar" striped variant="success" min={0} max={100} now={this.state.completionPercentage} />
+                <Container id="imageFileLoader">
                     <label htmlFor="imgFile">Choose image file: </label>
                     <input type="file" id="imgFile" onChange={this.loadImage}></input>
+                   
+                    
                 </Container>
 
-                <Tab panes={this.panes} />
+                <Tabs defaultActiveKey="inputImageTab" id="tabsContainer" >
+                    <Tab eventKey="inputImageTab" title="Input Image">
+                        <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}></select>
+                        <canvas className="imageContainer inputImage" id="testCanvas"   />
+                        {/* <svg id="eigenVectors" xmlns="http://www.w3.org/2000/svg" >
+                            <line id='e1' x1="100" y1="100" x2="100" y2="0" stroke="red" />
+                            <line id='e2' x1="100" y1="100" x2="100" y2="0" stroke="blue" />
+                        </svg> */}
+                    </Tab>
+                    <Tab eventKey="outputImageTab" title="Result">
+                        <svg className="imageContainer resultImage" id="resultSVG">
+                            <rect id="resultSVGBackground" width="100%" height="100%" fill='white' />
+                            <g id="curveGroup"></g>
+                            <g id="ptGroup"></g>
+                        </svg>
+                    </Tab>
+                </Tabs>
 
-                {/* <Progress percent={this.state.percent} indicating /> */}
+                
             </Layout> 
             
       );

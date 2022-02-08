@@ -61,13 +61,13 @@ class FileManipPage extends React.Component {
         this.makeDraggable('resultSVG');
     }
 
-    async incrementCompletion(newPercentage) {
+    incrementCompletion(newPercentage) {
        
-        return new Promise((resolve,reject)=> {
+
             this.setState({completionPercentage:newPercentage})
-            // document.getElementById('processProgressBar').setAttribute('now',newPercentage);
-            resolve();
-        })
+            
+
+
     }
 
     makeDraggable(item_id) {
@@ -417,9 +417,9 @@ class FileManipPage extends React.Component {
                
                 
             }
-            var promise = this.incrementCompletion(100*clm/clusterMatrix.length);
-            promise.then(result => {});
-           
+            // this.incrementCompletion(100*clm/clusterMatrix.length);
+            // this.setState({completionPercentage:newPercentage})
+            document.getElementById("processProgressBar").value = 100*clm/clusterMatrix.length
             console.log("Percent done: ",(clm/clusterMatrix.length))
         }
         console.log('***Done tracing edges***')
@@ -517,7 +517,8 @@ class FileManipPage extends React.Component {
        
         return (
             <Layout title="File Loading Page" description="Description about file">
-                 <ProgressBar id="processProgressBar" striped variant="success" min={0} max={100} now={this.state.completionPercentage} />
+                <progress id="processProgressBar" max="100" value={this.state.completionPercentage}></progress>
+                 {/* <ProgressBar id="processProgressBar" striped variant="success" min={0} max={100} now={this.state.completionPercentage} /> */}
                 <Container id="imageFileLoader">
                     <label htmlFor="imgFile">Choose image file: </label>
                     <input type="file" id="imgFile" onChange={this.loadImage}></input>

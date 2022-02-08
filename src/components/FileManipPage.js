@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {Container } from 'semantic-ui-react';
+import {Tab, Container, Progress } from 'semantic-ui-react';
 
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
@@ -7,7 +7,7 @@ import { documentElement } from 'min-document';
 import {ImageScan} from './imageManip.js'
 import {Curve} from './Curve.js'
 import {Cluster} from './Cluster.js';
-import {getRandomInt,getStdDev,getTransformedPt, numberInRange,distance} from './utility.js'
+import {mergeSubElements,getRandomInt,getStdDev,getTransformedPt, numberInRange,distance} from './utility.js'
 
 var geval = eval;
 import { Matrix, solve } from 'ml-matrix';
@@ -48,6 +48,29 @@ class FileManipPage extends React.Component {
         this.dragMouseDown = this.dragMouseDown.bind(this);
         this.panSVG = this.panSVG.bind(this);
         this.currentlyDragging = null;
+        this.panes = [
+            {
+                menuItem: 'Tab 1', render: ()=>
+                <Tab.Pane>
+                    <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}></select>
+                    <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
+                    <svg id="eigenVectors" width="200" height="200" xmlns="http://www.w3.org/2000/svg" style={{left:"80vw", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}}>
+                        <line id='e1' x1="100" y1="100" x2="100" y2="0" stroke="red" />
+                        <line id='e2' x1="100" y1="100" x2="100" y2="0" stroke="blue" />
+                    </svg>
+                </Tab.Pane>
+            },
+            {
+                menuItem: 'Tab 2', render: ()=>
+                <Tab.Pane>
+                    <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"130vh",position:"absolute",display:"block", border:"1px solid black"}}>
+                        <rect id="resultSVGBackground" width="100%" height="100%" fill='white' />
+                        <g id="curveGroup"></g>
+                        <g id="ptGroup"></g>
+                    </svg>
+                </Tab.Pane>
+            }
+        ]
     }
     componentDidMount() {
         var resultSVG = document.getElementById("resultSVG")
@@ -199,8 +222,8 @@ class FileManipPage extends React.Component {
         var eigenVal2 = eigenVals.realEigenvalues[1]
         var eigenVec2 = {x:eigenVals.eigenvectorMatrix.get(0,1), y:eigenVals.eigenvectorMatrix.get(1,1)}
         var eigenTheta2 = Math.atan(eigenVec2.y/eigenVec2.x)
-        e2.setAttribute("x2", eigenVal2*Math.cos(1.57079+theta)*100);
-        e2.setAttribute("y2",eigenVal2*Math.sin(1.57079+theta)*100);
+        e2.setAttribute("x2", eigenVal2*Math.cos(eigenTheta2)*100);
+        e2.setAttribute("y2",eigenVal2*Math.sin(eigenTheta2)*100);
         // e1.setAttribute("x2", (mag+laplacian)*Math.cos(1.57079+theta)*100);
         //e1.setAttribute("y2",(mag+laplacian)*Math.sin(1.57079+theta)*100);
         // console.log(eigenVal2*Math.cos(eigenTheta2), eigenVal2*Math.sin(eigenTheta2))
@@ -256,25 +279,24 @@ class FileManipPage extends React.Component {
                 for(let wX=-movWinRadius; wX < movWinRadius; ++wX) {
                     if(wY==0 && wX==0) continue;
                     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
-                    if(resultData["harrisResponse"][relativeIdx] < 0) {     // < 0 means its classified as an edge by Harris Response
-                        var relativeMag = resultData["magGradient"][relativeIdx];
+                    //if(resultData["harrisResponse"][relativeIdx] < 0 && resultData["laplacian"][relativeIdx] > 0) {
+                    if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0 && resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response
+                        // var relativeMag = resultData["magGradient"][relativeIdx];
                         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
                         var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
                         
                         var edgeIsUnique = true;
-                        // for(let edge=0; edge < foundEdges.length; ++edge) {
-                        //     var nextThetaIsSimilar = numberInRange(relativeTheta, foundEdges[edge].theta, 0.13089);
-                        //     var nextThetaIsParallel = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.13089);
+                        for(let edge=0; edge < foundEdges.length; ++edge) {
+                            var nextThetaIsSimilar = numberInRange(relativeTheta, foundEdges[edge].theta, 0.0654);
+                            var nextThetaIsParallel = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.0654);
                            
-                        //     if((nextThetaIsSimilar)) {
-                        //         edgeIsUnique=false;
-                        //         // var relativePt = {eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+wX, y:currentCorner.y+wY}
-                        //         // clusterMatrix[edge].push(relativePt)
-                        //         break;
-                        //     }
-                        // }
+                            if((nextThetaIsSimilar || nextThetaIsParallel)) {
+                                edgeIsUnique=false;
+                                break;
+                            }
+                        }
                         if(edgeIsUnique) {       //edge is completely different from other edges
-                            // +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
+                            //+/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
                             foundEdges.push({eigenVectors:relativeEigenVectors, theta:relativeTheta, pt1:{x:currentCorner.x, y:currentCorner.y}, pt2:{x:currentCorner.x+wX, y:currentCorner.y+wY}}) 
 
                             var relativePt = {eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+wX, y:currentCorner.y+wY}
@@ -302,36 +324,34 @@ class FileManipPage extends React.Component {
                 
         //         for(let pt=0; pt < preCluster1.length; ++pt) {
         //             var edge1 = [preCluster1[pt], pt+1<preCluster1.length? preCluster1[pt+1] : -1]
-        //             //console.log("here", edge1);
         //             if(edge1[1]==-1 || edge1[1]==undefined) break;
                    
         //             for(let pt2=0; pt2 < preCluster2.length; ++pt2) {
         //                 var edge2 = [preCluster2[pt2], pt2+1<preCluster2.length? preCluster2[pt2+1] : -1]
-                        
         //                 if(edge2[1]==-1 || edge2[1]==undefined) break;
-
-        //                 //if(numberInRange(edge1[0].thetaGradient, edge2[0].thetaGradient,.261799) || numberInRange(edge1[1].thetaGradient, edge2[1].thetaGradient, .261799) ) {
+                       
         //                 if(numberInRange(edge1[0].theta, edge2[0].theta,.261799) || numberInRange(edge1[1].theta, edge2[1].theta, .261799) ) {
-        //                     console.log("made it here")
         //                     if(distance(edge1[0],edge2[0]) <= 25) {        //merge these edges into 1
+        //                         console.log("merging lines")
         //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
         //                         matrixLen = clusterMatrix.length;
         //                     }
         //                     else if(distance(edge1[0],edge2[1]) <= 25) {        //merge these edges into 1
+        //                         console.log("merging lines")
         //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
         //                         matrixLen = clusterMatrix.length;
         //                     }
         //                     else if(distance(edge1[1],edge2[0]) <= 25) {        //merge these edges into 1
+        //                         console.log("merging lines")
         //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
         //                         matrixLen = clusterMatrix.length;
         //                     }
         //                     else if(distance(edge1[1],edge2[1]) <= 25) {        //merge these edges into 1
+        //                         console.log("merging lines")
         //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
         //                         matrixLen = clusterMatrix.length;
         //                     }
-                           
-                      
-        //                }
+        //                 }
         //             }
         //         }
         //         ++clm2;
@@ -342,7 +362,7 @@ class FileManipPage extends React.Component {
         var clusterOperations = [
             
             {name:'density', epsilonMultiplier:1, minPts:3, epsilon:movWinRadius},
-            
+            // {name:'theta',epsilon:null, minPts:3, epsilonMultiplier:1},
             // {name:'thetaGradient',epsilon:null, minPts:3, epsilonMultiplier:1},
             // {name:'slope',epsilon:null, minPts:4, epsilonMultiplier:1},
         ]
@@ -353,66 +373,61 @@ class FileManipPage extends React.Component {
             var curveObjs = [];
             for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
                 var curve = new Curve(clusterObj.subClusters[cl],`curve${clm}_${cl}`,2);
-                if(curve.pts.length ==0) continue;
+                if(curve.pts.length==0) continue;
                 curveObjs.push(curve)
             }
             for(let curve=0; curve < curveObjs.length; ++curve) {
                 var curveObj = curveObjs[curve];
-                console.log("curveObj",curveObj);
+                
                 geval(curveObj["currentEquationStr"])
                 var thisCurveFunc = geval(curveObj.currentEquationName)
 
                 let xMin = curveObj.xRange[0];
                 let xMax = curveObj.xRange[1];
     
-
                 //testing curve.. testing if every pt on curve has similar pixel data
                 var curveEigenThetas = [];
-                var curveMags = [];
+                // var curveMags = [];
                 for(let x=xMin; x < xMax; ++x) {
                     let y = Math.round(thisCurveFunc(x));
                     var pixelIdx = x + y*this.currentScanObj.imageWidth;
-                   
                     var ptEigenVectors = resultData["eigenVectors"][pixelIdx]
-                    var ptMag = resultData["magGradient"][pixelIdx]
+                    
                     var ptEigenTheta = Math.atan(ptEigenVectors[1][0]/ptEigenVectors[0][0]);
-
+                    
                     curveEigenThetas.push(ptEigenTheta);
-                    curveMags.push(ptMag);
-
+                    // curveMags.push(resultData["magGradient"][pixelIdx]);
                 }
                 if(curveEigenThetas.length==1) {
                     curveObjs.splice(curve,1); 
                     continue;
                 }
-                var thetaStdDev = getStdDev(curveEigenThetas);
-                var magStdDev = getStdDev(curveMags);
-                
-                if(thetaStdDev > .5) {
-                    console.log("Removing inconsitent curve")
-                    curveObjs.splice(curve,1); 
-                    continue;
-                }
+                // var thetaStdDev = getStdDev(curveEigenThetas);
+                // if(thetaStdDev > .5) {
+                //     console.log("Removing inconsitent curve")
+                //     curveObjs.splice(curve,1); 
+                //     continue;
+                // }
                 var P1 = {x:xMin, y:thisCurveFunc(xMin)}
                 var P2 = {x:xMax, y:thisCurveFunc(xMax)}
-
                 
                 var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
-      
                 var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
                 // var d2 = `M${P1.x + getRandomInt(-25,25)},${P1.y+ getRandomInt(-25,25)} Q${C.x+ getRandomInt(-25,25)},${C.y+ getRandomInt(-25,25)},${P2.x+ getRandomInt(-25,25)},${P2.y+ getRandomInt(-25,25)} `
                
                 var path = document.createElementNS("http://www.w3.org/2000/svg","path");
                 path.setAttribute("id",`curve${curve}_${clm}`)
                 path.setAttribute("d",d);
-                // path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                 path.setAttribute("stroke",`black`);
                 path.setAttribute("fill","none");
                 // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
                 document.getElementById("curveGroup").append(path);
+
+                // console.log(`CURVE ${curve} of ${curveObjs.length} in CLUSTER ${clm} of ${clusterMatrix.length}`);
+               console.log("Percent done: ",(clm/clusterMatrix.length))
             }
         }
-        console.log('***done with edgeTracer***')
+        console.log('***Done tracing edges***')
     }
 
     tracingWindow(resultData, currentPt, movWinRadius=7) {      
@@ -423,55 +438,46 @@ class FileManipPage extends React.Component {
         let imageHeight  =this.currentScanObj.imageHeight;
         let imageLength=imageWidth*imageHeight;
         let dataPts = [currentPt]
-        
-        // let currentTheta = currentPt.thetaGradient;       
-
-    
+       
         var currentEigenVectors = currentPt.eigenVectors;
      
         //searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
-        
-       
         let currentTheta = Math.atan(currentEigenVectors[1][0]/currentEigenVectors[0][0])
 
         // //for testing different lengths of edges
         var nextShots = [];
-        // for(let i=movWinRadius; i > 0; --i) {
+        
         for(let i=1; i < 25; ++i) {
             if(i==0) continue;
             var nextX = Math.round(i*Math.cos(currentTheta))    //-1.57079 ( -90 deg)
             var nextY = Math.round(i*Math.sin(currentTheta))
-            
             nextShots.push({x:nextX, y:nextY})
-            
         }
-
         var lastValidObj = null;
+        
         for(let shot=0; shot < nextShots.length; ++shot) {
             var nextIdx = (currentPt.x+nextShots[shot].x) + (currentPt.y+nextShots[shot].y)*imageWidth
             if(nextIdx >= 0 && nextIdx <= imageLength) {
-
                 var nextEigenVectors = resultData["eigenVectors"][nextIdx];
-                
+                var nextLaplacian = resultData["laplacian"][nextIdx];
                 var nextTheta =Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0]) //resultData["thetaGradient"][nextIdx];
                 var nextMag = resultData["magGradient"][nextIdx]
+
                 var nextMagIsSimilar = numberInRange(nextMag, currentPt.magGradient, 100) && nextMag > 50;
           
                 var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.26179);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
                 var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.26179);
-                if((nextThetaIsSimilar || nextThetaIsParallel) && nextMagIsSimilar) {
+                if((nextThetaIsSimilar || nextThetaIsParallel)  && nextLaplacian >0) {          //&& nextMagIsSimilar
                     var slope = resultData["slopeRateY1"][nextIdx]/resultData["slopeRateX1"][nextIdx];
                     var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx],slope:slope, x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], thetaGradient:nextTheta};
                     lastValidObj = nextObj;
-
+                    
                 }
                 else if(lastValidObj!=null) {
                     var nextResult = this.tracingWindow(resultData, lastValidObj, movWinRadius)
                     dataPts = dataPts.concat(nextResult);
-                    break;
-                    
+                    break;  
                 }
-               
             }
         }
         
@@ -510,30 +516,22 @@ class FileManipPage extends React.Component {
 	}
     
     render() {
+        
         return (
             <Layout title="File Loading Page" description="Description about file">
+                
                 <Container id="imageFileLoader" style={{top:"50%", position:"absolute"}}>
                     <label htmlFor="imgFile">Choose image file: </label>
                     <input type="file" id="imgFile" onChange={this.loadImage}></input>
                 </Container>
-                
-                <svg id="mainSVG" style={{display:"none"}} width="1000" height="1000" viewBox="0 0 1000 1000" xmlns="http://www.w3.org/2000/svg"></svg>
-               
 
-                <svg id="eigenVectors" width="200" height="200" xmlns="http://www.w3.org/2000/svg" style={{left:"80vw", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}}>
-                    <line id='e1' x1="100" y1="100" x2="100" y2="0" stroke="red" />
-                    <line id='e2' x1="100" y1="100" x2="100" y2="0" stroke="blue" />
-                </svg>
-                <canvas id="testCanvas" width={1000} height={500} style={{left:"150px", top:"60vh",position:"absolute",display:"block", border:"1px solid black"}} />
-                <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}></select>
-                <svg id="resultSVG" width={1000} height={500} style={{left:"150px",top:"130vh",position:"absolute",display:"block", border:"1px solid black"}}>
-                    <rect id="resultSVGBackground" width="100%" height="100%" fill='white' />
-                    <g id="curveGroup"></g>
-                    <g id="ptGroup"></g>
-                </svg>
+                <Tab panes={this.panes} />
+
+                {/* <Progress percent={this.state.percent} indicating /> */}
             </Layout> 
             
       );
     }
 }
+
 export default FileManipPage;

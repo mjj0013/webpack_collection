@@ -2,7 +2,7 @@
 import {distance, numberInRange, itemCountInArray} from './utility.js'
 
 export class Cluster {
-    constructor(pts, clusteringOrder=[{name:'density', epsilonMultiplier:1, minPts:3, epsilon:null}, {name:'magGradient', epsilonMultiplier:1, minPts:2}]) {
+    constructor(pts, clusteringOrder=[{name:'density', epsilonMultiplier:1, minPts:3, epsilon:null}, {name:'magGradient', epsilonMultiplier:1, minPts:2}], verbose=false) {
         this.findSubClusters = this.findSubClusters.bind(this);
         this.DBSCAN = this.DBSCAN.bind(this);       //Density-Based Spatial Clustering of Applications with Noise
         this.ABCAN1D =  this.ABCAN1D.bind(this);         //1D Attribute-Based Clustering of Applications with Noise  (custom)
@@ -13,6 +13,7 @@ export class Cluster {
         this.xVals = this.pts.map(a=>a.x);
         this.yVals = this.pts.map(a=>a.y);
         this.clusteringOrder = clusteringOrder;
+        this.verbose = verbose;
         this.subClusters = this.findSubClusters(clusteringOrder)
     }
     ABCAN1D(clusterData, epsilonMultiplier, minPts, attribute ) {     //Attribute-Based Clustering of Applications with Noise, 1 Dimensional (i.e magntiude, theta)
@@ -39,7 +40,7 @@ export class Cluster {
         diffDeltas.sort(function(a,b){return b[0]-a[0]});
         var epsilon = epsilonMultiplier*(diffDeltas[0][2] + diffDeltas[0][1])/2;
 
-        console.log(attribute+ ' epsilon: ',epsilon)
+       
         var clusterIter = -1;
         var labeledPts = Array(clusterData.length).fill(-1)     //holds indices of points that are already processed
         for(let p=0; p < clusterData.length; ++p) {
@@ -66,8 +67,13 @@ export class Cluster {
         for(let p=0; p < labeledPts.length; ++p) {
             if(labeledPts[p] !="noise") clusters[labeledPts[p]].push(clusterData[p]);
         }
-        console.log("Number of noise pts = ",itemCountInArray(labeledPts,'noise'));
-        console.log("Number of clusters = "+clusters.length)
+
+        if(this.verbose) {
+            console.log('Epsilon of '+attribute+': ',epsilon)
+            console.log("Number of noise pts = ",itemCountInArray(labeledPts,'noise'));
+            console.log("Number of clusters = "+clusters.length)
+        }
+       
         return clusters;        //a list of clusters (cluster = list of points)
     }
        
@@ -120,7 +126,7 @@ export class Cluster {
             else return -1;
             allClusters = [...temp];
         }
-        console.log('allClusters',allClusters)
+        if(this.verbose) console.log('allClusters',allClusters)
         return allClusters;
     }
     
@@ -154,7 +160,7 @@ export class Cluster {
             epsilon = epsilonMultiplier*(distDeltas[0][2] + distDeltas[0][1])/2;   
         } 
          
-        console.log('epsilon',epsilon)
+        
         var clusterIter = -1;
         var labeledPts = Array(clusterData.length).fill(-1)     //holds indices of points that are already processed
         for(let p=0; p < clusterData.length; ++p) {
@@ -182,8 +188,12 @@ export class Cluster {
         for(let p=0; p < labeledPts.length; ++p) {
             if(labeledPts[p] !="noise") clusters[labeledPts[p]].push(clusterData[p]);
         }
-        console.log("Number of noise pts = ",itemCountInArray(labeledPts,'noise'));
-        console.log("Number of clusters = "+clusters.length)
+        
+        if(this.verbose) {
+            console.log('Epsilon of '+attribute+': ',epsilon)
+            console.log("Number of noise pts = ",itemCountInArray(labeledPts,'noise'));
+            console.log("Number of clusters = "+clusters.length)
+        }
         return clusters;        //a list of clusters (cluster = list of points)
     }
 }

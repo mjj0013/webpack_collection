@@ -1,6 +1,6 @@
 import React, {useState, createRef} from 'react';
 
-
+import "regenerator-runtime/runtime";
 
 export class ProgressBar extends React.Component {
     constructor(props) {
@@ -52,14 +52,13 @@ export class ProgressBar extends React.Component {
         this.statusBarRef = React.createRef();
         this.moveProgress = this.moveProgress.bind(this);
     }
-    moveProgress(percentage) {
+    async moveProgress(percentage) {
         // var newWidth = (this.width*.25)*percentage;
         var newWidth = (this.width*percentage);     //make sure percentage is being passed as an actual percentage
         if(newWidth <= this.width) this.statusBarRef.current.setAttribute("width", newWidth);
         if(newWidth == this.width) return 1;
         else if(newWidth < this.width) return 0;
         else return -1
-        
     }
     render() {
         return (

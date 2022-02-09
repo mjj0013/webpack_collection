@@ -152,8 +152,6 @@ class NavBar extends React.Component {
 				// 2*i+2		sub phase 2
 
 				var peripheralPt = {x:pt1.x-2*length, y:pt1.y}
-
-
 				this.coverTriangles.push(new Triangle(2*i+2,2*j, [{x:pt1.x, y:pt1.y}, {x:pt1.x+length, y:pt1.y-length}, {x:pt1.x-length, y:pt1.y-length}] ))
 				this.coverTriangles.push(new Triangle(2*i+1,2*j+1, [{x:pt1.x, y:pt1.y}, {x:pt1.x-length, y:pt1.y+length}, {x:pt1.x+length, y:pt1.y+length}] ))
 				this.coverTriangles.push(new Triangle(2*i+2,2*j, [{x:pt1.x, y:pt1.y}, {x:pt1.x+2*length, y:pt1.y},      {x:pt1.x+length, y:pt1.y-length}] ))
@@ -195,19 +193,13 @@ class NavBar extends React.Component {
 				<Menu id="navBar"  inverted className="nav-menu">
 					<Link to="/" className="nav-link item">Home</Link>
 					<Link to="/fileload" className="nav-link item">File Load</Link>
-					<Link to="/animation" className="nav-link item">Animation</Link>
-					
-					
+					<Link to="/animation" className="nav-link item">Animation</Link>		
 					<Dropdown item text="Tools">
 						<Dropdown.Menu>
 							<Dropdown.Item text="Calculator" onClick={this.toggleCalculator}/>
 						</Dropdown.Menu>
 					</Dropdown>
-					<Menu.Item className="nav-item" position='right'>
-						<Button compact id='openSettings' onClick={this.toggleSettings}>
-							<i className="icon cog"/>
-						</Button> 
-					</Menu.Item>
+
 				</Menu>
 			</Container>
 		  );

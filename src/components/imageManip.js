@@ -363,14 +363,16 @@ export class ImageScan {
                         }
                     })
                     dummyContext.putImageData(OBJ.imageData, 0,0)
-                    context.putImageData(OBJ.imageData, 0,0);
-                    var detectBlobPromise =  OBJ.detectBlobs();      //detects blobs on each layer
-                    detectBlobPromise.then(result => {
-                        OBJ.processBlobs().then(result2=> {
-                            OBJ.saveLayerImageData(context); 
-                            resolve();           //this resolve() is for the promise of ImageReader
-                        })
-                    })        
+                    // context.putImageData(OBJ.imageData, 0,0);
+                    resolve();
+
+                    // var detectBlobPromise =  OBJ.detectBlobs();      //detects blobs on each layer
+                    // detectBlobPromise.then(result => {
+                    //     OBJ.processBlobs().then(result2=> {
+                    //         OBJ.saveLayerImageData(context); 
+                    //         resolve();           //this resolve() is for the promise of ImageReader
+                    //     })
+                    // })        
                 }
              
                 img.src = reader.result;

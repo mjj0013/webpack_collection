@@ -15,9 +15,9 @@ class Layout extends React.Component {
 	constructor(props, children) {
 		super(props);
 		
-		this.title = 'Title';
+		this.title = props.title? props.title : 'Title';
 		
-		this.description = 'Description';
+		this.description = props.description? props.description : 'Description';
 		
 		this.toggleSettings = this.toggleSettings.bind(this);
 		this.toggleCalculator = this.toggleCalculator.bind(this);
@@ -28,11 +28,7 @@ class Layout extends React.Component {
 
 		
 	}
-	
-	
 
-
-	
 	getChildContext() {
 		return {
 			toggleSettings:		this.toggleSettings,
@@ -99,28 +95,5 @@ Layout.childContextTypes = {
 }
 
 
-
-
-
-// const Layout = (title='Title',description='Description',children=null) => {
-// 	console.log("children");
-// 	console.log(children);
-// 	return(
-
-		
-// 		<Container>
-// 			<NavBar />
-// 			<Container className="mainHeader">
-// 				<h2>{title}</h2>
-// 				<p >{description}</p>
-// 			</Container>
-// 			<Container >
-// 				{children}
-// 			</Container>
-// 			<CalculatorModal id='cw' className='calcWindow' />
-// 			<SettingsModal id='sw' className='settingsWindow' />
-// 		</Container>
-// 	);
-// }
 
 export default Layout;

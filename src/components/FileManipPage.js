@@ -1,9 +1,9 @@
-import React, {useState} from 'react';
+import React, {useState,createRef} from 'react';
 import {Container } from 'semantic-ui-react';
 
 import Tabs from 'react-bootstrap/Tabs';
 import Tab from 'react-bootstrap/Tab';
-import ProgressBar from 'react-bootstrap/ProgressBar'
+import {ProgressBar} from './ProgressBar.js'
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
 import { documentElement } from 'min-document';
@@ -53,21 +53,31 @@ class FileManipPage extends React.Component {
         this.dragMouseDown = this.dragMouseDown.bind(this);
         this.panSVG = this.panSVG.bind(this);
         this.currentlyDragging = null;
+
+
+        this.progressBar1 = React.createRef();
+       
+
+        this.numClicks = 0;
     }
     componentDidMount() {
         var resultSVG = document.getElementById("resultSVG")
         resultSVG.addEventListener("wheel",this.captureZoomEvent,false);
         resultSVG.addEventListener("DOMMouseScroll", this.captureZoomEvent,false);
         this.makeDraggable('resultSVG');
+
+
+
+
+        window.addEventListener('click',(e)=>{
+            ++this.numClicks;
+            console.log(this.numClicks);
+            this.progressBar1.current.moveProgress(this.numClicks)
+        },false);
     }
 
     incrementCompletion(newPercentage) {
-       
-
             this.setState({completionPercentage:newPercentage})
-            
-
-
     }
 
     makeDraggable(item_id) {
@@ -517,8 +527,9 @@ class FileManipPage extends React.Component {
        
         return (
             <Layout title="File Loading Page" description="Description about file">
-                <progress id="processProgressBar" max="100" value={this.state.completionPercentage}></progress>
-                 {/* <ProgressBar id="processProgressBar" striped variant="success" min={0} max={100} now={this.state.completionPercentage} /> */}
+                {/* <progress id="processProgressBar" max="100" value={this.state.completionPercentage}></progress> */}
+                <ProgressBar ref={this.progressBar1} min={0} max={100}  mainColor='hsl(0,50%,25%)' width={300} height={20} rx={10} ry={10} surfaceStyle='linear'/>
+                
                 <Container id="imageFileLoader">
                     <label htmlFor="imgFile">Choose image file: </label>
                     <input type="file" id="imgFile" onChange={this.loadImage}></input>

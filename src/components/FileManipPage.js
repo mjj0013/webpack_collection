@@ -4,7 +4,8 @@ import Offcanvas from 'react-bootstrap/Offcanvas'
 import Tabs from 'react-bootstrap/Tabs';
 import Spinner from 'react-bootstrap/Spinner'
 import Tab from 'react-bootstrap/Tab';
-import {ProgressBar} from './ProgressBar.js'
+// import {ProgressBar} from './ProgressBar.js'
+import ProgressBar from 'react-bootstrap/ProgressBar'
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
 import { documentElement } from 'min-document';
@@ -32,7 +33,7 @@ class FileManipPage extends React.Component {
         this.selectedImage = null
 
         this.state = {completionPercentage:0}
-        this.incrementCompletion = this.incrementCompletion.bind(this);
+       
         this.curveObjs = [];
         this.setImageLayers = this.setImageLayers.bind(this);
         
@@ -61,18 +62,27 @@ class FileManipPage extends React.Component {
 
         this.progressBar1 = React.createRef();
        
-        this.state = {show:false}
+        this.state = {show:false, loadPercent:0, showLoadMessage0:false, showLoadMessage1:false, showLoadMessage2:false}
 
         this.handlePanelClose = this.handlePanelClose.bind(this);
         this.handlePanelShow = this.handlePanelShow.bind(this);
         
+
         this.insertStatusText = this.insertStatusText.bind(this);
 
 
         this.resultSVGModeSelect = this.resultSVGModeSelect.bind(this)
+
+        this.loadingMessages = [
+            "Loading image step 1",
+            "Loading image step 2",
+            "Loading image step 3"
+        ]
+        this.loadingCurrentStep=-1;
+
+        this.checkProgressBar = this.checkProgressBar.bind(this);
+
     }
-
-
     resultSVGModeSelect = (e) =>{
        
         if(e.target.id=="dragButton") {
@@ -80,36 +90,26 @@ class FileManipPage extends React.Component {
             this.currentSVGCursorMode = "drag"
             var resultSVG = document.getElementById("resultSVG");
             resultSVG.style.cursor = 'grab'
+            e.target.classList.add("selected")
+            document.getElementById("selectButton").classList.remove("selected");
+            
         }
         if(e.target.id=="selectButton") {
             console.log('e.target.id', e.target.id)
             this.currentSVGCursorMode = "select"
             var resultSVG = document.getElementById("resultSVG");
             resultSVG.style.cursor = 'crosshair'
+            e.target.classList.add("selected");
+            document.getElementById("dragButton").classList.remove("selected");
         }
 
     }
-
-    handlePanelClose = () => {
-        this.setState({show:false})
-        // if(document.getElementById("sidePanel")!=null) document.getElementById("sidePanel").setAttribute('show',false);
-    };
-    handlePanelShow = () =>{ 
-        // if(document.getElementById("sidePanel")!=null) document.getElementById("sidePanel").setAttribute('show',true);
-        this.setState({show:true})
-    };
-
+    
     componentDidMount() {
         var resultSVG = document.getElementById("resultSVG")
         resultSVG.addEventListener("wheel",this.captureZoomEvent,false);
         resultSVG.addEventListener("DOMMouseScroll", this.captureZoomEvent,false);
         this.makeDraggable('resultSVG');
-
-
-    }
-
-    incrementCompletion(newPercentage) {
-            this.setState({completionPercentage:newPercentage})
     }
 
     makeDraggable(item_id) {
@@ -138,7 +138,7 @@ class FileManipPage extends React.Component {
         if(!(e.target.id.substr(0,2)=='pt' || e.target.id=="resultSVGBackground")) return e;
         e = e || window.event;
         this.lastZoom = {x:e.offsetX, y:e.offsetY}
-       
+        
         if(this.dragStart) {
             var pt = getTransformedPt(this.lastZoom.x, this.lastZoom.y, this.transformMatrix);
             
@@ -148,16 +148,21 @@ class FileManipPage extends React.Component {
             }
             else if(this.currentSVGCursorMode=="select") {
                 var selectBox = document.getElementById('selectBox')
+                
                 if(this.lastZoom.x < this.selectBoxOrigin.x) {
                     selectBox.setAttribute("x",this.lastZoom.x);
-                    selectBox.setAttribute("width",this.selectBoxOrigin.x-this.lastZoom.x);
+                    selectBox.setAttribute("width",Math.abs(this.selectBoxOrigin.x-this.lastZoom.x));
                 }
-                else selectBox.setAttribute("width",this.lastZoom.x -this.selectBoxOrigin.x);
+                else {
+                    selectBox.setAttribute("width",Math.abs(this.lastZoom.x - this.selectBoxOrigin.x));
+                }
                 if(this.lastZoom.y < this.selectBoxOrigin.y) {
                     selectBox.setAttribute("y",this.lastZoom.y);
-                    selectBox.setAttribute("height",this.selectBoxOrigin.y-this.lastZoom.y);
+                    selectBox.setAttribute("height",Math.abs(this.selectBoxOrigin.y-this.lastZoom.y));
                 }
-                else selectBox.setAttribute("height",this.lastZoom.y-this.selectBoxOrigin.y);
+                else {
+                    selectBox.setAttribute("height",Math.abs(this.lastZoom.y-this.selectBoxOrigin.y));
+                }
             }   
         }
         return e.preventDefault() && false;
@@ -240,42 +245,33 @@ class FileManipPage extends React.Component {
     }
 
     showValuesOnHover(e) {
-        var canvas = document.getElementById("testCanvas");
-        var context = document.getElementById("testCanvas").getContext('2d');
-        var x = e.layerX;
-        var y = e.layerY;
-        var idx = (x) + (y)*this.currentScanObj.imageWidth;
-        if(this.currentScanObj.imageLayers.length==0) return;
-        var mag = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["magGradient"][idx]  
-        var laplacian =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["laplacian"][idx]  
-        var theta = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["thetaGradient"][idx]         //subtract 90 degrees (1.570795 in radians) from this to get actual theta
-        var eigenVals = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["eigenVals"][idx];
+        // var canvas = document.getElementById("testCanvas");
+        // var context = document.getElementById("testCanvas").getContext('2d');
+        // var x = e.layerX;
+        // var y = e.layerY;
+        // var idx = (x) + (y)*this.currentScanObj.imageWidth;
+        // if(this.currentScanObj.imageLayers.length==0) return;
+        // var mag = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["magGradient"][idx]  
+        // var laplacian =   this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["laplacian"][idx]  
+        // var theta = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["thetaGradient"][idx]         //subtract 90 degrees (1.570795 in radians) from this to get actual theta
+        // var eigenVals = this.currentScanObj.imageLayers[this.currentImageLayerIdx]["resultData"]["eigenVals"][idx];
         
-        var e1 = document.getElementById("e1");
-        var e2 = document.getElementById("e2");
-        // e1.setAttribute("x2", (mag+laplacian)*Math.cos(1.57079+theta)*100);
-        // e1.setAttribute("y2",(mag+laplacian)*Math.sin(1.57079+theta)*100);
-
-        var eigenVal1 = eigenVals.realEigenvalues[0]
-        var eigenVec1 = {x:eigenVals.eigenvectorMatrix.get(0,0), y:eigenVals.eigenvectorMatrix.get(1,0)}
-        var eigenTheta1 = Math.atan(eigenVec1.y/eigenVec1.x)
-        e1.setAttribute("x2", eigenVal1*Math.cos(eigenTheta1)*100);
-        e1.setAttribute("y2",eigenVal1*Math.sin(eigenTheta1)*100);
-
-        var eigenVal2 = eigenVals.realEigenvalues[1]
-        var eigenVec2 = {x:eigenVals.eigenvectorMatrix.get(0,1), y:eigenVals.eigenvectorMatrix.get(1,1)}
-        var eigenTheta2 = Math.atan(eigenVec2.y/eigenVec2.x)
-        e2.setAttribute("x2", eigenVal2*Math.cos(eigenTheta2)*100);
-        e2.setAttribute("y2",eigenVal2*Math.sin(eigenTheta2)*100);
-        // e1.setAttribute("x2", (mag+laplacian)*Math.cos(1.57079+theta)*100);
-        //e1.setAttribute("y2",(mag+laplacian)*Math.sin(1.57079+theta)*100);
-        // console.log(eigenVal2*Math.cos(eigenTheta2), eigenVal2*Math.sin(eigenTheta2))
-       // console.log(x+eigenVec2.x, y+eigenVec2.y)
+        // var e1 = document.getElementById("e1");
+        // var e2 = document.getElementById("e2");
+        // var eigenVal1 = eigenVals.realEigenvalues[0]
+        // var eigenVec1 = {x:eigenVals.eigenvectorMatrix.get(0,0), y:eigenVals.eigenvectorMatrix.get(1,0)}
+        // var eigenTheta1 = Math.atan(eigenVec1.y/eigenVec1.x)
+        // e1.setAttribute("x2", eigenVal1*Math.cos(eigenTheta1)*100);
+        // e1.setAttribute("y2",eigenVal1*Math.sin(eigenTheta1)*100);
+        // var eigenVal2 = eigenVals.realEigenvalues[1]
+        // var eigenVec2 = {x:eigenVals.eigenvectorMatrix.get(0,1), y:eigenVals.eigenvectorMatrix.get(1,1)}
+        // var eigenTheta2 = Math.atan(eigenVec2.y/eigenVec2.x)
+        // e2.setAttribute("x2", eigenVal2*Math.cos(eigenTheta2)*100);
+        // e2.setAttribute("y2",eigenVal2*Math.sin(eigenTheta2)*100);
         // context.beginPath();
         // context.moveTo(x,y);
         // context.lineTo(x+eigenVec2.x*eigenVal2, y+eigenVec2.y*eigenVal2);
         // context.strokeStyle = "white"
-        
         // context.stroke();
         //console.log(`theta=${theta}  |  1st gradient mag=${mag}  |  2nd gradient mag (laplacian)=${laplacian}`)
         // console.log('eigenVals',eigenVals.realEigenvalues,'eigenVector', eigenVals.eigenvectorMatrix.get(0,0), eigenVals.eigenvectorMatrix.get(0,1),
@@ -306,43 +302,41 @@ class FileManipPage extends React.Component {
         var cornerLocations = resultData["cornerLocations"];
         var clusterMatrix=[];
 
+        var graphObject = []    // will be list of objects representing each corner. each corner's object has list of edges/curves
         for(let corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
-            // var currentTheta = resultData["thetaGradient"][currentCorner.pixelIdx];
-            // var currentMag = resultData["magGradient"][currentCorner.pixelIdx];
+            var cornerObj = {}
             // searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
             var currentEigenVectors = currentCorner.eigenVectors;
            
-            var eigenTheta1 = Math.atan(currentEigenVectors[1][0]/currentEigenVectors[0][0])
             var foundEdges = [];
 
             for(let wY=-movWinRadius; wY < movWinRadius; ++wY) {        //try -15 to 15
                 for(let wX=-movWinRadius; wX < movWinRadius; ++wX) {
                     if(wY==0 && wX==0) continue;
                     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
+               
                     //if(resultData["harrisResponse"][relativeIdx] < 0 && resultData["laplacian"][relativeIdx] > 0) {
                     if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0 && resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response
-                        // var relativeMag = resultData["magGradient"][relativeIdx];
                         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
                         var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
-                        
                         var edgeIsUnique = true;
                         for(let edge=0; edge < foundEdges.length; ++edge) {
                             var nextThetaIsSimilar = numberInRange(relativeTheta, foundEdges[edge].theta, 0.0654);
                             var nextThetaIsParallel = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.0654);
-                           
                             if((nextThetaIsSimilar || nextThetaIsParallel)) {
                                 edgeIsUnique=false;
                                 break;
                             }
                         }
                         if(edgeIsUnique) {       //edge is completely different from other edges
-                            //+/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
+                            // +/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
                             foundEdges.push({eigenVectors:relativeEigenVectors, theta:relativeTheta, pt1:{x:currentCorner.x, y:currentCorner.y}, pt2:{x:currentCorner.x+wX, y:currentCorner.y+wY}}) 
 
                             var relativePt = {eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+wX, y:currentCorner.y+wY}
                             var edgePts = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
                             clusterMatrix.push(edgePts);
+                            cornerObj['']
                         }
                     }
                 }
@@ -401,14 +395,12 @@ class FileManipPage extends React.Component {
         // }
         
         var clusterOperations = [
-            
-            {name:'density', epsilonMultiplier:1, minPts:3, epsilon:movWinRadius},
+            {name:'density', epsilonMultiplier:1, minPts:2, epsilon:movWinRadius*2},  //movWinRadius
             // {name:'theta',epsilon:null, minPts:3, epsilonMultiplier:1},
             // {name:'thetaGradient',epsilon:null, minPts:3, epsilonMultiplier:1},
             // {name:'slope',epsilon:null, minPts:4, epsilonMultiplier:1},
         ]
         for(let clm=0; clm < clusterMatrix.length; ++clm) {
-
             var clusterObj = new Cluster(clusterMatrix[clm], clusterOperations);
 
             var curveObjs = [];
@@ -428,16 +420,14 @@ class FileManipPage extends React.Component {
     
                 //testing curve.. testing if every pt on curve has similar pixel data
                 var curveEigenThetas = [];
-                // var curveMags = [];
                 for(let x=xMin; x < xMax; ++x) {
                     let y = Math.round(thisCurveFunc(x));
                     var pixelIdx = x + y*this.currentScanObj.imageWidth;
+                    if(pixelIdx <0 || pixelIdx>this.currentScanObj.imageLength) continue;
                     var ptEigenVectors = resultData["eigenVectors"][pixelIdx]
                     
                     var ptEigenTheta = Math.atan(ptEigenVectors[1][0]/ptEigenVectors[0][0]);
-                    
                     curveEigenThetas.push(ptEigenTheta);
-                    // curveMags.push(resultData["magGradient"][pixelIdx]);
                 }
                 if(curveEigenThetas.length==1) {
                     curveObjs.splice(curve,1); 
@@ -463,20 +453,18 @@ class FileManipPage extends React.Component {
                 path.setAttribute("fill","none");
                 // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
                 document.getElementById("curveGroup").append(path);
-
-               
-                
             }
             
             // this.progressBar1.current.moveProgress(clm/clusterMatrix.length);
             console.log("Percent done: ",(clm/clusterMatrix.length))
+            this.setState({...this.state, loadPercent:(clm/clusterMatrix.length)})
         }
         console.log('***Done tracing edges***')
     }
 
     tracingWindow(resultData, currentPt, movWinRadius=7) {      
         //gathers data points by following/tracing a line with common gradient value and  with 15 degrees of flexibility between each data point (so it results in a curve if applicable). Clustering happens after this function, not during
-
+        var eigenValEstimate = 5000;
         //currentPt is object {x:..., y:...}
         let imageWidth = this.currentScanObj.imageWidth;
         let imageHeight  =this.currentScanObj.imageHeight;
@@ -490,7 +478,6 @@ class FileManipPage extends React.Component {
 
         // //for testing different lengths of edges
         var nextShots = [];
-        
         for(let i=1; i < 25; ++i) {
             if(i==0) continue;
             var nextX = Math.round(i*Math.cos(currentTheta))    //-1.57079 ( -90 deg)
@@ -501,21 +488,19 @@ class FileManipPage extends React.Component {
         
         for(let shot=0; shot < nextShots.length; ++shot) {
             var nextIdx = (currentPt.x+nextShots[shot].x) + (currentPt.y+nextShots[shot].y)*imageWidth
-            if(nextIdx >= 0 && nextIdx <= imageLength) {
+            if(nextIdx >= 0 && nextIdx < imageLength) {
                 var nextEigenVectors = resultData["eigenVectors"][nextIdx];
                 var nextLaplacian = resultData["laplacian"][nextIdx];
-                var nextTheta =Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0]) //resultData["thetaGradient"][nextIdx];
-                var nextMag = resultData["magGradient"][nextIdx]
-
-                var nextMagIsSimilar = numberInRange(nextMag, currentPt.magGradient, 100) && nextMag > 50;
-          
-                var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.26179);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
-                var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.26179);
-                if((nextThetaIsSimilar || nextThetaIsParallel)&& nextMagIsSimilar  && nextLaplacian >0) {          //&& nextMagIsSimilar
+                var nextTheta =Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0])
+                var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.1308);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
+                var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.13083);
+                
+                
+               
+                if((nextThetaIsSimilar || nextThetaIsParallel)  && nextLaplacian >0) {          //&& nextMagIsSimilar
                     var slope = resultData["slopeRateY1"][nextIdx]/resultData["slopeRateX1"][nextIdx];
                     var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx],slope:slope, x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], thetaGradient:nextTheta};
                     lastValidObj = nextObj;
-                    
                 }
                 else if(lastValidObj!=null) {
                     var nextResult = this.tracingWindow(resultData, lastValidObj, movWinRadius)
@@ -524,8 +509,6 @@ class FileManipPage extends React.Component {
                 }
             }
         }
-        
-
         return dataPts;
     }
 
@@ -551,25 +534,31 @@ class FileManipPage extends React.Component {
         var canvas = document.getElementById("testCanvas");
         var context = canvas.getContext('2d');
         this.currentScanObj = new ImageScan('testCanvas',filterInfo);
-        this.handlePanelShow();
+        await this.handlePanelShow();
+      
         var imageReadPromise = this.currentScanObj.imageReader();
-        
+       
+       
+        this.insertStatusText(0);
+       
         imageReadPromise.then(result1 => {
-            this.insertStatusText();
-            
-
-            var detectBlobPromise =  this.currentScanObj.detectBlobs();      //detects blobs on each layer
-            detectBlobPromise.then(result2 => {
-                this.insertStatusText();
-                var processBlobPromise = this.currentScanObj.processBlobs()
-                processBlobPromise.then(result3=> {
-                    this.insertStatusText();
-                    var saveLayerImagePromise = this.currentScanObj.saveLayerImageData(context); 
-                    saveLayerImagePromise.then(result4=>{
-                        this.insertStatusText();
-                        this.setImageLayers();
-                        this.handlePanelClose();
+            var message1 = this.insertStatusText(1);
+           
+            message1.then(result4=>{
+                 var detectBlobPromise =  this.currentScanObj.detectBlobs();      //detects blobs on each layer
+                detectBlobPromise.then(result2 => {
+                    // var message2 =  this.insertStatusText(2);
+                    var processBlobPromise = this.currentScanObj.processBlobs()
+                    processBlobPromise.then(result3=> {
+                        
+                        var saveLayerImagePromise = this.currentScanObj.saveLayerImageData(context); 
+                        saveLayerImagePromise.then(result4=>{
+    
+                            this.setImageLayers();
+                            this.handlePanelClose();
+                        })
                     })
+                
                 })
             })
         });
@@ -579,11 +568,41 @@ class FileManipPage extends React.Component {
         this.selectedImage = this.currentScanObj.selectedFile;
         return;
 	}
-  
 
-    insertStatusText() {
-        // document.getElementById('sidePanelBody')
+    handlePanelShow = () =>{ 
+        return new Promise((resolve, reject)=>{
+            this.setState({...this.state, show:true});
+            
+            resolve();
+        })
         
+  
+    };
+    handlePanelClose = () => {
+        this.setState({...this.state, show:false})
+        
+    };
+
+
+    insertStatusText(idx) {
+        return new Promise((resolve,reject)=>{
+            var thisId = `loadStep${idx}`;
+        
+            document.getElementById("sidePanelBody").insertAdjacentHTML('beforeend',
+            `<Container id={${thisId}}>
+                <Spinner animation="border" /> {${this.loadingMessages[idx]}}
+                <br/>
+            </Container>` )
+            resolve();
+        })
+        
+            
+        
+        
+        
+    }
+    checkProgressBar(percent) {
+        this.setState({...this.state, loadPercent:percent*100})
     }
     render() {
         
@@ -596,7 +615,11 @@ class FileManipPage extends React.Component {
                             <label htmlFor="imgFile">Choose image file: </label>
                             <input type="file" id="imgFile" onChange={this.loadImage}></input>
                         </Container>
-                        <select id="selectFilter" name="filterEffect" onChange={this.selectImageLayerToDisplay}></select>
+                        <Container id="gaussPyramid">
+                            <label htmlFor="selectFilter">Sigma-level (Gaussian Pyramid):</label>
+                            <select id="selectFilter" name="filterEffect" style={{width:"100px"}} onChange={this.selectImageLayerToDisplay}></select>
+                        </Container>
+                        
                         <canvas className="imageContainer inputImage" id="testCanvas"   />
                         {/* <svg id="eigenVectors" xmlns="http://www.w3.org/2000/svg" >
                             <line id='e1' x1="100" y1="100" x2="100" y2="0" stroke="red" />
@@ -604,24 +627,27 @@ class FileManipPage extends React.Component {
                         </svg> */}
                     </Tab>
                     <Tab eventKey="outputImageTab" title="Result">
-                        <button id="dragButton" onClick={(e)=> this.resultSVGModeSelect(e)} width="25px" height="25px" top="0px" right="200px" style={{position:'relative',display:'block'}}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25"  class="bi bi-arrows-move" viewBox="0 0 16 16" pointerEvents="none">
-                                <path fill="black" fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 1.707V5.5a.5.5 0 0 1-1 0V1.707L6.354 2.854a.5.5 0 1 1-.708-.708l2-2zM8 10a.5.5 0 0 1 .5.5v3.793l1.146-1.147a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 .708-.708L7.5 14.293V10.5A.5.5 0 0 1 8 10zM.146 8.354a.5.5 0 0 1 0-.708l2-2a.5.5 0 1 1 .708.708L1.707 7.5H5.5a.5.5 0 0 1 0 1H1.707l1.147 1.146a.5.5 0 0 1-.708.708l-2-2zM10 8a.5.5 0 0 1 .5-.5h3.793l-1.147-1.146a.5.5 0 0 1 .708-.708l2 2a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708-.708L14.293 8.5H10.5A.5.5 0 0 1 10 8z"/>
-                            </svg>
-                        </button>
-                        <button id="selectButton" onClick={(e)=> this.resultSVGModeSelect(e)} width="25px" height="25px" top="0px" right="100px" style={{position:'relative', display:'block'}}>
-                            <svg id="selectButton" xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" height="25px" viewBox="0 0 24 24" width="25px" fill="black" pointerEvents="none">
-                                <g>
-                                    <rect fill="none" height="24" width="24"/>
-                                    <path d="M17,5h-2V3h2V5z M15,15v6l2.29-2.29L19.59,21L21,19.59l-2.29-2.29L21,15H15z M19,9h2V7h-2V9z M19,13h2v-2h-2V13z M11,21h2 v-2h-2V21z M7,5h2V3H7V5z M3,17h2v-2H3V17z M5,21v-2H3C3,20.1,3.9,21,5,21z M19,3v2h2C21,3.9,20.1,3,19,3z M11,5h2V3h-2V5z M3,9h2 V7H3V9z M7,21h2v-2H7V21z M3,13h2v-2H3V13z M3,5h2V3C3.9,3,3,3.9,3,5z"/>
-                                </g>
-                            </svg>
-                        </button>
+                        <Container className="toolArray">
+                            <button className="svgTool selected" id="dragButton" onClick={(e)=> this.resultSVGModeSelect(e)} width="25px" height="25px" top="0px" right="200px">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25"  class="bi bi-arrows-move" viewBox="0 0 16 16" pointerEvents="none">
+                                    <path fill="black" fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 1.707V5.5a.5.5 0 0 1-1 0V1.707L6.354 2.854a.5.5 0 1 1-.708-.708l2-2zM8 10a.5.5 0 0 1 .5.5v3.793l1.146-1.147a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 .708-.708L7.5 14.293V10.5A.5.5 0 0 1 8 10zM.146 8.354a.5.5 0 0 1 0-.708l2-2a.5.5 0 1 1 .708.708L1.707 7.5H5.5a.5.5 0 0 1 0 1H1.707l1.147 1.146a.5.5 0 0 1-.708.708l-2-2zM10 8a.5.5 0 0 1 .5-.5h3.793l-1.147-1.146a.5.5 0 0 1 .708-.708l2 2a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708-.708L14.293 8.5H10.5A.5.5 0 0 1 10 8z"/>
+                                </svg>
+                            </button>
+                            <button className="svgTool"id="selectButton" onClick={(e)=> this.resultSVGModeSelect(e)} width="25px" height="25px" top="0px" right="100px" >
+                                <svg id="selectButton" xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" height="25px" viewBox="0 0 24 24" width="25px" fill="black" pointerEvents="none">
+                                    <g>
+                                        <rect fill="none" height="24" width="24"/>
+                                        <path d="M17,5h-2V3h2V5z M15,15v6l2.29-2.29L19.59,21L21,19.59l-2.29-2.29L21,15H15z M19,9h2V7h-2V9z M19,13h2v-2h-2V13z M11,21h2 v-2h-2V21z M7,5h2V3H7V5z M3,17h2v-2H3V17z M5,21v-2H3C3,20.1,3.9,21,5,21z M19,3v2h2C21,3.9,20.1,3,19,3z M11,5h2V3h-2V5z M3,9h2 V7H3V9z M7,21h2v-2H7V21z M3,13h2v-2H3V13z M3,5h2V3C3.9,3,3,3.9,3,5z"/>
+                                    </g>
+                                </svg>
+                            </button>
+                        </Container>
+                        
                         <svg id="resultSVG" className="imageContainer resultImage" >
                             <rect id="resultSVGBackground" width="100%" height="100%" fill='white' />
                             <g id="curveGroup"></g>
                             <g id="ptGroup"></g>
-                            <rect id="selectBox" width={0} height={0} x={0} y={0}  fill="hsla(240, 88%, 50%, 0.8)"></rect>
+                            <rect id="selectBox" width={0} height={0} x={0} y={0}  fill="hsla(240, 88%, 50%, 0.8)" pointerEvents='none'></rect>
                         </svg>
                     </Tab>
                 </Tabs>
@@ -631,7 +657,8 @@ class FileManipPage extends React.Component {
                         <Offcanvas.Title>Processing input image...</Offcanvas.Title>
                     </Offcanvas.Header>
                     <Offcanvas.Body id='sidePanelBody'>
-                        <Spinner animation="border" />
+                      
+                       
                     </Offcanvas.Body>
                 </Offcanvas>
 

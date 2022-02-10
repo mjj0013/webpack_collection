@@ -11,6 +11,7 @@ body {
 	
 	--gradientColor:rgb(107, 76, 219);
 }
+
 #eigenVectors {
 	border:1px solid black;
 	width:200;
@@ -58,27 +59,55 @@ body {
 	border:1px solid black;
 }
 #coverCanvasContainer {
-	
 	top:0px;
 	left:0px;
 	width:100vw;
 	height:100px;
-	
 }
 
 
 #coverSVG {
 	animation: firstAnimation 2s linear forwards infinite;
-	
 }
 #coverSVGContainer {
-	
 	top:0px;
 	left:0px;
 	width:100vw;
 	height:150px;
-	
 }
+
+/* #imageFileLoader{
+	display:inline;
+} */
+#imageFileLoader > *{
+	display:inline;
+}
+
+.activeLoadStep {
+	display:block;
+}
+
+
+/* #gaussPyramid{
+	display:inline;
+} */
+#gaussPyramid > *{
+	display:inline;
+}
+.toolArray {
+	display:inline;
+}
+
+.svgTool {
+	display:inline;
+	background-color: #fff;
+	transition: all 0.3s ease;
+}
+.svgTool:focus {
+	color:blue;
+	border-color:blue;
+}
+
 
 .nav-menu {
 	position:fixed;
@@ -116,16 +145,7 @@ body {
 .nav-link:hover,
 .nav-link:focus {
 	background-position:left;
-	
-	/*background: rgba(255,255,255,0.05);*/
 }
-
-/* .navBarButton {
-	margin-right:5px;
-	display: inline-block;
-	width: fit-content;
-} */
-
 .edgeImage {
 	filter:url(#edgeFilter);
 }
@@ -150,28 +170,19 @@ a {
 	z-index:3;
 	top:0;
 	left:0;
-
 	width:100vw;
 	height:100vh;
-
 	filter:brightness(.5);
 	
 }
-
 .subCanvas {
 	position:absolute;
 	top:30%;
-
 	z-index:5;
-	
+
 }
-
-
-
 .mainHeader {
 	display:block;
-	
-	
 }
 
 
@@ -208,150 +219,6 @@ a {
 #fileText {
 	background-color: rgba(255,255,255,0.05);
 }
-
-#objectAttrTable {
-	font-family: Arial, Helvetica, sans-serif;
-	border-collapse: collapse;
-	width:100%;
-
-}
-#objectAttrTable td,  #objectAttrTable th{
-	border: 1px solid #ddd;
-	padding: 8px;
-
-}
-#objectAttrTable tr:nth-child(even){background-color:#f2f2f2;}
-#objectAttrTable th {
-	padding-top: 12px;
-	padding-bottom: 12px;
-	text-align: left;
-	background-color: #04AA6D;
-	color: white;
-}
-
-
-
-
-/* #gameCanvas {
-	display:block;
-	visibility:hidden;
-
-} */
-
-
-
-
-
-select {
-	width: 100px;
-}
-#addOrbButton {
-	width: 55px;
-	height: 55px;
-	border-radius:25%;	
-	box-shadow: 0 0 0 1pt grey;
-
-	margin-bottom: 10px;
-	padding: 15px;
-	text-align: center;
-
-	z-index: 0;
-	background: radial-gradient(circle at 50%, rgba(20, 8, 230,1) 25%, rgba(74, 47, 197,1) 50% rgba(110, 110, 196,1) 80%, rgba(144, 184, 192,1) 100%);
-}
-
-
-#addOrbButton:hover {
-	
-	outline-width: 10px;
-	animation: 	colorChange infinite 300ms ;
-	animation-timing-function: linear;
-	
-	
-}
-@keyframes colorChange {
-	0% {
-		background: radial-gradient(circle at 50%, rgba(20, 8, 230,1) 25%, 		rgba(74, 47, 197,1) 50%  	rgba(110, 110, 196,1) 80%,rgba(144, 184, 192,1) 100%);
-	}
-	25% {
-		background: radial-gradient(circle at 50%, rgba(144, 184, 192,1) 25%, 	rgba(20, 8, 230,1) 50%  	rgba(74, 47, 197,1) 80,	rgba(110, 110, 196,1) 100%);
-	}	
-	50% {
-		background: radial-gradient(circle at 50%, rgba(110, 110, 196,1) 25%, 	rgba(144, 184, 192,1) 50% , rgba(20, 8, 230,1) 80%,	rgba(74, 47, 197,1) 100%);
-	}
-	75% {
-		background: radial-gradient(circle at 50%, rgba(74, 47, 197,1) 25%, 	rgba(110, 110, 196,1) 50% , rgba(144, 184, 192,1), 80%rgba(20, 8, 230,1) 100%);
-	}
-	100% {
-		
-		background: radial-gradient(circle at 50%, rgba(20, 8, 230,1) 25%, 		rgba(74, 47, 197,1) 50% , 	rgba(110, 110, 196,1) 80%, rgba(144, 184, 192,1) 100%);
-	}	
-}
-
-
-
-#gameSVG {
-	/* width:3000px;
-	height:2000px; */
-	position:absolute;
-	
-	top:200px;
-	left:100px;
-	overflow:hidden;
-}
-#gameSVG:hover {
-	cursor:grab;
-}
-
-
-
-
-#gameControlPanel {
-	/* box-shadow:10px 5px 5px black;  */
-	display: grid;
-	/* position: absolute; */
-
-
-	width:250px;
-	position:absolute;
-	grid-auto-flow: column;
-	/* grid-template-rows: repeat(7, 70px);  */
-	
-	/* grid-template-columns: 100px 100px; */
-	
-	top:200px;
-	left:100px;
-	/* width: 100px; */
-	
-	/* margin-right:25px; */
-	/* outline-style: inset;  */
-	fill: rgba(18, 25, 32, 0.75);
-	
-}
-
-
-#viewAndPanel {
-	position:absolute;
-	top:200px;
-	left:100px;
-	margin-left: 25px;
-	margin-top:25px;
-	margin-right:25px;
-	margin-bottom:100px;
-	/* left:15vw; */
-	/* overflow:hidden; */
-	
-}
-
-
-
-@keyframes firstAnimation {
-	to {
-		stroke:green;
-		d: path("M8,2 L2,8");
-	}
-}
-
-
 
 
 

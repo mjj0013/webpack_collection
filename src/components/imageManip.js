@@ -172,9 +172,9 @@ export class ImageScan {
                         var isLocalPeak = true;
                         var centerMag = parallelComponent["resultData"]["laplacian"][((imgX) + (imgY)*this.imageWidth)]
                         if(imgY <= windowR || imgY>=this.imageHeight-windowR || imgX <= windowR || imgX>=this.imageWidth-windowR) {
-                            Ixx = Matrix.zeros(windowR*2, windowR*2)
-                            Iyy = Matrix.zeros(windowR*2, windowR*2)
-                            Ixy = Matrix.zeros(windowR*2, windowR*2)
+                            Ixx = Matrix.ones(windowR*2, windowR*2)
+                            Iyy = Matrix.ones(windowR*2, windowR*2)
+                            Ixy = Matrix.ones(windowR*2, windowR*2)
                         }
                         else {
                             for(var kY=-windowR; kY <= windowR; ++kY) {  
@@ -363,16 +363,7 @@ export class ImageScan {
                         }
                     })
                     dummyContext.putImageData(OBJ.imageData, 0,0)
-                    // context.putImageData(OBJ.imageData, 0,0);
                     resolve();
-
-                    // var detectBlobPromise =  OBJ.detectBlobs();      //detects blobs on each layer
-                    // detectBlobPromise.then(result => {
-                    //     OBJ.processBlobs().then(result2=> {
-                    //         OBJ.saveLayerImageData(context); 
-                    //         resolve();           //this resolve() is for the promise of ImageReader
-                    //     })
-                    // })        
                 }
              
                 img.src = reader.result;

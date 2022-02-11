@@ -208,7 +208,7 @@ class FileManipPage extends React.Component {
 
         removeAllChildNodes("curveGroup");
         removeAllChildNodes("ptGroup");
-        for(let curve=0; curve < selectedCurvePaths.length; ++curve) {
+        for(var curve=0; curve < selectedCurvePaths.length; ++curve) {
             var pathId = selectedCurvePaths[curve][0];
             var d = selectedCurvePaths[curve][1];
             var path = document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -220,9 +220,9 @@ class FileManipPage extends React.Component {
             curveGroup.append(path);
         }
         // var cornerClusters = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"].subClusters;
-        // for(let cluster=0; cluster < cornerClusters.length; ++cluster) {
+        // for(var cluster=0; cluster < cornerClusters.length; ++cluster) {
         //     var color='black';
-        //     for(let pt=0; pt < cornerClusters[cluster].length; ++pt) {
+        //     for(var pt=0; pt < cornerClusters[cluster].length; ++pt) {
         //         var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
         //         ptObj.setAttribute("id",`corner${selectedIdx}_${cluster}_${pt}`)
         //         ptObj.setAttribute("cx",cornerClusters[cluster][pt].x);
@@ -293,7 +293,7 @@ class FileManipPage extends React.Component {
         var clusterMatrix=[];
 
         var graphObject = []    // will be list of objects representing each corner. each corner's object has list of edges/curves
-        for(let corn=0; corn < cornerLocations.length; ++corn) {
+        for(var corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
             var cornerObj = {}
             // searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
@@ -301,8 +301,8 @@ class FileManipPage extends React.Component {
            
             var foundEdges = [];
 
-            for(let wY=-movWinRadius; wY < movWinRadius; ++wY) {        //try -15 to 15
-                for(let wX=-movWinRadius; wX < movWinRadius; ++wX) {
+            for(var wY=-movWinRadius; wY < movWinRadius; ++wY) {        //try -15 to 15
+                for(var wX=-movWinRadius; wX < movWinRadius; ++wX) {
                     if(wY==0 && wX==0) continue;
                     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
                
@@ -311,7 +311,7 @@ class FileManipPage extends React.Component {
                         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
                         var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
                         var edgeIsUnique = true;
-                        for(let edge=0; edge < foundEdges.length; ++edge) {
+                        for(var edge=0; edge < foundEdges.length; ++edge) {
                             var nextThetaIsSimilar = numberInRange(relativeTheta, foundEdges[edge].theta, 0.0654);
                             var nextThetaIsParallel = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.0654);
                             if((nextThetaIsSimilar || nextThetaIsParallel)) {
@@ -347,11 +347,11 @@ class FileManipPage extends React.Component {
         //         var preCluster2 = clusterMatrix[clm2];
         //         if(preCluster2==undefined) {++clm2;continue;}
                 
-        //         for(let pt=0; pt < preCluster1.length; ++pt) {
+        //         for(var pt=0; pt < preCluster1.length; ++pt) {
         //             var edge1 = [preCluster1[pt], pt+1<preCluster1.length? preCluster1[pt+1] : -1]
         //             if(edge1[1]==-1 || edge1[1]==undefined) break;
                    
-        //             for(let pt2=0; pt2 < preCluster2.length; ++pt2) {
+        //             for(var pt2=0; pt2 < preCluster2.length; ++pt2) {
         //                 var edge2 = [preCluster2[pt2], pt2+1<preCluster2.length? preCluster2[pt2+1] : -1]
         //                 if(edge2[1]==-1 || edge2[1]==undefined) break;
                        
@@ -390,15 +390,15 @@ class FileManipPage extends React.Component {
             // {name:'thetaGradient',epsilon:null, minPts:3, epsilonMultiplier:1},
             // {name:'slope',epsilon:null, minPts:4, epsilonMultiplier:1},
         ]
-        for(let clm=0; clm < clusterMatrix.length; ++clm) {
+        for(var clm=0; clm < clusterMatrix.length; ++clm) {
             var clusterObj = new Cluster(clusterMatrix[clm], clusterOperations);
             var curveObjs = [];
-            for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
+            for(var cl=0; cl < clusterObj.subClusters.length; ++cl) {
                 var curve = new Curve(clusterObj.subClusters[cl],`curve${layerIdx}_${clm}_${cl}`,2);
                 if(curve.pts.length==0) continue;
                 curveObjs.push(curve)
             }
-            for(let curve=0; curve < curveObjs.length; ++curve) {
+            for(var curve=0; curve < curveObjs.length; ++curve) {
                 var curveObj = curveObjs[curve];
                 
                 geval(curveObj["currentEquationStr"])
@@ -409,7 +409,7 @@ class FileManipPage extends React.Component {
     
                 //testing curve.. testing if every pt on curve has similar pixel data
                 var curveEigenThetas = [];
-                for(let x=xMin; x < xMax; ++x) {
+                for(var x=xMin; x < xMax; ++x) {
                     let y = Math.round(thisCurveFunc(x));
                     var pixelIdx = x + y*this.currentScanObj.imageWidth;
                     if(pixelIdx <0 || pixelIdx>this.currentScanObj.imageLength) continue;
@@ -469,7 +469,7 @@ class FileManipPage extends React.Component {
 
         // //for testing different lengths of edges
         var nextShots = [];
-        for(let i=1; i < 25; ++i) {
+        for(var i=1; i < 25; ++i) {
             if(i==0) continue;
             var nextX = Math.round(i*Math.cos(currentTheta))    //-1.57079 ( -90 deg)
             var nextY = Math.round(i*Math.sin(currentTheta))
@@ -477,7 +477,7 @@ class FileManipPage extends React.Component {
         }
         var lastValidObj = null;
         
-        for(let shot=0; shot < nextShots.length; ++shot) {
+        for(var shot=0; shot < nextShots.length; ++shot) {
             var nextIdx = (currentPt.x+nextShots[shot].x) + (currentPt.y+nextShots[shot].y)*imageWidth
             if(nextIdx >= 0 && nextIdx < imageLength) {
                 var nextEigenVectors = resultData["eigenVectors"][nextIdx];
@@ -507,7 +507,7 @@ class FileManipPage extends React.Component {
         console.log("Inserting image layers into selector")
         var selectFilter = document.getElementById("selectFilter");
         var imageLayers = this.currentScanObj.imageLayers
-        for(let l =0; l < imageLayers.length; ++l) {
+        for(var l =0; l < imageLayers.length; ++l) {
             var layerName = `Layer ${l} | Sigma=${imageLayers[l]["component"].sig}`
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
             var resultData = imageLayers[l]["resultData"];

@@ -77,11 +77,11 @@ export class ImageScan {
                 sigDelta = sigExpMax/numLayers;
             }
             // var sigStack = [sig0*Math.pow(baseSig,1)]
-            for(let s=sigExpMax;s>0;s-=sigDelta)    sigStack.push(sig0*Math.pow(baseSig,s));
+            for(var s=sigExpMax;s>0;s-=sigDelta)    sigStack.push(sig0*Math.pow(baseSig,s));
             var layerStack = [];
             console.log('sigStack',sigStack)
             //make stack of layers, which each have different sigma values
-            for(let s=0; s < sigStack.length; ++s) {
+            for(var s=0; s < sigStack.length; ++s) {
                 var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
                 var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
                 layerStack.push({ "component":component, "resultData": { "RGB":data.map((x)=>x), "imageData":null, "mags":[], "yGradient1":[], "xGradient1":[],
@@ -89,7 +89,7 @@ export class ImageScan {
                 }});
             }
             var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
-            for(let c=0; c < layerStack.length; ++c) {
+            for(var c=0; c < layerStack.length; ++c) {
                 var parallelComponent = layerStack[c];
                 for(var imgY=0; imgY < this.imageHeight; imgY+=1) { 
                     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {
@@ -129,15 +129,15 @@ export class ImageScan {
             var SobelKernelY = [[1,2,1], [0,0,0], [-1,-2,-1]]
             //gaussKernel is multipled to every product of sum (Ixx, Ixy, Iyy)
 
-            for(let c=0; c < layerStack.length; ++c) {
+            for(var c=0; c < layerStack.length; ++c) {
                 var parallelComponent = layerStack[c];
                 console.log(`Starting Layer #${c} of ${layerStack.length}`)
                 for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
                     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {   
                         var sobelX1 = 0, sobelY1=0, laplacian=0;
                         if(!(imgX==0 || imgX==this.imageWidth-1 || imgY==0 || imgY==this.imageHeight-1)) {
-                            for(let ky=-1; ky<= 1; ++ky) {
-                                for(let kx=-1; kx<= 1; ++kx) {
+                            for(var ky=-1; ky<= 1; ++ky) {
+                                for(var kx=-1; kx<= 1; ++kx) {
                                     let mag = parallelComponent["resultData"]["mags"][((imgX-kx) + (imgY-ky)*this.imageWidth)]
                                     //1st order gradient (Sobel)
                                     sobelX1 += mag*SobelKernelX[ky+1][kx+1];   
@@ -374,7 +374,7 @@ export class ImageScan {
     }
     async saveLayerImageData(context) {
         return new Promise((resolve,reject)=> {
-            for(let layer=0; layer < this.imageLayers.length; ++layer) {
+            for(var layer=0; layer < this.imageLayers.length; ++layer) {
                 let dataCopy = JSON.parse(JSON.stringify(this.imageData.data));
                 let layerIndex = layer;
                 for(var imgY=0; imgY < this.imageHeight; imgY+=1) {
@@ -397,9 +397,9 @@ export class ImageScan {
                 if(layer==0) {
                     context.putImageData(this.imageData, 0,0);
                     var cornerClusters = this.imageLayers[this.imageLayers.length-1]["resultData"]["cornerClusters"].subClusters;
-                    for(let cluster=0; cluster < cornerClusters.length; ++cluster) {
+                    for(var cluster=0; cluster < cornerClusters.length; ++cluster) {
                         var color = `rgb(${getRandomInt(0,255)},${getRandomInt(0,255)},${getRandomInt(0,255)} )`
-                        for(let pt=0; pt < cornerClusters[cluster].length; ++pt) {
+                        for(var pt=0; pt < cornerClusters[cluster].length; ++pt) {
                             context.beginPath();
                             context.arc(cornerClusters[cluster][pt].x, cornerClusters[cluster][pt].y, 1, 0, 2 * Math.PI)
                             context.fillStyle = color
@@ -425,16 +425,16 @@ export class ImageScan {
         let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));
         let lowerExp = sig*sig*2;
         var sum = 0;
-        for(let x=-kernelRadius; x <= kernelRadius; ++x) {
-            for(let y=-kernelRadius; y <= kernelRadius; ++y) {
+        for(var x=-kernelRadius; x <= kernelRadius; ++x) {
+            for(var y=-kernelRadius; y <= kernelRadius; ++y) {
                 let upperExp = (x*x) + (y*y);  
                 let result = upperExp==0? 1/(Math.PI*lowerExp) : Math.exp(-upperExp/lowerExp)/(Math.PI*lowerExp);
                 kernel[x+kernelRadius][y+kernelRadius] =result;
                 sum += result;
             }
         }
-        for(let x=0; x < kernelLength; ++x) {
-            for(let y=0; y < kernelLength; ++y) { kernel[x][y] /=sum; }
+        for(var x=0; x < kernelLength; ++x) {
+            for(var y=0; y < kernelLength; ++y) { kernel[x][y] /=sum; }
         }
         return {kernel:kernel, kernelRadius:kernelRadius, sig:sig};
     }

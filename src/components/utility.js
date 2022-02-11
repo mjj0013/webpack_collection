@@ -44,6 +44,10 @@ export function hasIntersection2D(line1,line2) {
     }
   };
 
+export function removeAllChildNodes(parent) {
+    while (parent.firstChild) parent.removeChild(parent.firstChild);   
+}
+
 // export function hasIntersection2D(segment1,segment2) {
 //     let x1 = segment1[0].x;
 //     let y1 = segment1[0].y;

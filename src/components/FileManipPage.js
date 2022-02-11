@@ -1,6 +1,7 @@
 import React, {useState,createRef} from 'react';
 import {Container } from 'semantic-ui-react';
 import Offcanvas from 'react-bootstrap/Offcanvas'
+import Modal from 'react-bootstrap/Modal'
 import Tabs from 'react-bootstrap/Tabs';
 import Spinner from 'react-bootstrap/Spinner'
 import Tab from 'react-bootstrap/Tab';
@@ -12,7 +13,7 @@ import { documentElement } from 'min-document';
 import {ImageScan} from './imageManip.js'
 import {Curve} from './Curve.js'
 import {Cluster} from './Cluster.js';
-import {mergeSubElements,getRandomInt,getStdDev,getTransformedPt, numberInRange,distance} from './utility.js'
+import {removeAllChildNodes,mergeSubElements,getRandomInt,getStdDev,getTransformedPt, numberInRange,distance} from './utility.js'
 
 var geval = eval;
 import { Matrix, solve } from 'ml-matrix';
@@ -66,11 +67,7 @@ class FileManipPage extends React.Component {
 
         this.handlePanelClose = this.handlePanelClose.bind(this);
         this.handlePanelShow = this.handlePanelShow.bind(this);
-        
-
         this.insertStatusText = this.insertStatusText.bind(this);
-
-
         this.resultSVGModeSelect = this.resultSVGModeSelect.bind(this)
 
         this.loadingMessages = [
@@ -84,9 +81,7 @@ class FileManipPage extends React.Component {
 
     }
     resultSVGModeSelect = (e) =>{
-       
         if(e.target.id=="dragButton") {
-            console.log('e.target.id', e.target.id)
             this.currentSVGCursorMode = "drag"
             var resultSVG = document.getElementById("resultSVG");
             resultSVG.style.cursor = 'grab'
@@ -95,14 +90,12 @@ class FileManipPage extends React.Component {
             
         }
         if(e.target.id=="selectButton") {
-            console.log('e.target.id', e.target.id)
             this.currentSVGCursorMode = "select"
             var resultSVG = document.getElementById("resultSVG");
             resultSVG.style.cursor = 'crosshair'
             e.target.classList.add("selected");
             document.getElementById("dragButton").classList.remove("selected");
         }
-
     }
     
     componentDidMount() {
@@ -142,27 +135,20 @@ class FileManipPage extends React.Component {
         if(this.dragStart) {
             var pt = getTransformedPt(this.lastZoom.x, this.lastZoom.y, this.transformMatrix);
             
-            if(this.currentSVGCursorMode=="drag") {
-
-                this.panSVG((pt.x-this.dragStart.x)/4, (pt.y-this.dragStart.y)/4)
-            }
+            if(this.currentSVGCursorMode=="drag") this.panSVG((pt.x-this.dragStart.x)/4, (pt.y-this.dragStart.y)/4)
             else if(this.currentSVGCursorMode=="select") {
                 var selectBox = document.getElementById('selectBox')
-                
                 if(this.lastZoom.x < this.selectBoxOrigin.x) {
                     selectBox.setAttribute("x",this.lastZoom.x);
                     selectBox.setAttribute("width",Math.abs(this.selectBoxOrigin.x-this.lastZoom.x));
                 }
-                else {
-                    selectBox.setAttribute("width",Math.abs(this.lastZoom.x - this.selectBoxOrigin.x));
-                }
+                else selectBox.setAttribute("width",Math.abs(this.lastZoom.x - this.selectBoxOrigin.x));
+                
                 if(this.lastZoom.y < this.selectBoxOrigin.y) {
                     selectBox.setAttribute("y",this.lastZoom.y);
                     selectBox.setAttribute("height",Math.abs(this.selectBoxOrigin.y-this.lastZoom.y));
                 }
-                else {
-                    selectBox.setAttribute("height",Math.abs(this.lastZoom.y-this.selectBoxOrigin.y));
-                }
+                else selectBox.setAttribute("height",Math.abs(this.lastZoom.y-this.selectBoxOrigin.y));
             }   
         }
         return e.preventDefault() && false;
@@ -214,34 +200,38 @@ class FileManipPage extends React.Component {
     }
 
     selectImageLayerToDisplay(e) {
-        var canvas = document.getElementById("testCanvas");
-        var context = document.getElementById("testCanvas").getContext('2d');
+        var resultSVG = document.getElementById("resultSVG");
+        var curveGroup = document.getElementById("curveGroup")
         var selectedIdx = e.target.value;
         this.currentImageLayerIdx = selectedIdx
-        var selectedImageData = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["imageData"];
-        var currentImageData = context.getImageData(0,0, canvas.width, canvas.height)
-        var imageWidth = currentImageData.width
-        var imageHeight = currentImageData.height
-        for(var imgY=0; imgY < imageHeight; imgY+=1) {       //increment by 4 because its RGBA values
-            for(var imgX=0; imgX < imageWidth; imgX+=1) {
-                currentImageData.data[4*(imgY*imageWidth + imgX)] = selectedImageData[4*(imgY*imageWidth + imgX)];
-                currentImageData.data[4*(imgY*imageWidth + imgX) + 1] = selectedImageData[4*(imgY*imageWidth + imgX) + 1]
-                currentImageData.data[4*(imgY*imageWidth + imgX) + 2] = selectedImageData[4*(imgY*imageWidth + imgX) + 2]
-                currentImageData.data[4*(imgY*imageWidth + imgX) + 3] = selectedImageData[4*(imgY*imageWidth + imgX) + 3]
-            }
+        var selectedCurvePaths = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["curvePaths"];
+
+        removeAllChildNodes("curveGroup");
+        removeAllChildNodes("ptGroup");
+        for(let curve=0; curve < selectedCurvePaths.length; ++curve) {
+            var pathId = selectedCurvePaths[curve][0];
+            var d = selectedCurvePaths[curve][1];
+            var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+            path.setAttribute("id",pathId);
+            path.setAttribute("d",d);
+            path.setAttribute("stroke",`black`);
+            path.setAttribute("fill","none");
+            // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
+            curveGroup.append(path);
         }
-        context.putImageData(currentImageData, 0 , 0)
-        var cornerClusters = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"].subClusters;
-        for(let cluster=0; cluster < cornerClusters.length; ++cluster) {
-            //var color = `rgb(${getRandomInt(0,255)},${getRandomInt(0,255)},${getRandomInt(0,255)} )`
-            var color='black';
-            for(let pt=0; pt < cornerClusters[cluster].length; ++pt) {
-                context.beginPath();
-                context.arc(cornerClusters[cluster][pt].x, cornerClusters[cluster][pt].y, 1, 0, 2 * Math.PI)
-                context.fillStyle = color
-                context.fill();
-            }   
-        }
+        // var cornerClusters = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerLocations"].subClusters;
+        // for(let cluster=0; cluster < cornerClusters.length; ++cluster) {
+        //     var color='black';
+        //     for(let pt=0; pt < cornerClusters[cluster].length; ++pt) {
+        //         var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        //         ptObj.setAttribute("id",`corner${selectedIdx}_${cluster}_${pt}`)
+        //         ptObj.setAttribute("cx",cornerClusters[cluster][pt].x);
+        //         ptObj.setAttribute("cy",cornerClusters[cluster][pt].y);
+        //         ptObj.setAttribute("r",1);
+        //         ptObj.setAttribute("fill",color);
+        //         document.getElementById("ptGroup").append(ptObj);
+        //     } 
+        // }
     }
 
     showValuesOnHover(e) {
@@ -295,7 +285,7 @@ class FileManipPage extends React.Component {
 
     numOfPagesChanged(e) { this.setState({num: e.target.value});  }
 
-    async edgeTracer(resultData,movWinRadius=10) {
+    async edgeTracer(resultData,layerIdx, movWinRadius=10) {
         // Traces edges starting from each detected corner. A 5x5 window is mapped around each corner to account for multiple edges coming from corner. Duplicates edges are detected 
         // Calls 'tracingWindow' recursively when an edge continues in a specific direction.
         // TODO: add Hough Transform for ellipse detection (iterating through different radius lengths to see which radius has most 'votes'/ fits data points)
@@ -402,10 +392,9 @@ class FileManipPage extends React.Component {
         ]
         for(let clm=0; clm < clusterMatrix.length; ++clm) {
             var clusterObj = new Cluster(clusterMatrix[clm], clusterOperations);
-
             var curveObjs = [];
             for(let cl=0; cl < clusterObj.subClusters.length; ++cl) {
-                var curve = new Curve(clusterObj.subClusters[cl],`curve${clm}_${cl}`,2);
+                var curve = new Curve(clusterObj.subClusters[cl],`curve${layerIdx}_${clm}_${cl}`,2);
                 if(curve.pts.length==0) continue;
                 curveObjs.push(curve)
             }
@@ -445,14 +434,16 @@ class FileManipPage extends React.Component {
                 var C = {x:(xMin+xMax)/2,  y:P1.y+curveObj.currentDerivative(xMin)*(xMax-xMin)/2}
                 var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
                 // var d2 = `M${P1.x + getRandomInt(-25,25)},${P1.y+ getRandomInt(-25,25)} Q${C.x+ getRandomInt(-25,25)},${C.y+ getRandomInt(-25,25)},${P2.x+ getRandomInt(-25,25)},${P2.y+ getRandomInt(-25,25)} `
-               
+                var pathId = `curve${layerIdx}_${clm}_${curve}`
                 var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-                path.setAttribute("id",`curve${curve}_${clm}`)
+                path.setAttribute("id",pathId)
                 path.setAttribute("d",d);
                 path.setAttribute("stroke",`black`);
                 path.setAttribute("fill","none");
                 // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
                 document.getElementById("curveGroup").append(path);
+                resultData['curvePaths'].push([pathId, d])
+
             }
             
             // this.progressBar1.current.moveProgress(clm/clusterMatrix.length);
@@ -519,10 +510,10 @@ class FileManipPage extends React.Component {
         for(let l =0; l < imageLayers.length; ++l) {
             var layerName = `Layer ${l} | Sigma=${imageLayers[l]["component"].sig}`
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
+            var resultData = imageLayers[l]["resultData"];
+            this.edgeTracer(resultData,l);
         }
-        var resultData = imageLayers[0]["resultData"];
-        this.edgeTracer(resultData);
-        return new Promise((resolve,reject)=> { resolve("here"); });
+        return new Promise((resolve,reject)=> { resolve(); });
     }
     
     async loadImage(e) {
@@ -537,10 +528,7 @@ class FileManipPage extends React.Component {
         await this.handlePanelShow();
       
         var imageReadPromise = this.currentScanObj.imageReader();
-       
-       
         this.insertStatusText(0);
-       
         imageReadPromise.then(result1 => {
             var message1 = this.insertStatusText(1);
            
@@ -562,8 +550,6 @@ class FileManipPage extends React.Component {
                 })
             })
         });
-        
-        
         document.getElementById("testCanvas").onmousemove = (e) => this.showValuesOnHover(e);
         this.selectedImage = this.currentScanObj.selectedFile;
         return;
@@ -572,22 +558,15 @@ class FileManipPage extends React.Component {
     handlePanelShow = () =>{ 
         return new Promise((resolve, reject)=>{
             this.setState({...this.state, show:true});
-            
             resolve();
         })
-        
-  
     };
-    handlePanelClose = () => {
-        this.setState({...this.state, show:false})
-        
-    };
+    handlePanelClose = () => {this.setState({...this.state, show:false})};
 
 
     insertStatusText(idx) {
         return new Promise((resolve,reject)=>{
             var thisId = `loadStep${idx}`;
-        
             document.getElementById("sidePanelBody").insertAdjacentHTML('beforeend',
             `<Container id={${thisId}}>
                 <Spinner animation="border" /> {${this.loadingMessages[idx]}}
@@ -595,17 +574,10 @@ class FileManipPage extends React.Component {
             </Container>` )
             resolve();
         })
-        
-            
-        
-        
-        
     }
-    checkProgressBar(percent) {
-        this.setState({...this.state, loadPercent:percent*100})
-    }
+    checkProgressBar = (percent) => this.setState({...this.state, loadPercent:percent*100})
+    
     render() {
-        
         return (
             <Layout title="Image Processing" description="Description about file">
                 <Tabs defaultActiveKey="inputImageTab" id="tabsContainer" >
@@ -615,10 +587,7 @@ class FileManipPage extends React.Component {
                             <label htmlFor="imgFile">Choose image file: </label>
                             <input type="file" id="imgFile" onChange={this.loadImage}></input>
                         </Container>
-                        <Container id="gaussPyramid">
-                            <label htmlFor="selectFilter">Sigma-level (Gaussian Pyramid):</label>
-                            <select id="selectFilter" name="filterEffect" style={{width:"100px"}} onChange={this.selectImageLayerToDisplay}></select>
-                        </Container>
+                        
                         
                         <canvas className="imageContainer inputImage" id="testCanvas"   />
                         {/* <svg id="eigenVectors" xmlns="http://www.w3.org/2000/svg" >
@@ -627,6 +596,10 @@ class FileManipPage extends React.Component {
                         </svg> */}
                     </Tab>
                     <Tab eventKey="outputImageTab" title="Result">
+                        <Container id="gaussPyramid">
+                            <label htmlFor="selectFilter">Sigma-level (Gaussian Pyramid):</label>
+                            <select id="selectFilter" name="filterEffect" style={{width:"100px"}} onChange={this.selectImageLayerToDisplay}></select>
+                        </Container>
                         <Container className="toolArray">
                             <button className="svgTool selected" id="dragButton" onClick={(e)=> this.resultSVGModeSelect(e)} width="25px" height="25px" top="0px" right="200px">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25"  class="bi bi-arrows-move" viewBox="0 0 16 16" pointerEvents="none">
@@ -651,14 +624,16 @@ class FileManipPage extends React.Component {
                         </svg>
                     </Tab>
                 </Tabs>
-
+                <Modal show={this.state.show} onHide={this.handlePanelClose} backdrop="static">
+                    <Modal.Header>
+                        <Modal.Title></Modal.Title>
+                    </Modal.Header>
+                </Modal>
                 <Offcanvas id="sidePanel" placement={'top'} show={this.state.show} onHide={this.handlePanelClose}>
                     <Offcanvas.Header closeButton>
                         <Offcanvas.Title>Processing input image...</Offcanvas.Title>
                     </Offcanvas.Header>
                     <Offcanvas.Body id='sidePanelBody'>
-                      
-                       
                     </Offcanvas.Body>
                 </Offcanvas>
 

@@ -53,7 +53,7 @@ export class ImageScan {
         })
     }
 
-    async detectBlobs(gaussLength=15, baseSig=2, numLayers=3, sigExpMax=6, k=.04, eigenValEstimate=5000) {
+    async detectBlobs(gaussLength=15, baseSig=2, numLayers=2, sigExpMax=6, k=.04, eigenValEstimate=5000) {
         //  k is sensitivity factor, default .04
         //  eigenValEstimate is the eigen-value used as a threshold for determining if eigen-values are large enough. If larger than it, they are accepted.
         //  http://vision.stanford.edu/teaching/cs231a_autumn1112/lecture/lecture11_detectors_descriptors_cs231a.pdf
@@ -76,16 +76,16 @@ export class ImageScan {
                 sigExpMax = sigExpMax+(numLayers - (sigExpMax%numLayers));
                 sigDelta = sigExpMax/numLayers;
             }
-            var sigStack = [sig0*Math.pow(baseSig,0)]
-            // for(let s=sigExpMax;s>=0;s-=sigDelta)    sigStack.push(sig0*Math.pow(baseSig,s));
+            // var sigStack = [sig0*Math.pow(baseSig,1)]
+            for(let s=sigExpMax;s>0;s-=sigDelta)    sigStack.push(sig0*Math.pow(baseSig,s));
             var layerStack = [];
-            
+            console.log('sigStack',sigStack)
             //make stack of layers, which each have different sigma values
             for(let s=0; s < sigStack.length; ++s) {
                 var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
                 var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
                 layerStack.push({ "component":component, "resultData": { "RGB":data.map((x)=>x), "imageData":null, "mags":[], "yGradient1":[], "xGradient1":[],
-                 "magGradient":[], "thetaGradient":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[], "cornerLocations":[], "laplacian":[], "eigenVals":[], "eigenVectors":[]
+                 "magGradient":[], "thetaGradient":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[], "cornerLocations":[], "laplacian":[], "eigenVals":[], "eigenVectors":[], "curvePaths":[]
                 }});
             }
             var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack

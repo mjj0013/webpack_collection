@@ -567,7 +567,7 @@ class FileManipPage extends React.Component {
     insertStatusText(idx) {
         return new Promise((resolve,reject)=>{
             var thisId = `loadStep${idx}`;
-            document.getElementById("sidePanelBody").insertAdjacentHTML('beforeend',
+            document.getElementById("modalBody").insertAdjacentHTML('beforeend',
             `<Container id={${thisId}}>
                 <Spinner animation="border" /> {${this.loadingMessages[idx]}}
                 <br/>
@@ -624,18 +624,26 @@ class FileManipPage extends React.Component {
                         </svg>
                     </Tab>
                 </Tabs>
-                <Modal show={this.state.show} onHide={this.handlePanelClose} backdrop="static">
+                <Modal show={this.state.show} onHide={this.handlePanelClose} backdrop="static" centered>
                     <Modal.Header>
-                        <Modal.Title></Modal.Title>
+                        <Modal.Title>Processing input image...</Modal.Title>
+                        <Spinner animation="border" />
                     </Modal.Header>
+                    <Modal.Body id="modalBody">
+                        
+                    </Modal.Body>
+                    <Modal.Footer>
+
+                    </Modal.Footer>
+
                 </Modal>
-                <Offcanvas id="sidePanel" placement={'top'} show={this.state.show} onHide={this.handlePanelClose}>
+                {/* <Offcanvas id="sidePanel" placement={'top'} show={this.state.show} onHide={this.handlePanelClose}>
                     <Offcanvas.Header closeButton>
                         <Offcanvas.Title>Processing input image...</Offcanvas.Title>
                     </Offcanvas.Header>
                     <Offcanvas.Body id='sidePanelBody'>
                     </Offcanvas.Body>
-                </Offcanvas>
+                </Offcanvas> */}
 
                 
             </Layout> 

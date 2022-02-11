@@ -335,177 +335,146 @@ class FileManipPage extends React.Component {
         }
         console.log('clusterMatrix',clusterMatrix)
         
-        // var clm =0;
-        // var clm2=0;
-        // var matrixLen = clusterMatrix.length
-        // while(clm < matrixLen) {
-        //     var preCluster1 = clusterMatrix[clm];
-        //     if(preCluster1==undefined) {++clm;continue};
-        //     while(clm2 < matrixLen) {
-        //         if(clm==clm2) {++clm2;continue;}
-        //         var preCluster2 = clusterMatrix[clm2];
-        //         if(preCluster2==undefined) {++clm2;continue;}
-                
-        //         for(var pt=0; pt < preCluster1.length; ++pt) {
-        //             var edge1 = [preCluster1[pt], pt+1<preCluster1.length? preCluster1[pt+1] : -1]
-        //             if(edge1[1]==-1 || edge1[1]==undefined) break;
-                   
-        //             for(var pt2=0; pt2 < preCluster2.length; ++pt2) {
-        //                 var edge2 = [preCluster2[pt2], pt2+1<preCluster2.length? preCluster2[pt2+1] : -1]
-        //                 if(edge2[1]==-1 || edge2[1]==undefined) break;
-                       
-        //                 if(numberInRange(edge1[0].theta, edge2[0].theta,.261799) || numberInRange(edge1[1].theta, edge2[1].theta, .261799) ) {
-        //                     if(distance(edge1[0],edge2[0]) <= 25) {        //merge these edges into 1
-        //                         console.log("merging lines")
-        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                         matrixLen = clusterMatrix.length;
-        //                     }
-        //                     else if(distance(edge1[0],edge2[1]) <= 25) {        //merge these edges into 1
-        //                         console.log("merging lines")
-        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                         matrixLen = clusterMatrix.length;
-        //                     }
-        //                     else if(distance(edge1[1],edge2[0]) <= 25) {        //merge these edges into 1
-        //                         console.log("merging lines")
-        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                         matrixLen = clusterMatrix.length;
-        //                     }
-        //                     else if(distance(edge1[1],edge2[1]) <= 25) {        //merge these edges into 1
-        //                         console.log("merging lines")
-        //                         clusterMatrix = mergeSubElements(clusterMatrix,clm,clm2);
-        //                         matrixLen = clusterMatrix.length;
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //         ++clm2;
-        //     }
-        //     ++clm;
-        // }
-        
         var clusterOperations = [
             {name:'density', epsilonMultiplier:1, minPts:2, epsilon:movWinRadius*2, attribute:null},  //movWinRadius
             // {name:'theta',epsilon:null, minPts:3, epsilonMultiplier:1},
             // {name:'thetaGradient',epsilon:null, minPts:3, epsilonMultiplier:1},
             // {name:'slope',epsilon:null, minPts:4, epsilonMultiplier:1},
         ]
+        var curveObjs = [];
+
+        //NOTE: before, this loop encompassed the rest of the loops below.
         for(var clm=0; clm < clusterMatrix.length; ++clm) {
             var clusterObj = new Cluster(clusterMatrix[clm], clusterOperations);
-            var curveObjs = [];
             for(var cl=0; cl < clusterObj.subClusters.length; ++cl) {
                 var curve = new Curve(clusterObj.subClusters[cl],`curve${layerIdx}_${clm}_${cl}`,2);
                 if(curve.pts.length==0) continue;
                 curveObjs.push(curve)
             }
+        }
+        //Result of NOTE above, all curves from each corners are processed together (??)
 
-            var curveRelations = []
-            for(var curve=0; curve < curveObjs.length; ++curve) {
-                var curveObj = curveObjs[curve];
-                let xMin = curveObj.xRange[0];
-                let xMax = curveObj.xRange[1];
-                
-                geval(curveObj["currentEquationStr"])
-                var thisCurveFunc = geval(curveObj.currentEquationName)
-                var P1 = {x:xMin, y:thisCurveFunc(xMin)}
-                var P2 = {x:xMax, y:thisCurveFunc(xMax)}
 
-                var curveDerivativeMin = curveObj.currentDerivative(xMin);
-                var C = {x:(xMin+xMax)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2} //C is control point of Bezier curve
-                curveRelations.push({numPts:curveObj.pts.length, idx:curve, x:C.x, y:C.y, minPt:P1,  maxPt:P2})
-                
-            }
-            var omitCurves = [];
-            //cluster together curves based on the density of their control points ( meaning they have same relatively same curvature)
-            var controlPtCluster = new Cluster(curveRelations, [{name:'density', epsilonMultiplier:1, minPts:2, epsilon:50}]);
-            if(controlPtCluster.subClusters.length >0) console.log("controlPtCluster.subClusters",controlPtCluster.subClusters)
-            for(var clusterIdx=0; clusterIdx < controlPtCluster.subClusters.length; ++clusterIdx) {
-                //keep (which means remove) curveCluster[0] (curve has the most points)
-                //for the other curves, if either their minPt or maxPt is close to curveCluster[0], push them to omitClusters
-                var curveCluster = controlPtCluster.subClusters[clusterIdx]
-                if(curveCluster.length > 1) {
-                    console.log("curveCluster", curveCluster);
-                    curveCluster.sort(function(a,b){return b.numPts-a.numPts});
-                    var leadingCurve = curveCluster[0];
-                    for(let other=1; other < curveCluster.length; ++other) {
-                        omitCurves.push(curveCluster[other].idx)
-                        if(distanceSquared(leadingCurve.minPt,curveCluster[other].minPt) <100) {
-                            omitCurves.push(curveCluster[other])
-                            // curveObjs.splice(curveCluster[other].idx,1)
-                        }
-                        else if(distanceSquared(leadingCurve.maxPt,curveCluster[other].minPt) <100) {
-                            omitCurves.push(curveCluster[other])
-                            // curveObjs.splice(curveCluster[other].idx,1)
-                        }
-                        else if(distanceSquared(leadingCurve.minPt,curveCluster[other].maxPt) <100) {
-                            omitCurves.push(curveCluster[other])
-                            
-                             // curveObjs.splice(curveCluster[other].idx,1)
-                        }
-                        else if(distanceSquared(leadingCurve.maxPt,curveCluster[other].maxPt) <100) {
-                            omitCurves.push(curveCluster[other])
-                             // curveObjs.splice(curveCluster[other].idx,1)
-                        }
-                        else curveCluster.splice(other,1);
+        var curveRelations = []
+        for(var curve=0; curve < curveObjs.length; ++curve) {
+            var curveObj = curveObjs[curve];
+            let xMin = curveObj.xRange[0];
+            let xMax = curveObj.xRange[1];
+            
+            geval(curveObj["currentEquationStr"])
+            var thisCurveFunc = geval(curveObj.currentEquationName)
+            var P1 = {x:xMin, y:thisCurveFunc(xMin)}
+            var P2 = {x:xMax, y:thisCurveFunc(xMax)}
+            let midPt = curveObj.currentMidpointX();
+            var slopeAtMidPt = curveObj.currentDerivative(midPt);
+            var curveDerivativeMin = curveObj.currentDerivative(xMin);
+            var C = {x:(xMin+xMax)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2} //C is control point of Bezier curve
+            curveRelations.push({numPts:curveObj.pts.length, idx:curve, x:C.x, y:C.y, minPt:P1,  maxPt:P2, slopeAtMidPt:slopeAtMidPt})
+            
+        }
+        //************************************************ */
+        var mergeCurves = [];       //to determine which curves to merge: 
+                                        //see if their slopeMidPt is the same
+                                        //then, test if one curve's function can output the another's function output
+                                    // {name:'slopeAtMidPt', epsilonMultiplier:1, minPts:2, epsilon:10}
+        //************************************************ */
+
+        var omitCurves = [];
+        //cluster together curves based on the density of their Bezier-control points ( meaning they have relatively same curvature)
+        var controlPtCluster = new Cluster(curveRelations, [
+            {name:'density', epsilonMultiplier:1, minPts:2, epsilon:25},
+           
+            
+        ]);
+
+        for(var clusterIdx=0; clusterIdx < controlPtCluster.subClusters.length; ++clusterIdx) {
+            //keep (which means remove) curveCluster[0] (curve has the most points)
+            //for the other curves, if either their minPt or maxPt is close to curveCluster[0], push them to omitClusters
+            var curveCluster = controlPtCluster.subClusters[clusterIdx]
+            if(curveCluster.length > 1) {
+                console.log("curveCluster", curveCluster);
+                curveCluster.sort(function(a,b){return b.numPts-a.numPts});
+                var leadingCurve = curveCluster[0];
+                for(let other=1; other < curveCluster.length; ++other) {
+                    omitCurves.push(curveCluster[other].idx)
+                    if(distanceSquared(leadingCurve.minPt,curveCluster[other].minPt) <100) {
+                        omitCurves.push(curveCluster[other])
+                        // curveObjs.splice(curveCluster[other].idx,1)
                     }
-                    curveCluster.splice(0,1);
+                    else if(distanceSquared(leadingCurve.maxPt,curveCluster[other].minPt) <100) {
+                        omitCurves.push(curveCluster[other])
+                        // curveObjs.splice(curveCluster[other].idx,1)
+                    }
+                    else if(distanceSquared(leadingCurve.minPt,curveCluster[other].maxPt) <100) {
+                        omitCurves.push(curveCluster[other])
+                        
+                            // curveObjs.splice(curveCluster[other].idx,1)
+                    }
+                    else if(distanceSquared(leadingCurve.maxPt,curveCluster[other].maxPt) <100) {
+                        omitCurves.push(curveCluster[other])
+                            // curveObjs.splice(curveCluster[other].idx,1)
+                    }
+                    else curveCluster.splice(other,1);
                 }
+                curveCluster.splice(0,1);
             }
-            if(omitCurves.length>0) console.log('omitCurves',omitCurves)
-            for(var curve=0; curve < curveObjs.length; ++curve) {
-                if(omitCurves.includes(curve)) continue;
-                var curveObj = curveObjs[curve];
+        }
+        if(omitCurves.length>0) console.log('omitCurves',omitCurves)
+        for(var curve=0; curve < curveObjs.length; ++curve) {
+            if(omitCurves.includes(curve)) continue;
+            var curveObj = curveObjs[curve];
+            
+            geval(curveObj["currentEquationStr"])
+            var thisCurveFunc = geval(curveObj.currentEquationName)
+
+            let xMin = curveObj.xRange[0];
+            let xMax = curveObj.xRange[1];
+
+            //testing curve ... testing if every pt on curve has similar pixel data
+            var curveEigenThetas = [];
+            for(var x=xMin; x < xMax; ++x) {
+                let y = Math.round(thisCurveFunc(x));
+                var pixelIdx = x + y*this.currentScanObj.imageWidth;
+                if(pixelIdx <0 || pixelIdx>this.currentScanObj.imageLength) continue;
+                var ptEigenVectors = resultData["eigenVectors"][pixelIdx]
                 
-                geval(curveObj["currentEquationStr"])
-                var thisCurveFunc = geval(curveObj.currentEquationName)
-
-                let xMin = curveObj.xRange[0];
-                let xMax = curveObj.xRange[1];
-    
-                //testing curve ... testing if every pt on curve has similar pixel data
-                var curveEigenThetas = [];
-                for(var x=xMin; x < xMax; ++x) {
-                    let y = Math.round(thisCurveFunc(x));
-                    var pixelIdx = x + y*this.currentScanObj.imageWidth;
-                    if(pixelIdx <0 || pixelIdx>this.currentScanObj.imageLength) continue;
-                    var ptEigenVectors = resultData["eigenVectors"][pixelIdx]
-                    
-                    var ptEigenTheta = Math.atan(ptEigenVectors[1][0]/ptEigenVectors[0][0]);
-                    curveEigenThetas.push(ptEigenTheta);
-                }
-                if(curveEigenThetas.length==1) {
-                    curveObjs.splice(curve,1); 
-                    continue;
-                }
-                
-                var P1 = {x:xMin, y:thisCurveFunc(xMin)}
-                var P2 = {x:xMax, y:thisCurveFunc(xMax)}
-                var curveDerivativeMin = curveObj.currentDerivative(xMin);
-
-
-                var C = {x:(xMin+xMax)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2}
-                var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
-                // var d2 = `M${P1.x + getRandomInt(-25,25)},${P1.y+ getRandomInt(-25,25)} Q${C.x+ getRandomInt(-25,25)},${C.y+ getRandomInt(-25,25)},${P2.x+ getRandomInt(-25,25)},${P2.y+ getRandomInt(-25,25)} `
-                var pathId = `curve${layerIdx}_${clm}_${curve}`
-                var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-                path.setAttribute("id",pathId)
-                path.setAttribute("d",d);
-                path.setAttribute("stroke",`black`);
-                path.setAttribute("fill","none");
-                // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
-                document.getElementById("curveGroup").append(path);
-                resultData['curvePaths'].push([pathId, d])
-
-
-                var controlPt = document.createElementNS("http://www.w3.org/2000/svg","circle");
-                controlPt.setAttribute("cx", C.x);
-                controlPt.setAttribute("cy",C.y);
-                controlPt.setAttribute("r",1);
-                controlPt.setAttribute("fill","black");
-                document.getElementById("ptGroup").append(controlPt);
-
-
-
+                var ptEigenTheta = Math.atan(ptEigenVectors[1][0]/ptEigenVectors[0][0]);
+                curveEigenThetas.push(ptEigenTheta);
             }
+            if(curveEigenThetas.length==1) {
+                curveObjs.splice(curve,1); 
+                continue;
+            }
+            
+            var P1 = {x:xMin, y:thisCurveFunc(xMin)}
+            var P2 = {x:xMax, y:thisCurveFunc(xMax)}
+            var curveDerivativeMin = curveObj.currentDerivative(xMin);
+
+
+            var C = {x:(xMin+xMax)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2}
+            var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
+            // var d2 = `M${P1.x + getRandomInt(-25,25)},${P1.y+ getRandomInt(-25,25)} Q${C.x+ getRandomInt(-25,25)},${C.y+ getRandomInt(-25,25)},${P2.x+ getRandomInt(-25,25)},${P2.y+ getRandomInt(-25,25)} `
+            var pathId = `curve${layerIdx}_${curve}`
+            var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+            path.setAttribute("id",pathId)
+            path.setAttribute("d",d);
+            path.setAttribute("stroke",`black`);
+            path.setAttribute("fill","none");
+            // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
+            document.getElementById("curveGroup").append(path);
+            resultData['curvePaths'].push([pathId, d])
+
+
+            // var controlPt = document.createElementNS("http://www.w3.org/2000/svg","circle");
+            // controlPt.setAttribute("cx", C.x);
+            // controlPt.setAttribute("cy",C.y);
+            // controlPt.setAttribute("r",1);
+            // controlPt.setAttribute("fill","black");
+            // document.getElementById("ptGroup").append(controlPt);
+
+
+            // encompassing for loop ended here i think
+            
             
             // this.progressBar1.current.moveProgress(clm/clusterMatrix.length);
             console.log("Percent done: ",(clm/clusterMatrix.length))

@@ -129,6 +129,12 @@ export class Cluster {
                     temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'slope'))    
                 } 
             }
+            else if(clusteringOrder[op].name=='slopeAtMidPt') {             //1 Dimensional Attribute-Based Clustering
+                for(var c=0; c < allClusters.length; ++c) {
+                    if(allClusters[c].length==0) continue;
+                    temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'slopeAtMidPt'))    
+                } 
+            }
             else return -1;
             allClusters = [...temp];
         }

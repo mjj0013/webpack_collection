@@ -152,6 +152,9 @@ export function scaleNumberToRange(number, currentRange, desiredRange) {
 export function distance(A,B) {
     return Math.sqrt((A.x - B.x)*(A.x - B.x) + (A.y - B.y)*(A.y - B.y))
 }
+export function distanceSquared(A,B) {          //faster version of distance (without sqrt operation)
+    return (A.x - B.x)*(A.x - B.x) + (A.y - B.y)*(A.y - B.y);
+}
 
 export function getStdDev(allItems) {
     var totalNum = allItems.length,  total=0;

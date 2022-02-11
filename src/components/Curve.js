@@ -20,6 +20,7 @@ export class Curve {
         this.currentEquationName = this.curveData.equationName;
         this.equationOrder = this.curveData.equationOrder;
         this.currentCoeffs = [];
+        this.currentMidpointX = this.currentMidpointX.bind(this);
     }
 
     fitCurveToPts(clusterPts, order=2) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
@@ -66,6 +67,8 @@ export class Curve {
         var terms = [`(${a})`, `(${b}*x)`,`(${c}*x*x)`] //quadratic
         this.currentCoeffs = [a,b,c]
         this.currentDerivative = (x) =>{return b+2*c*x}
+
+        
         //cubic
         if(order==3) {
             terms.push(`(${coeffs.get(3,0)}*x*x*x)`)
@@ -74,6 +77,12 @@ export class Curve {
         var equation = `var curvePoly${this.equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
         var curveObj = {xRange:this.xRange,equationOrder:order, equationStr:equation, equationName:`curvePoly${this.equationId.toString()}`}
         return curveObj;
+    }
+
+    currentMidpointX() {
+        let c = this.currentCoeffs[2];
+        let b = this.currentCoeffs[1];
+        return -b/(2*c);
     }
 
     getXRange(range) {

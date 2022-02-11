@@ -76,8 +76,8 @@ export class ImageScan {
                 sigExpMax = sigExpMax+(numLayers - (sigExpMax%numLayers));
                 sigDelta = sigExpMax/numLayers;
             }
-            // var sigStack = [sig0*Math.pow(baseSig,1)]
-            for(var s=sigExpMax;s>0;s-=sigDelta)    sigStack.push(sig0*Math.pow(baseSig,s));
+            var sigStack = [sig0*Math.pow(baseSig,1)]
+            // for(var s=sigExpMax;s>0;s-=sigDelta)    sigStack.push(sig0*Math.pow(baseSig,s));
             var layerStack = [];
             console.log('sigStack',sigStack)
             //make stack of layers, which each have different sigma values

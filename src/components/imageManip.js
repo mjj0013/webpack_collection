@@ -128,7 +128,8 @@ export class ImageScan {
             var SobelKernelX = [[1,0,-1], [2,0,-2], [1,0,-1]]
             var SobelKernelY = [[1,2,1], [0,0,0], [-1,-2,-1]]
             //gaussKernel is multipled to every product of sum (Ixx, Ixy, Iyy)
-
+            // https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
+            // https://mathinsight.org/directional_derivative_gradient_introduction
             for(var c=0; c < layerStack.length; ++c) {
                 var parallelComponent = layerStack[c];
                 console.log(`Starting Layer #${c} of ${layerStack.length}`)
@@ -162,8 +163,7 @@ export class ImageScan {
                         parallelComponent["resultData"]["slopeRateY1"].push(slopeRate1.y)       //measure of vertical-ness
                     }
                 }
-                // https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
-                // https://mathinsight.org/directional_derivative_gradient_introduction
+                
 
                 // Harris corner detector
                 for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      

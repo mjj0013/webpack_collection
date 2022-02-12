@@ -211,8 +211,7 @@ export class ImageScan {
                         var trace = IxxSum + IyySum;
                         var eigs = new EigenvalueDecomposition(M);
                         var eigVectors = eigs.eigenvectorMatrix;
-                        eigVectors = [[eigVectors.get(0,0), eigVectors.get(0,1)],
-                        [eigVectors.get(1,0), eigVectors.get(1,1)]];
+                        eigVectors = [[eigVectors.get(0,0), eigVectors.get(0,1)],[eigVectors.get(1,0), eigVectors.get(1,1)]];
 
                         //NOTE: Eigenvectors are axes/vectors that remain the same during a linear transformation.
                         // a 3D example: for a 3D rotation, the axis of rotation would be the eigenvector.

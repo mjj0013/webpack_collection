@@ -383,8 +383,6 @@ class FileManipPage extends React.Component {
         //cluster together curves based on the density of their Bezier-control points ( meaning they have relatively same curvature)
         var controlPtCluster = new Cluster(curveRelations, [
             {name:'density', epsilonMultiplier:1, minPts:2, epsilon:25},
-           
-            
         ]);
 
         for(var clusterIdx=0; clusterIdx < controlPtCluster.subClusters.length; ++clusterIdx) {

@@ -14,60 +14,81 @@ export class Curve {
         this.xRange = this.getXRange([0,this.pts.length]);
         this.xMin = this.xRange[0];
         this.xMax = this.xRange[1];
+        this.currentCoeffs = [];
+        
+        
+        this.currentMidpointX = this.currentMidpointX.bind(this);
+        this.currentDerivative = this.currentDerivative.bind(this);
 
         this.curveData = this.fitCurveToPts(pts,order);
         this.currentEquationStr = this.curveData.equationStr;       //you would call geval/eval on this variable in another module
         this.currentEquationName = this.curveData.equationName;
         this.equationOrder = this.curveData.equationOrder;
-        this.currentCoeffs = [];
-        this.currentMidpointX = this.currentMidpointX.bind(this);
     }
 
     fitCurveToPts(clusterPts, order=2) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
         //https://www.youtube.com/watch?v=-UJr1XjyfME&ab_channel=Civillearningonline
         
         var n = clusterPts.length;
-        var xVals = clusterPts.map(a=>a.x);
-        var yVals = clusterPts.map(a=>a.y);
-        var xyVals = clusterPts.map(a=>a.x*a.y);
-        var xxyVals = clusterPts.map(a=>a.x*a.x*a.y);
+
+        var xVals = [];
+        var yVals = [];
+        var xyVals = [];
+        var xxyVals = [];
+        var xxVals = [];
+        var xxxVals = [];
+        var xxxxVals = [];
+        for(let i=0; i < n; ++i) {
+            let xy = clusterPts[i].x*clusterPts[i].y;
+            let xx = clusterPts[i].x*clusterPts[i].x;
+
+            xVals.push(clusterPts[i].x);
+            yVals.push(clusterPts[i].y);
+            xyVals.push(xy);
+            xxyVals.push(xx*clusterPts[i].y);
+            xxVals.push(xx);
+            xxxVals.push(xx*clusterPts[i].x);
+            xxxxVals.push(xx*xx);
+        }
+
+        var xSum = 0, ySum = 0, xySum = 0, xxySum = 0, xxSum = 0, xxxSum = 0, xxxxSum = 0;
+        for(let i=0; i < n; ++i) {
+            xSum += xVals[i];
+            ySum += yVals[i];
+            xySum += xyVals[i];
+            xxySum += xxyVals[i];
+            xxSum += xxVals[i];
+            xxxSum += xxxVals[i];
+            xxxxSum += xxxxVals[i];
+        }
         
-        var xxVals = clusterPts.map(a=>a.x*a.x);
-        var xxxVals = clusterPts.map(a=>a.x*a.x*a.x);
-        var xxxxVals = clusterPts.map(a=>a.x*a.x*a.x*a.x);
-        
-        var xSum = xVals.reduce(function(a, b) { return a + b; }, 0);
-        var ySum = yVals.reduce(function(a, b) { return a + b; }, 0);
-        var xySum =  xyVals.reduce(function(a, b) { return a + b; }, 0);
-        var xxySum = xxyVals.reduce(function(a, b) { return a + b; }, 0);
-        
-        var xxSum =  xxVals.reduce(function(a, b) { return a + b; }, 0);
-        var xxxSum = xxxVals.reduce(function(a, b) { return a + b; }, 0);
-        var xxxxSum =xxxxVals.reduce(function(a, b) { return a + b; }, 0);   
         var X,Y;
         if(order==2) {  // fits QUADRATIC curve to data. i.e c*x^2 + b*x + a
             X = new Matrix([[n, xSum, xxSum] , [xSum, xxSum, xxxSum], [xxSum, xxxSum, xxxxSum]]);
             Y = Matrix.columnVector([ySum, xySum, xxySum]);
         }
         else if(order==3) { // fits CUBIC curve to data. i.e d*x^3 + c*x^2 + b*x + a
-            var xxxyVals = clusterPts.map(a=>a.x*a.x*a.x*a.y);
-            var xxxySum = xxxyVals.reduce(function(a, b) { return a + b; }, 0);
-            var xxxxxVals = clusterPts.map(a=>a.x*a.x*a.x*a.x*a.x);
-            var xxxxxxVals = clusterPts.map(a=>a.x*a.x*a.x*a.x*a.x*a.x);
-            var xxxxxSum =  xxxxxVals.reduce(function(a, b) { return a + b; }, 0);
-            var xxxxxxSum = xxxxxxVals.reduce(function(a, b) { return a + b; }, 0);
+            var xxxySum =0 , xxxxxSum=0, xxxxxxSum=0;
+            for(let i=0; i < clusterPts.length; ++i) {
+                let xx = clusterPts[i].x*clusterPts[i].x
+                xxxySum += xx*clusterPts[i].x*clusterPts[i].y;
+                xxxxxSum += xx*xx*clusterPts[i].x;
+                xxxxxxSum += xx*xx*xx
+            }
             X = new Matrix([[n, xSum, xxSum, xxxSum] , [xSum, xxSum, xxxSum, xxxxSum], [xxSum, xxxSum, xxxxSum,xxxxxSum], [xxxSum, xxxxSum, xxxxxSum,xxxxxxSum]]);
             Y = Matrix.columnVector([ySum, xySum, xxySum, xxxySum]);
         }
         else return -1;
         var coeffs = solve(X,Y,true);
-        let a = coeffs.get(0,0);
-        let b = coeffs.get(1,0);
-        let c = coeffs.get(2,0);
+        var a = coeffs.get(0,0);
+        var b = coeffs.get(1,0);
+        var c = coeffs.get(2,0);
         var terms = [`(${a})`, `(${b}*x)`,`(${c}*x*x)`] //quadratic
-        this.currentCoeffs = [a,b,c]
-        this.currentDerivative = (x) =>{return b+2*c*x}
 
+        this.currentCoeffs = []
+        this.currentCoeffs.push(a);
+        this.currentCoeffs.push(b);
+        this.currentCoeffs.push(c);
         
         //cubic
         if(order==3) {
@@ -79,6 +100,11 @@ export class Curve {
         return curveObj;
     }
 
+    currentDerivative(x) {
+        let c = this.currentCoeffs[2];
+        let b = this.currentCoeffs[1];
+        return b+(2*c*x);
+    }
     currentMidpointX() {
         let c = this.currentCoeffs[2];
         let b = this.currentCoeffs[1];

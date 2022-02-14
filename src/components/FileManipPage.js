@@ -365,7 +365,8 @@ class FileManipPage extends React.Component {
             var thisCurveFunc = geval(curveObj.currentEquationName)
             var P1 = {x:xMin, y:thisCurveFunc(xMin)}
             var P2 = {x:xMax, y:thisCurveFunc(xMax)}
-            let midPt = curveObj.currentMidpointX();
+            // let midPt = curveObj.currentMidpointX();
+            let midPt = (xMax+xMin)/2
             var slopeAtMidPt = curveObj.currentDerivative(midPt);
             var curveDerivativeMin = curveObj.currentDerivative(xMin);
             var C = {x:(xMin+xMax)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2} //C is control point of Bezier curve
@@ -375,51 +376,94 @@ class FileManipPage extends React.Component {
         //************************************************ */
         var mergeCurves = [];       //to determine which curves to merge: 
                                         //see if their slopeMidPt is the same
-                                        //then, test if one curve's function can output the another's function output
+                                        //then, test if one curve's function can output the other function's output
                                     // {name:'slopeAtMidPt', epsilonMultiplier:1, minPts:2, epsilon:10}
+        // for(let curve1=0; curve1 < curveRelations.length; ++curve1) {
+           
+        //     for(let curve2=0; curve2 < curveRelations.length; ++curve2) {
+        //         if(curve1==curve2) continue;
+        //         if(numberInRange(curveRelations[curve1].slopeAtMidPt, curveRelations[curve2].slopeAtMidPt, .0999)) {
+        //             var curveObj1 = curveObjs[curve1];
+        //             var curveObj2 = curveObjs[curve2];
+        //             var xRange1 = curveObj1.xRange;
+        //             var curveFunc1 = geval(curveObj1.currentEquationName)
+        //             var curveFunc2 = geval(curveObj2.currentEquationName)
+
+
+
+        //             for(let x=0; x < xRange1.length; ++x) {
+        //                 curveFunc1(xRange1[x])
+        //             }
+        //             curveFunc2()
+        //             // curveObj2.
+        //         }
+
+        //     }
+
+        // }
         //************************************************ */
 
-        var omitCurves = [];
+        // var curveColorMap = Array(curveObjs.length).fill(-1);
+        var omitCurvesIdx = []
         //cluster together curves based on the density of their Bezier-control points ( meaning they have relatively same curvature)
         var controlPtCluster = new Cluster(curveRelations, [
-            {name:'density', epsilonMultiplier:1, minPts:2, epsilon:25},
+            // {name:'density', epsilonMultiplier:1, minPts:2, epsilon:25},
+            {name:'slopeAtMidPt', epsilonMultiplier:1, minPts:2, epsilon:.5},
         ]);
-
-        for(var clusterIdx=0; clusterIdx < controlPtCluster.subClusters.length; ++clusterIdx) {
-            //keep (which means remove) curveCluster[0] (curve has the most points)
-            //for the other curves, if either their minPt or maxPt is close to curveCluster[0], push them to omitClusters
+        
+        for(var clusterIdx=0; clusterIdx < controlPtCluster.subClusters.length; ++clusterIdx) { 
             var curveCluster = controlPtCluster.subClusters[clusterIdx]
-            if(curveCluster.length > 1) {
-                console.log("curveCluster", curveCluster);
-                curveCluster.sort(function(a,b){return b.numPts-a.numPts});
-                var leadingCurve = curveCluster[0];
-                for(let other=1; other < curveCluster.length; ++other) {
-                    omitCurves.push(curveCluster[other].idx)
-                    if(distanceSquared(leadingCurve.minPt,curveCluster[other].minPt) <100) {
-                        omitCurves.push(curveCluster[other])
-                        // curveObjs.splice(curveCluster[other].idx,1)
-                    }
-                    else if(distanceSquared(leadingCurve.maxPt,curveCluster[other].minPt) <100) {
-                        omitCurves.push(curveCluster[other])
-                        // curveObjs.splice(curveCluster[other].idx,1)
-                    }
-                    else if(distanceSquared(leadingCurve.minPt,curveCluster[other].maxPt) <100) {
-                        omitCurves.push(curveCluster[other])
-                        
-                            // curveObjs.splice(curveCluster[other].idx,1)
-                    }
-                    else if(distanceSquared(leadingCurve.maxPt,curveCluster[other].maxPt) <100) {
-                        omitCurves.push(curveCluster[other])
-                            // curveObjs.splice(curveCluster[other].idx,1)
-                    }
-                    else curveCluster.splice(other,1);
+            var combinedPts = [];
+            var replacingCurve = curveCluster[0];
+            for(let curve=0; curve<curveCluster.length; ++curve) {
+                if(curveCluster[curve].length > 1) {
+                    combinedPts = combinedPts.concat(curveObjs[curveCluster[curve].idx].pts);
+                    // curveObjs.splice(curveCluster[curve].idx,1)
+                    omitCurvesIdx.push(curveCluster[curve].idx)
                 }
-                curveCluster.splice(0,1);
+                
             }
+            if(combinedPts.length > 0) {
+                var combinedCurve = new Curve(combinedPts,`combinedCurve${clusterIdx}`)
+                console.log("combinedCurve", combinedCurve)
+                curveObjs.push(combinedCurve)
+            }
+            
+
+            // `rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`
+            // if(curveCluster.length > 1) {
+                
+            //     curveCluster.sort(function(a,b){return b.numPts-a.numPts});
+
+            //     var leadingCurve = curveCluster[0];
+
+            //     for(let other=1; other < curveCluster.length; ++other) {
+            //         omitCurves.push(curveCluster[other].idx)
+            //         if(distanceSquared(leadingCurve.minPt,curveCluster[other].minPt) <625) {
+            //             omitCurves.push(curveCluster[other])
+        
+            //         }
+            //         else if(distanceSquared(leadingCurve.maxPt,curveCluster[other].minPt) <625) {
+            //             omitCurves.push(curveCluster[other])
+        
+            //         }
+            //         else if(distanceSquared(leadingCurve.minPt,curveCluster[other].maxPt) <625) {
+            //             omitCurves.push(curveCluster[other])
+        
+            //         }
+            //         else if(distanceSquared(leadingCurve.maxPt,curveCluster[other].maxPt) <625) {
+            //             omitCurves.push(curveCluster[other])
+        
+            //         }
+            //         else curveCluster.splice(other,1);
+            //     }
+                
+            //     curveCluster.splice(0,1);
+            // }
         }
-        if(omitCurves.length>0) console.log('omitCurves',omitCurves)
+        
         for(var curve=0; curve < curveObjs.length; ++curve) {
-            if(omitCurves.includes(curve)) continue;
+            if(omitCurvesIdx.includes(curve)) continue;
             var curveObj = curveObjs[curve];
             
             geval(curveObj["currentEquationStr"])
@@ -433,9 +477,9 @@ class FileManipPage extends React.Component {
             for(var x=xMin; x < xMax; ++x) {
                 let y = Math.round(thisCurveFunc(x));
                 var pixelIdx = x + y*this.currentScanObj.imageWidth;
+                console.log('pixelIdx',pixelIdx)
                 if(pixelIdx <0 || pixelIdx>this.currentScanObj.imageLength) continue;
                 var ptEigenVectors = resultData["eigenVectors"][pixelIdx]
-                
                 var ptEigenTheta = Math.atan(ptEigenVectors[1][0]/ptEigenVectors[0][0]);
                 curveEigenThetas.push(ptEigenTheta);
             }
@@ -452,9 +496,16 @@ class FileManipPage extends React.Component {
             var C = {x:(xMin+xMax)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2}
             var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
             // var d2 = `M${P1.x + getRandomInt(-25,25)},${P1.y+ getRandomInt(-25,25)} Q${C.x+ getRandomInt(-25,25)},${C.y+ getRandomInt(-25,25)},${P2.x+ getRandomInt(-25,25)},${P2.y+ getRandomInt(-25,25)} `
+
+
+
             var pathId = `curve${layerIdx}_${curve}`
             var path = document.createElementNS("http://www.w3.org/2000/svg","path");
             path.setAttribute("id",pathId)
+            path.addEventListener("mouseover", (e)=>{
+                
+                console.log("midPt slope: "+curveRelations[parseInt(e.target.id.split("_")[1])].slopeAtMidPt)
+            })
             path.setAttribute("d",d);
             path.setAttribute("stroke",`black`);
             path.setAttribute("fill","none");
@@ -470,20 +521,15 @@ class FileManipPage extends React.Component {
             // controlPt.setAttribute("fill","black");
             // document.getElementById("ptGroup").append(controlPt);
 
-
-            // encompassing for loop ended here i think
-            
-            
-            // this.progressBar1.current.moveProgress(clm/clusterMatrix.length);
-            console.log("Percent done: ",(clm/clusterMatrix.length))
-            this.setState({...this.state, loadPercent:(clm/clusterMatrix.length)})
+            console.log("Percent done: ",(curve/curveObjs.length))
+            this.setState({...this.state, loadPercent:(curve/curveObjs.length)})
         }
         console.log('***Done tracing edges***')
     }
 
     tracingWindow(resultData, currentPt, movWinRadius=7) {      
         //gathers data points by following/tracing a line with common gradient value and  with 15 degrees of flexibility between each data point (so it results in a curve if applicable). Clustering happens after this function, not during
-        var eigenValEstimate = 5000;
+        // var eigenValEstimate = 5000;
         //currentPt is object {x:..., y:...}
         let imageWidth = this.currentScanObj.imageWidth;
         let imageHeight  =this.currentScanObj.imageHeight;
@@ -513,9 +559,6 @@ class FileManipPage extends React.Component {
                 var nextTheta =Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0])
                 var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.1308);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
                 var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.13083);
-                
-                
-               
                 if((nextThetaIsSimilar || nextThetaIsParallel)  && nextLaplacian >0) {          //&& nextMagIsSimilar
                     var slope = resultData["slopeRateY1"][nextIdx]/resultData["slopeRateX1"][nextIdx];
                     var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx],slope:slope, x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], thetaGradient:nextTheta};
@@ -665,13 +708,7 @@ class FileManipPage extends React.Component {
                     </Modal.Footer>
 
                 </Modal>
-                {/* <Offcanvas id="sidePanel" placement={'top'} show={this.state.show} onHide={this.handlePanelClose}>
-                    <Offcanvas.Header closeButton>
-                        <Offcanvas.Title>Processing input image...</Offcanvas.Title>
-                    </Offcanvas.Header>
-                    <Offcanvas.Body id='sidePanelBody'>
-                    </Offcanvas.Body>
-                </Offcanvas> */}
+
 
                 
             </Layout> 

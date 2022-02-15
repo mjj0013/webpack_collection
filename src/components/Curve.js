@@ -1,5 +1,5 @@
 import { Matrix, solve } from 'ml-matrix';
-// import {getStdDev, partitionItems, binomialCoeff} from './utility.js'           //distance, numberInRange, 
+import {distanceSquared} from './utility.js'           //distance, numberInRange, 
 export class Curve {
     constructor(pts,equationId,order=2) {
         this.fitCurveToPts = this.fitCurveToPts.bind(this);
@@ -19,13 +19,53 @@ export class Curve {
         
         this.currentMidpointX = this.currentMidpointX.bind(this);
         this.currentDerivative = this.currentDerivative.bind(this);
-
+        this.P1 = null;
+        this.P2 = null;
         this.curveData = this.fitCurveToPts(pts,order);
         this.currentEquationStr = this.curveData.equationStr;       //you would call geval/eval on this variable in another module
         this.currentEquationName = this.curveData.equationName;
         this.equationOrder = this.curveData.equationOrder;
+        
+
+        this.findIntersection = this.findIntersection.bind(this);
     }
 
+
+    findIntersection(otherCurve) {
+        var intersection = null
+        eval(this.currentEquationStr)
+        eval(otherCurve.currentEquationStr)
+
+        var thisFunc = eval(this.currentEquationName)
+        var otherFunc = eval(otherCurve.currentEquationName)
+
+        for(let x=this.xMin; x <= this.xMax; x+=1) {
+            if(Math.round(thisFunc(x))==Math.round(otherFunc(x))) {
+                intersection = {x:x, y:thisFunc(x), atCornerFor:null};
+                break;
+            }
+        }
+        if(intersection==null) {
+            for(let x=otherCurve.xMin; x <= otherCurve.xMax; x+=1) {
+                if(Math.round(thisFunc(x))==Math.round(otherFunc(x))) {
+                    intersection = {x:x, y:thisFunc(x), atCornerFor:null};
+                    break;
+                }
+            }
+        }
+        if(intersection!=null) {
+            if(distanceSquared(intersection, this.P1) <=100) {
+                intersection.atCornerFor = this.P1;
+            }
+            if(distanceSquared(intersection, this.P2) <=100) {
+                if(intersection.atCornerFor!=null)  intersection.atCornerFor = 'both'
+                else intersection.atCornerFor = this.P2;
+            }
+        }
+
+
+        return intersection;
+    }
     fitCurveToPts(clusterPts, order=2) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
         //https://www.youtube.com/watch?v=-UJr1XjyfME&ab_channel=Civillearningonline
         
@@ -90,12 +130,19 @@ export class Curve {
         this.currentCoeffs.push(b);
         this.currentCoeffs.push(c);
         
+       
         //cubic
         if(order==3) {
             terms.push(`(${coeffs.get(3,0)}*x*x*x)`)
             this.currentCoeffs.push(coeffs.get(3,0));
         }
+        var tempFunc = (x) =>{return x*x*this.currentCoeffs[2] + x*this.currentCoeffs[1] + this.currentCoeffs[0]}
         var equation = `var curvePoly${this.equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
+        
+       
+        this.P1 = {x:this.xMin, y:tempFunc(this.xMin)}
+        this.P2 = {x:this.xMax, y:tempFunc(this.xMax)}
+       
         var curveObj = {xRange:this.xRange,equationOrder:order, equationStr:equation, equationName:`curvePoly${this.equationId.toString()}`}
         return curveObj;
     }

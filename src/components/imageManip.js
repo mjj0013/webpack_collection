@@ -84,7 +84,7 @@ export class ImageScan {
             for(var s=0; s < sigStack.length; ++s) {
                 var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
                 var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
-                layerStack.push({ "component":component, "resultData": { "RGB":data.map((x)=>x), "imageData":null, "mags":[], "yGradient1":[], "xGradient1":[],
+                layerStack.push({"component":component, "resultData": { "imageInfo":{"height":this.imageHeight, "width":this.imageWidth},"RGB":data.map((x)=>x), "imageData":null, "mags":[], "yGradient1":[], "xGradient1":[],
                  "magGradient":[], "thetaGradient":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[], "cornerLocations":[], "laplacian":[], "eigenVals":[], "eigenVectors":[], "curvePaths":[]
                 }});
             }

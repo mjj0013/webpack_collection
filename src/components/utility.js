@@ -1,20 +1,17 @@
-// export function FFT(x,N,s) {
-//     if(N==1) return
-//     else {
-//         FFT(x, N/2, 2*s);
-//         FFT(x+s, N/2, 2*s);
-//         for(let k =0; k < (N/2)-1; ++k) {
-//             let p = x[k];
-//             let q = Math.exp(-2*Math.PI/N)
+// export function FFT(x) {
+//     var N = x.length;
+//     if(N%2==0) {
+//         var even = [];
+//         var odd = [];
+//         for(let i=0; i < N; ++i) {
+//             if(i%2==0) even.push(x[i]);
+//             else odd.push(x[i]);
 //         }
+//         var evenX = FFT(even);
+//         var oddX = FFT(odd);
+//         var factor = Math.exp(-2*Math.PI/)
 //     }
 // }
-
-
-
-
-
-
 export function partitionItems(items,k,remPos = 0) {
     //splits items into k segments and returns array of partitions
     //if there's a remainder, there is option to adjust where the remainder will be placed in the partitions.

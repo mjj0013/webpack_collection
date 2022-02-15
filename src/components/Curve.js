@@ -39,29 +39,26 @@ export class Curve {
         var thisFunc = eval(this.currentEquationName)
         var otherFunc = eval(otherCurve.currentEquationName)
 
+        var numIntersections = 0;
+
         for(let x=this.xMin; x <= this.xMax; x+=1) {
             if(Math.round(thisFunc(x))==Math.round(otherFunc(x))) {
-                intersection = {x:x, y:thisFunc(x), atCornerFor:null};
-                break;
+                intersection = {x:x, y:thisFunc(x)};
+                ++numIntersections
             }
         }
         if(intersection==null) {
             for(let x=otherCurve.xMin; x <= otherCurve.xMax; x+=1) {
                 if(Math.round(thisFunc(x))==Math.round(otherFunc(x))) {
-                    intersection = {x:x, y:thisFunc(x), atCornerFor:null};
-                    break;
+                    intersection = {x:x, y:thisFunc(x)};
+                    ++numIntersections
                 }
             }
         }
-        if(intersection!=null) {
-            if(distanceSquared(intersection, this.P1) <=100) {
-                intersection.atCornerFor = this.P1;
-            }
-            if(distanceSquared(intersection, this.P2) <=100) {
-                if(intersection.atCornerFor!=null)  intersection.atCornerFor = 'both'
-                else intersection.atCornerFor = this.P2;
-            }
-        }
+        
+        intersection["overlapRatio"] = numIntersections/(this.xMax-this.xMin);
+        
+        
 
 
         return intersection;

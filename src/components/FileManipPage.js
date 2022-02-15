@@ -346,9 +346,11 @@ class FileManipPage extends React.Component {
 
         for(var clm=0; clm < clusterMatrix.length; ++clm) {
             var clusterObj = new Cluster(clusterMatrix[clm], clusterOperations);
+            var adjacentCurves = []
             for(var cl=0; cl < clusterObj.subClusters.length; ++cl) {
                 var curve = new Curve(clusterObj.subClusters[cl],`curve${layerIdx}_${clm}_${cl}`,2);
                 if(curve.pts.length==0) continue;
+                adjacentCurves.push(curve);
                 curveObjs.push(curve)
             }
         }
@@ -380,32 +382,11 @@ class FileManipPage extends React.Component {
                 var intersection = null;
                 var curve1 = curveObjs[idx1];
                 var curve2 = curveObjs[idx2];
-                var thisFunc = eval(curve1.currentEquationName)
-                var otherFunc = eval(curve2.currentEquationName)
-                for(let x=curve1.xMin; x <= curve1.xMax; x+=1) {
-                    if(Math.round(thisFunc(x))==Math.round(otherFunc(x))) {
-                        intersection = {x:x, y:thisFunc(x), atCornerFor:null};
-                        break;
-                    }
+                if(numberInRange(curveRelations[idx1].slopeAtMidPt, curveRelations[idx2].slopeAtMidPt,.6)) {
+                    var result = curve1.findIntersection(curve2);
+                    console.log('result', result)
                 }
-                if(intersection==null) {
-                    for(let x=curve2.xMin; x <= curve2.xMax; x+=1) {
-                        if(Math.round(thisFunc(x))==Math.round(otherFunc(x))) {
-                            intersection = {x:x, y:thisFunc(x), atCornerFor:null};
-                            break;
-                        }
-                    }
-                }
-                // if(intersection!=null) {
-                //     if(distanceSquared(intersection, this.P1) <=100) {
-                //         intersection.atCornerFor = this.P1;
-                //     }
-                //     if(distanceSquared(intersection, this.P2) <=100) {
-                //         if(intersection.atCornerFor!=null)  intersection.atCornerFor = 'both'
-                //         else intersection.atCornerFor = this.P2;
-                //     }
-                // }
-                
+
             }
         }
         

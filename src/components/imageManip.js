@@ -85,7 +85,8 @@ export class ImageScan {
                 var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
                 var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
                 layerStack.push({"component":component, "resultData": { "imageInfo":{"height":this.imageHeight, "width":this.imageWidth},"RGB":data.map((x)=>x), "imageData":null, "mags":[], "yGradient1":[], "xGradient1":[],
-                 "magGradient":[], "thetaGradient":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[], "cornerLocations":[], "laplacian":[], "eigenVals":[], "eigenVectors":[], "curvePaths":[]
+                 "magGradient":[], "thetaGradient":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[], "cornerLocations":[], "laplacian":[], "eigenVals":[], "eigenVectors":[], "curvePaths":[], "maxMagGradient":0,"eigenVectorTheta":[],
+                "neighborLinkWeights":[]        //each pixel will have list of 8 for the links bewteen 8 neighbors
                 }});
             }
             var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
@@ -156,7 +157,7 @@ export class ImageScan {
                         let magGrad = Math.sqrt((sobelY1*sobelY1) + (sobelX1*sobelX1))
                         let theta = sobelY1==0||sobelX1==0? 0:Math.atan((sobelY1)/(sobelX1));
                         let slopeRate1 = {x:magGrad*Math.cos(theta), y:magGrad*Math.sin(theta)}
-                       
+                        if(magGrad > parallelComponent["resultData"]["maxMagGradient"]) parallelComponent["resultData"]["maxMagGradient"] = magGrad;
                         parallelComponent["resultData"]["magGradient"].push(magGrad);
                         parallelComponent["resultData"]["thetaGradient"].push(theta); 
                         parallelComponent["resultData"]["slopeRateX1"].push(slopeRate1.x)       //measure of horizontal-ness
@@ -220,6 +221,12 @@ export class ImageScan {
                         parallelComponent["resultData"]["harrisResponse"].push(R);
                         parallelComponent["resultData"]["eigenVals"].push(eigs);
                         parallelComponent["resultData"]["eigenVectors"].push(eigVectors);
+                        // parallelComponent["resultData"]["eigenVectorTheta"].push(Math.atan(eigVectors[1][0]/eigVectors[0][0]))
+                       
+
+                        parallelComponent["resultData"]["neighborLinkWeights"].push([1,1,1,1,1,1,1,1])
+
+
                         if(!isLocalPeak) continue;
                         if(R>0) {
                             var real = eigs.realEigenvalues;
@@ -234,6 +241,119 @@ export class ImageScan {
                     }
                     console.log(`Completed iter ${(imgX + imgY*this.imageWidth)} of ${this.imageHeight*this.imageWidth}`);
                 }
+                // for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
+                //     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {  
+                //         //order of neighborLinkWeights is [top, topRight, left, bottomRight, bottom, bottomLeft, left, topLeft] 
+                //         var pIdx = imgX + imgY*this.imageWidth;
+                //         var hasTop = imgY>=1;
+                //         var hasLeft = imgX>=1;
+                //         var hasRight = imgX < this.imageWidth-1
+                //         var hasBottom = imgY < this.imageHeight-1;
+                //         if(hasTop) {
+                //             let qIdx = (imgX) + (imgY-1)*this.imageWidth
+                //             var pThetaNorm = parallelComponent["resultData"]["thetaGradient"][pIdx] - 1.570795;
+                //             var qThetaNorm = parallelComponent["resultData"]["thetaGradient"][qIdx] - 1.570795;
+
+                //             var Fz = (Math.round(parallelComponent["resultData"]["laplacian"][qIdx])==0)? 0:1;
+                //             var Fd = (pThetaNorm+qThetaNorm)/Math.PI
+                //             var Fg = 1 - (parallelComponent["resultData"]["magGradient"][pIdx]/parallelComponent["resultData"]["maxMagGradient"])
+
+                //             let weight = 0.43*(Fz) + 0.43*(Fd) + 0.14*(Fg);
+                //             parallelComponent["resultData"]["neighborLinkWeights"][pIdx][0] = weight;
+                //         }
+                        
+                //         if(hasTop && hasRight) {
+                //             let qIdx = (imgX+1) + (imgY-1)*this.imageWidth
+                //             var pThetaNorm = parallelComponent["resultData"]["thetaGradient"][pIdx] - 1.570795;
+                //             var qThetaNorm = parallelComponent["resultData"]["thetaGradient"][qIdx] - 1.570795;
+                            
+                //             var Fz = (Math.round(parallelComponent["resultData"]["laplacian"][qIdx])==0)? 0:1;
+                //             var Fd = ((pThetaNorm-.78539)+(qThetaNorm-.78539))/Math.PI      //45 in radians
+                //             var Fg = 1 - (parallelComponent["resultData"]["magGradient"][pIdx]/parallelComponent["resultData"]["maxMagGradient"])
+
+                //             let weight = 0.43*(Fz) + 0.43*(Fd) + 0.14*(Fg);
+                //             parallelComponent["resultData"]["neighborLinkWeights"][pIdx][1] = weight;
+                //         }
+
+                //         if(hasRight) {
+                //             let qIdx = (imgX+1) + (imgY)*this.imageWidth
+                //             var pThetaNorm = parallelComponent["resultData"]["thetaGradient"][pIdx] - 1.570795;
+                //             var qThetaNorm = parallelComponent["resultData"]["thetaGradient"][qIdx] - 1.570795;
+                            
+                //             var Fz = (Math.round(parallelComponent["resultData"]["laplacian"][qIdx])==0)? 0:1;
+                //             var Fd = ((pThetaNorm-1.570795)+(qThetaNorm-1.570795))/Math.PI          //90 in radians
+                //             var Fg = 1 - (parallelComponent["resultData"]["magGradient"][pIdx]/parallelComponent["resultData"]["maxMagGradient"])
+
+                //             let weight = 0.43*(Fz) + 0.43*(Fd) + 0.14*(Fg);
+                //             parallelComponent["resultData"]["neighborLinkWeights"][pIdx][2] = weight;
+                //         }
+
+                //         if(hasBottom && hasRight) {
+                //             let qIdx = (imgX+1) + (imgY+1)*this.imageWidth
+                //             var pThetaNorm = parallelComponent["resultData"]["thetaGradient"][pIdx] - 1.570795;
+                //             var qThetaNorm = parallelComponent["resultData"]["thetaGradient"][qIdx] - 1.570795;
+                            
+                //             var Fz = (Math.round(parallelComponent["resultData"]["laplacian"][qIdx])==0)? 0:1;
+                //             var Fd = ((pThetaNorm-4.27605)+(qThetaNorm-4.27605))/Math.PI                    //245 in radians
+                //             var Fg = 1 - (parallelComponent["resultData"]["magGradient"][pIdx]/parallelComponent["resultData"]["maxMagGradient"])
+
+                //             let weight = 0.43*(Fz) + 0.43*(Fd) + 0.14*(Fg);
+                //             parallelComponent["resultData"]["neighborLinkWeights"][pIdx][3] = weight;
+                //         }
+
+                //         if(hasBottom) {
+                //             let qIdx = (imgX) + (imgY+1)*this.imageWidth
+                //             var pThetaNorm = parallelComponent["resultData"]["thetaGradient"][pIdx] - 1.570795;
+                //             var qThetaNorm = parallelComponent["resultData"]["thetaGradient"][qIdx] - 1.570795;
+                            
+                //             var Fz = (Math.round(parallelComponent["resultData"]["laplacian"][qIdx])==0)? 0:1;
+                //             var Fd = ((pThetaNorm-Math.PI)+(qThetaNorm-Math.PI))/Math.PI            //180 in radians
+                //             var Fg = 1 - (parallelComponent["resultData"]["magGradient"][pIdx]/parallelComponent["resultData"]["maxMagGradient"])
+
+                //             let weight = 0.43*(Fz) + 0.43*(Fd) + 0.14*(Fg);
+                //             parallelComponent["resultData"]["neighborLinkWeights"][pIdx][4] = weight;
+                //         }
+                //         if(hasBottom && hasLeft) {
+                //             let qIdx = (imgX-1) + (imgY+1)*this.imageWidth
+                //             var pThetaNorm = parallelComponent["resultData"]["thetaGradient"][pIdx] - 1.570795;
+                //             var qThetaNorm = parallelComponent["resultData"]["thetaGradient"][qIdx] - 1.570795;
+                            
+                //             var Fz = (Math.round(parallelComponent["resultData"]["laplacian"][qIdx])==0)? 0:1;
+                //             var Fd = ((pThetaNorm-3.92698)+(qThetaNorm-3.92698))/Math.PI                //3.92698 in radians   
+                //             var Fg = 1 - (parallelComponent["resultData"]["magGradient"][pIdx]/parallelComponent["resultData"]["maxMagGradient"])
+
+                //             let weight = 0.43*(Fz) + 0.43*(Fd) + 0.14*(Fg);
+                //             parallelComponent["resultData"]["neighborLinkWeights"][pIdx][5] = weight;
+                //         }
+
+                //         if(hasLeft) {
+                //             let qIdx = (imgX-1) + (imgY)*this.imageWidth
+                //             var pThetaNorm = parallelComponent["resultData"]["thetaGradient"][pIdx] - 1.570795;
+                //             var qThetaNorm = parallelComponent["resultData"]["thetaGradient"][qIdx] - 1.570795;
+                            
+                //             var Fz = (Math.round(parallelComponent["resultData"]["laplacian"][qIdx])==0)? 0:1;
+                //             var Fd = ((pThetaNorm-4.71238)+(qThetaNorm-4.71238))/Math.PI            //270 in radians
+                //             var Fg = 1 - (parallelComponent["resultData"]["magGradient"][pIdx]/parallelComponent["resultData"]["maxMagGradient"])
+
+                //             let weight = 0.43*(Fz) + 0.43*(Fd) + 0.14*(Fg);
+                //             parallelComponent["resultData"]["neighborLinkWeights"][pIdx][6] = weight;
+                //         }
+
+                //         if(hasTop && hasLeft) {
+                //             let qIdx = (imgX-1) + (imgY-1)*this.imageWidth
+                //             var pThetaNorm = parallelComponent["resultData"]["thetaGradient"][pIdx] - 1.570795;
+                //             var qThetaNorm = parallelComponent["resultData"]["thetaGradient"][qIdx] - 1.570795;
+                            
+                //             var Fz = (Math.round(parallelComponent["resultData"]["laplacian"][qIdx])==0)? 0:1;
+                //             var Fd = ((pThetaNorm-5.4977)+(qThetaNorm-5.4977))/Math.PI            //315 in radians
+                //             var Fg = 1 - (parallelComponent["resultData"]["magGradient"][pIdx]/parallelComponent["resultData"]["maxMagGradient"])
+
+                //             let weight = 0.43*(Fz) + 0.43*(Fd) + 0.14*(Fg);
+                //             parallelComponent["resultData"]["neighborLinkWeights"][pIdx][7] = weight;
+                //         }
+ 
+                //     }
+                // }
                 var cornerLocations = parallelComponent["resultData"]["cornerLocations"];
                 parallelComponent["resultData"]["cornerClusters"] = new Cluster(cornerLocations);
                 

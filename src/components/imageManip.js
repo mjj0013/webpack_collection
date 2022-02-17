@@ -69,7 +69,7 @@ export class ImageScan {
                 var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
                 layerStack.push({"component":component, "resultData": { "imageInfo":{"height":this.imageHeight, "width":this.imageWidth},"RGB":data.map((x)=>x), "imageData":null, "mags":[], "yGradient1":[], "xGradient1":[],
                  "magGradient":[], "thetaGradient":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[], "cornerLocations":[], "laplacian":[], "eigenVals":[], "eigenVectors":[], "curvePaths":[], "maxMagGradient":0,"eigenVectorTheta":[],
-                "neighborLinkWeights":[]        //each pixel will have list of 8 for the links bewteen 8 neighbors
+                "pixelVisited":[], "gaussCurvature":[]        //each pixel will have list of 8 for the links bewteen 8 neighbors
                 }});
             }
             var kernelRadius = Math.floor(componentLength/2);     //should be the same on each kernel in the parallelComponent stack
@@ -205,10 +205,10 @@ export class ImageScan {
                         parallelComponent["resultData"]["eigenVals"].push(eigs);
                         parallelComponent["resultData"]["eigenVectors"].push(eigVectors);
                         // parallelComponent["resultData"]["eigenVectorTheta"].push(Math.atan(eigVectors[1][0]/eigVectors[0][0]))
-                       
-
+                        parallelComponent["resultData"]["gaussCurvature"].push(eigs.realEigenvalues[0]*eigs.realEigenvalues[1]);
+                          
                         parallelComponent["resultData"]["neighborLinkWeights"].push([1,1,1,1,1,1,1,1])
-
+                        parallelComponent["resultData"]["pixelVisited"].push(0);
 
                         if(!isLocalPeak) continue;
                         if(R>0) {

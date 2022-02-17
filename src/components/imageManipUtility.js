@@ -10,8 +10,8 @@ export function isCorner(resultData,pixelIdx, eigenValEstimate=5000) {
 
 
 export function scanRadiusForCorner(resultData,currentPixel, scanRadius=10, eigenValEstimate=5000) {
-    var imageWidth = resultData.imageInfo.imageWidth;
-    var imageHeight = resultData.imageInfo.imageHeight;
+    var imageWidth = resultData.imageInfo.width;
+    var imageHeight = resultData.imageInfo.height;
     if(isCorner(resultData, currentPixel, eigenValEstimate)) {
         var y = Math.floor(currentPixel/imageWidth)
         var x = currentPixel - y*imageWidth

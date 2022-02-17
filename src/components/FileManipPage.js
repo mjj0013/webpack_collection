@@ -64,6 +64,12 @@ class FileManipPage extends React.Component {
         this.loadingCurrentStep=-1;
 
 
+        this.allCurveData = {}      
+        //keys will be the name of the curve
+        //will have object of form: <key>: {pts:[..],  curveObj:..}
+        //this hopefully enables the merging of clusters and redrawing of curves
+
+
     }
     resultSVGModeSelect = (e) =>{
         if(e.target.id=="dragButton") {
@@ -264,7 +270,7 @@ class FileManipPage extends React.Component {
     }
     numOfPagesChanged(e) { this.setState({num: e.target.value});  }
 
-    async edgeTracer(resultData,layerIdx, movWinRadius=5) {
+    async edgeTracer(resultData,layerIdx, movWinRadius=10) {
         // Traces edges starting from each detected corner. A 5x5 window is mapped around each corner to account for multiple edges coming from corner. Duplicates edges are detected 
         // Calls 'tracingWindow' recursively when an edge continues in a specific direction.
         // TODO: add Hough Transform for ellipse detection (iterating through different radius lengths to see which radius has most 'votes'/ fits data points)
@@ -283,8 +289,8 @@ class FileManipPage extends React.Component {
 
             
             var foundEdges = [];           
-            for(var wY=-movWinRadius; wY < movWinRadius; ++wY) {        //try -15 to 15
-                for(var wX=-movWinRadius; wX < movWinRadius; ++wX) {
+            for(var wY=-movWinRadius; wY <= movWinRadius; ++wY) {        //try -15 to 15
+                for(var wX=-movWinRadius; wX <= movWinRadius; ++wX) {
                     if(wY==0 && wX==0) continue;
                     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
                     if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0 && resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response
@@ -309,20 +315,21 @@ class FileManipPage extends React.Component {
                             var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , eigenVals:eigenVals, lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
                             foundEdges.push(relativePt) 
                             // var [thisSegmentLength,edgePts] = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
-                            // clusterMatrix.push(edgePts);
-                            
+                            // clusterMatrix.push(edgePts);   
                         }
-                        
-                       
                     }
                 }
             }
             
-            var condensedEdges = new Cluster(foundEdges, [{name:'thetaFromCorner',  epsilonMultiplier:1, minPts:3, epsilon:null}])
+            var condensedEdges = new Cluster(foundEdges, [{name:'thetaFromCorner',  epsilonMultiplier:1, minPts:4, epsilon:null}])      //0.261799
             for(let cluster=0; cluster < condensedEdges.subClusters.length; ++cluster) {
                 // for(let edge=0; edge < foundEdges.length; ++edge) {
                 var subCluster = condensedEdges.subClusters[cluster];
-                subCluster.sort(function(a,b) {return b.lengthFromCorner > a.lengthFromCorner})
+                subCluster.sort(function(a,b) {
+                    // return b.eigenVals[1] - a.eigenVals[1];
+                    return Math.abs(b.gaussCurvature) - Math.abs(a.gaussCurvature);
+                })
+                
                 var [thisSegmentLength,edgePts] = this.tracingWindow(resultData, subCluster[0], movWinRadius)  //make this a cluster
                 clusterMatrix.push(edgePts);
                 // for(var edge=0; edge < subCluster.length; ++edge) {
@@ -416,13 +423,12 @@ class FileManipPage extends React.Component {
     tracingWindow(resultData, currentPt, currentLength) {      
         //gathers data points by following/tracing a line with common gradient value and  with 15 degrees of flexibility between each data point (so it results in a curve if applicable). Clustering happens after this function, not during
         // currentLength is the current length of the 'traced' edge from the starting point (from edgeTracer)
-        var eigenValEstimate= 5000;
         //currentPt is object {x:..., y:...}
+        var eigenValEstimate = 5000;
         let imageWidth = this.currentScanObj.imageWidth;
         let imageHeight= this.currentScanObj.imageHeight;
         let imageLength=imageWidth*imageHeight;
         let dataPts = [currentPt]
-       
         var currentEigenVectors = currentPt.eigenVectors;
      
         //searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
@@ -430,44 +436,45 @@ class FileManipPage extends React.Component {
         var segmentLengths = [];
         // //for testing different lengths of edges
         var nextShots = [];
+        var lastValidObj = null;
         for(var i=1; i < 25; ++i) {        //25
             if(i==0) continue;
             var nextX = Math.round(i*Math.cos(currentTheta))    //-1.57079 ( -90 deg)
             var nextY = Math.round(i*Math.sin(currentTheta))
-            nextShots.push({x:nextX, y:nextY})
-        }
-        var lastValidObj = null;
-      
-        for(var shot=0; shot < nextShots.length; ++shot) {
-            var nextIdx = (currentPt.x+nextShots[shot].x) + ((nextShots[shot].y+currentPt.y)*imageWidth)
-            var nextX = currentPt.x+nextShots[shot].x;
-            var nextY = (nextShots[shot].y+currentPt.y)*imageWidth
+
+            var nextIdx = (currentPt.x+nextX) + ((nextY+currentPt.y)*imageWidth)
             nextIdx = Math.round(nextIdx)
-            if(nextIdx >= 0 && nextIdx < imageLength) {
+            if(nextIdx > 0 && nextIdx < imageLength-1) {
+                if(resultData["pixelVisited"][nextIdx]!=0) {
+
+                }
+              
                 var nextEigenVectors = resultData["eigenVectors"][nextIdx];
                 var nextLaplacian = resultData["laplacian"][nextIdx];
                 var nextTheta = Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0])     // 0.06544
                 var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.06544);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
                 var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.06544);
-                // var nextIsSimilarToRoot = numberInRange(currentPt.rootTheta, nextTheta*57.2958, )
+                // var nextGaussCurvature = resultData["gaussCurvature"][nextIdx];
+
                 // var cornerScan = scanRadiusForCorner(resultData, nextIdx, 5, eigenValEstimate);
                 // if(cornerScan!=null)  {
-                //     console.log("Hit a corner")
+                    
                 //     var cornerEigenVectors = resultData["eigenVectors"][cornerScan.idx];
-                //     console.log('cornerScan',cornerScan)
+                    
                 //     var cornerTheta = Math.atan(cornerEigenVectors[1][0]/cornerEigenVectors[0][0])
                 //     var slope = resultData["slopeRateY1"][cornerScan.idx]/resultData["slopeRateX1"][cornerScan.idx];
                 //     var nextObj = {eigenVectors:resultData["eigenVectors"][cornerScan.idx], eigenVals:resultData["eigenVals"][cornerScan.idx],slope:slope, x:cornerScan.x,  y:cornerScan.y, magGradient:resultData["magGradient"][cornerScan.idx], thetaGradient:cornerTheta};
-                //     dataPts = dataPts.concat(nextObj);
+                //     // dataPts = dataPts.concat(nextObj);
                 //     break;
                 // } 
-                //if((nextThetaIsSimilar)  && nextLaplacian >0) { 
-                if((nextThetaIsSimilar || nextThetaIsParallel)  && nextLaplacian >0) {          //&& nextMagIsSimilar
-                    var slope = resultData["slopeRateY1"][nextIdx]/resultData["slopeRateX1"][nextIdx];
-                    var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx],slope:slope, x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], theta:nextTheta};
-                    // dataPts = dataPts.concat(nextObj);
+                
+                if((nextThetaIsSimilar || nextThetaIsParallel)  && nextLaplacian > 0) { 
+                    //var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx], x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], theta:nextTheta};
+                    var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx], x:currentPt.x+nextX,  y:currentPt.y+nextY, magGradient:resultData["magGradient"][nextIdx], theta:nextTheta};
+                    dataPts = dataPts.concat(nextObj);
                     lastValidObj = nextObj;
-                    segmentLengths.push(Math.sqrt((shot +1)*(shot+1)))
+                    segmentLengths.push(Math.sqrt((i+1)*(i+1)))
+                    
                 }
                 
                 else if(lastValidObj!=null) {
@@ -476,6 +483,9 @@ class FileManipPage extends React.Component {
                     segmentLengths = segmentLengths.concat(nextLengths)
                     break;  
                 }
+
+                
+                
             }
         }
         

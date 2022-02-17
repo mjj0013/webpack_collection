@@ -2,6 +2,7 @@ import React from 'react';
 // import { Link } from 'react-router-dom';
 import Layout from './Layout';
 import {Header, Container, Divider} from 'semantic-ui-react';
+import {getRandomInt} from './utility.js'
 import './layout.css';
 class Home extends React.Component {
 	constructor(props) {
@@ -11,6 +12,7 @@ class Home extends React.Component {
 		this.mouseClickHandler = this.mouseClickHandler.bind(this);		
 		this.state = { activeIndex: 0 }
 	}
+
 
 	mouseClickHandler = (canvas,e) =>{
         const rect = canvas.getBoundingClientRect();

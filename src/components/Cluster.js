@@ -111,31 +111,12 @@ export class Cluster {
                     temp = temp.concat( this.DBSCAN(allClusters[c],clusteringOrder[op].epsilon, clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts,clusteringOrder[op].attribute) );   
                 }
             }
-            else if(clusteringOrder[op].name=='magGradient') {       //1 Dimensional Attribute-Based Clustering
+            else {                                                  //1-Dimensional Attribute-Based Clustering
                 for(var c=0; c < allClusters.length; ++c) {
                     if(allClusters[c].length==0) continue;
-                    temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'magGradient'))   
+                    temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, clusteringOrder[op].name))   
                 }
             }
-            else if(clusteringOrder[op].name=='thetaGradient') {    //1 Dimensional Attribute-Based Clustering
-                for(var c=0; c < allClusters.length; ++c) {
-                    if(allClusters[c].length==0) continue;
-                    temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'thetaGradient'))    
-                }
-            }
-            else if(clusteringOrder[op].name=='slope') {             //1 Dimensional Attribute-Based Clustering
-                for(var c=0; c < allClusters.length; ++c) {
-                    if(allClusters[c].length==0) continue;
-                    temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'slope'))    
-                } 
-            }
-            else if(clusteringOrder[op].name=='slopeAtMidPt') {             //1 Dimensional Attribute-Based Clustering
-                for(var c=0; c < allClusters.length; ++c) {
-                    if(allClusters[c].length==0) continue;
-                    temp = temp.concat(this.ABCAN1D(allClusters[c], clusteringOrder[op].epsilonMultiplier, clusteringOrder[op].minPts, 'slopeAtMidPt'))    
-                } 
-            }
-            else return -1;
             allClusters = [...temp];
         }
         if(this.verbose) console.log('allClusters',allClusters)

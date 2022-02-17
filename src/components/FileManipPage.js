@@ -277,73 +277,59 @@ class FileManipPage extends React.Component {
             var currentCorner = cornerLocations[corn]
             // var cornerObj = {}
             // searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
-            // var currentEigenVectors = currentCorner.eigenVectors;
-           
-            //scanning around a corner (looking for valid angles)
-            // var theta = 0;
-            // while(theta < 360) {
-            //     var rX = movWinRadius*Math.cos(theta/57.2958);
-            //     var rY = movWinRadius*Math.sin(theta/57.2958);
-            //     var relativeIdx = (currentCorner.x+rX) + (currentCorner.y+rY)*this.currentScanObj.imageWidth;
-            //     relativeIdx = Math.round(relativeIdx);
-            //     if(relativeIdx < 0 || relativeIdx >=this.currentScanObj.imageLength) {theta+=5; continue;}
-            //     var relativeEigenVals = resultData["eigenVals"][relativeIdx];
-            //     var real = relativeEigenVals.realEigenvalues;
-            //     //if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0 && resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response; > 0 means its classified as a corner by Harris Response
-            //     if((real[0] + eigenValEstimate < real[1]) || (real[1] + eigenValEstimate < real[0])) {
-            //         //if(resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response; > 0 means its classified as a corner by Harris Response
-            //         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
-            //         var relativeMagGradient = resultData["magGradient"][relativeIdx];
-            //         if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0) {   
-            //             if((relativeMagGradient/resultData["maxMagGradient"]) > .15) {
-            //                 var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0]);
-            //                 var relativePt = {rootTheta:theta/57.2958, eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:relativeMagGradient,  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+rX, y:currentCorner.y+rY}
-            //                 //changed theta:relativeTheta to theta:theta
-            //                 //scanning out from a corner at the found angle (looking for valid lengths)
-            //                 var [segmentLengths, edgePts] = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
-            //                 // var edgePts = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
-            //                 clusterMatrix.push(edgePts);
-            //                 // clusterSpacings.push(segmentLengths);
-            //             }
-                        
-            //         }
-            //     }
-            //     theta += 5;
-            // }
+ 
             //  https://mathinsight.org/directional_derivative_gradient_introduction
             //  https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
 
-
-
-
-            //before calling tracingWindow, find the most common angles and only use those so that there aren't any redundant edges
-            var foundEdges = [];
+            
+            var foundEdges = [];           
             for(var wY=-movWinRadius; wY < movWinRadius; ++wY) {        //try -15 to 15
                 for(var wX=-movWinRadius; wX < movWinRadius; ++wX) {
                     if(wY==0 && wX==0) continue;
                     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
                     if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0 && resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response
+                        
+                        
                         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
                         var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
                         var edgeIsUnique = true;
-                        for(var edge=0; edge < foundEdges.length; ++edge) {
-                            var nextThetaIsSimilar = numberInRange(relativeTheta, foundEdges[edge].theta, 0.0654);
-                            var nextThetaIsParallel = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.0654);
-                            if((nextThetaIsSimilar || nextThetaIsParallel)) {
-                                edgeIsUnique=false;
-                                break;
-                            }
-                        }
+                        // for(var edge=0; edge < foundEdges.length; ++edge) {
+                        //     var nextThetaIsSimilar = numberInRange(relativeTheta, foundEdges[edge].theta, 0.0654);
+                        //     var nextThetaIsParallel = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.0654);
+                        //     if((nextThetaIsSimilar || nextThetaIsParallel)) {
+                        //         edgeIsUnique=false;
+                        //         break;
+                        //     }
+                        // }
                         if(edgeIsUnique) {       //edge is completely different from other edges
                             // +/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
-                            foundEdges.push({eigenVectors:relativeEigenVectors, theta:relativeTheta, pt1:{x:currentCorner.x, y:currentCorner.y}, pt2:{x:currentCorner.x+wX, y:currentCorner.y+wY}}) 
-                            var relativePt = {eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+wX, y:currentCorner.y+wY}
-                            var [thisSegmentLength,edgePts] = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
-                            clusterMatrix.push(edgePts);
+                            var thetaFromCorner = Math.atan(wY/wX)
+                            var eigenVals = resultData["eigenVals"][relativeIdx].realEigenvalues;
                            
+                            var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , eigenVals:eigenVals, lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
+                            foundEdges.push(relativePt) 
+                            // var [thisSegmentLength,edgePts] = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
+                            // clusterMatrix.push(edgePts);
+                            
                         }
+                        
+                       
                     }
                 }
+            }
+            
+            var condensedEdges = new Cluster(foundEdges, [{name:'thetaFromCorner',  epsilonMultiplier:1, minPts:3, epsilon:null}])
+            for(let cluster=0; cluster < condensedEdges.subClusters.length; ++cluster) {
+                // for(let edge=0; edge < foundEdges.length; ++edge) {
+                var subCluster = condensedEdges.subClusters[cluster];
+                subCluster.sort(function(a,b) {return b.lengthFromCorner > a.lengthFromCorner})
+                var [thisSegmentLength,edgePts] = this.tracingWindow(resultData, subCluster[0], movWinRadius)  //make this a cluster
+                clusterMatrix.push(edgePts);
+                // for(var edge=0; edge < subCluster.length; ++edge) {
+
+                // }
+                // var [thisSegmentLength,edgePts] = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
+                // clusterMatrix.push(edgePts);
             }
         }
         console.log('clusterMatrix',clusterMatrix)
@@ -444,7 +430,7 @@ class FileManipPage extends React.Component {
         var segmentLengths = [];
         // //for testing different lengths of edges
         var nextShots = [];
-        for(var i=1; i < 25; ++i) {
+        for(var i=1; i < 25; ++i) {        //25
             if(i==0) continue;
             var nextX = Math.round(i*Math.cos(currentTheta))    //-1.57079 ( -90 deg)
             var nextY = Math.round(i*Math.sin(currentTheta))
@@ -460,7 +446,6 @@ class FileManipPage extends React.Component {
             if(nextIdx >= 0 && nextIdx < imageLength) {
                 var nextEigenVectors = resultData["eigenVectors"][nextIdx];
                 var nextLaplacian = resultData["laplacian"][nextIdx];
- 
                 var nextTheta = Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0])     // 0.06544
                 var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.06544);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
                 var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.06544);

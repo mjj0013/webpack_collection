@@ -323,49 +323,57 @@ class FileManipPage extends React.Component {
             
             var condensedEdges = new Cluster(foundEdges, [{name:'thetaFromCorner',  epsilonMultiplier:1, minPts:4, epsilon:null}])      //0.261799
             for(let cluster=0; cluster < condensedEdges.subClusters.length; ++cluster) {
-                // for(let edge=0; edge < foundEdges.length; ++edge) {
+                
                 var subCluster = condensedEdges.subClusters[cluster];
                 subCluster.sort(function(a,b) {
-                    // return b.eigenVals[1] - a.eigenVals[1];
                     return Math.abs(b.gaussCurvature) - Math.abs(a.gaussCurvature);
                 })
+                var initialCurveName = `curve${layerIdx}_${cluster}`
+                var [thisSegmentLength,edgePts, finalDestination] = this.tracingWindow(resultData, subCluster[0], movWinRadius, initialCurveName)  //make this a cluster
+                if(finalDestination!= initialCurveName) {
+                    this.allCurveData[finalDestination].pts = this.allCurveData[finalDestination].pts.concat(edgePts);
+                }
+                else {
+                    this.allCurveData[initialCurveName] = {"curveObj":null,  "pts":edgePts};
+                }
                 
-                var [thisSegmentLength,edgePts] = this.tracingWindow(resultData, subCluster[0], movWinRadius)  //make this a cluster
-                clusterMatrix.push(edgePts);
-                // for(var edge=0; edge < subCluster.length; ++edge) {
-
-                // }
+                
                 // var [thisSegmentLength,edgePts] = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
                 // clusterMatrix.push(edgePts);
             }
         }
-        console.log('clusterMatrix',clusterMatrix)
+        // console.log('clusterMatrix',clusterMatrix)
         var curveObjs = [];
-        for(var clm=0; clm < clusterMatrix.length; ++clm) {
-            // var clusterSpacing = clusterSpacings[clm];
-            // var avg =0;
-            // for(let c=0; c < clusterSpacing.length; ++c) {
-            //     clusterSpacings[c]
-            // }
-            // var clusterOperations = [
-            //     {name:'density', epsilonMultiplier:1, minPts:2, epsilon:null, attribute:null},  //movWinRadius*2
-            //     // {name:'theta',epsilon:null, minPts:2, epsilonMultiplier:1},
-            //     // {name:'thetaGradient',epsilon:null, minPts:3, epsilonMultiplier:1},
-            //     // {name:'slope',epsilon:null, minPts:4, epsilonMultiplier:1},
-            // ]
-            // var clusterObj = new Cluster(clusterMatrix[clm], clusterOperations);
-            var curve = new Curve(clusterMatrix[clm],`curve${layerIdx}_${clm}`,2);
-            curveObjs.push(curve)
-            // for(var cl=0; cl < clusterObj.subClusters.length; ++cl) {
-            //     var curve = new Curve(clusterObj.subClusters[cl],`curve${layerIdx}_${clm}_${cl}`,2);
-            //     if(curve.pts.length==0) continue;
-            //     curveObjs.push(curve)
-            // }
-        }
+        // for(var clm=0; clm < clusterMatrix.length; ++clm) {
+        //     // var clusterSpacing = clusterSpacings[clm];
+        //     // var avg =0;
+        //     // for(let c=0; c < clusterSpacing.length; ++c) {
+        //     //     clusterSpacings[c]
+        //     // }
+        //     // var clusterOperations = [
+        //     //     {name:'density', epsilonMultiplier:1, minPts:2, epsilon:null, attribute:null},  //movWinRadius*2
+        //     //     // {name:'theta',epsilon:null, minPts:2, epsilonMultiplier:1},
+        //     //     // {name:'thetaGradient',epsilon:null, minPts:3, epsilonMultiplier:1},
+        //     //     // {name:'slope',epsilon:null, minPts:4, epsilonMultiplier:1},
+        //     // ]
+        //     // var clusterObj = new Cluster(clusterMatrix[clm], clusterOperations);
+        //     // var curve = new Curve(clusterMatrix[clm],`curve${layerIdx}_${clm}`,2);
+        //     // this.allCurveData[`curve${layerIdx}_${clm}`] = {"curveObj":curve,  "pts":clusterMatrix[clm]};
+        //     // curveObjs.push(curve)
+        //     // for(var cl=0; cl < clusterObj.subClusters.length; ++cl) {
+        //     //     var curve = new Curve(clusterObj.subClusters[cl],`curve${layerIdx}_${clm}_${cl}`,2);
+        //     //     if(curve.pts.length==0) continue;
+        //     //     curveObjs.push(curve)
+        //     // }
+        // }
         //all curves from each corners are now processed together (??)
         var curveRelations = []
-        for(var curve=0; curve < curveObjs.length; ++curve) {
-            var curveObj = curveObjs[curve];
+        var curveNames = Object.keys(this.allCurveData);
+        for(var nameIdx=0;  nameIdx < curveNames.length; ++nameIdx) {
+            var curveEntry = this.allCurveData[curveNames[nameIdx]]
+            // var curveObj = curveObjs[curve];
+            var curveObj = new Curve(curveEntry.pts,curveNames[nameIdx],2);
+            curveObj["curveObj"] = curve;
             let xMin=curveObj.xRange[0];
             let xMax=curveObj.xRange[1];
             
@@ -383,15 +391,16 @@ class FileManipPage extends React.Component {
         var mergeCurves = [];       //to determine which curves to merge: 
                                         //see if their slopeMidPt is the same
                                         //then, test if one curve's function can output the other function's output
-        console.log('curveObjs',curveObjs.length)
+        
 
         //************************************************ */
 
         //cluster together curves based on the density of their Bezier-control points ( meaning they have relatively same curvature)
         // var controlPtCluster = new Cluster(curveRelations, [ {name:'density', epsilonMultiplier:1, minPts:2, epsilon:25} ] );
 
-        for(var curve=0; curve < curveObjs.length; ++curve) {
-            var curveObj = curveObjs[curve];
+        for(var nameIdx=0; nameIdx < curveNames.length; ++nameIdx) {
+
+            var curveObj = this.allCurveData[curveNames[nameIdx]].curveObj;
             geval(curveObj["currentEquationStr"])
             var thisCurveFunc = geval(curveObj.currentEquationName)
             let xMin = curveObj.xRange[0];
@@ -414,23 +423,28 @@ class FileManipPage extends React.Component {
             document.getElementById("curveGroup").append(path);
             resultData['curvePaths'].push([pathId, d])
 
-            console.log("Percent done: ",(curve/curveObjs.length))
-            this.setState({...this.state, loadPercent:(curve/curveObjs.length)})
+            console.log("Percent done: ",(curve/this.allCurveData.length))
+            this.setState({...this.state, loadPercent:(curve/this.allCurveData.length)})
         }
         console.log('***Done tracing edges***')
     }
 
-    tracingWindow(resultData, currentPt, currentLength) {      
+    tracingWindow(resultData, currentPt, currentLength, thisCurveName) {      
         //gathers data points by following/tracing a line with common gradient value and  with 15 degrees of flexibility between each data point (so it results in a curve if applicable). Clustering happens after this function, not during
         // currentLength is the current length of the 'traced' edge from the starting point (from edgeTracer)
         //currentPt is object {x:..., y:...}
         var eigenValEstimate = 5000;
+
+        var destination = thisCurveName;
+
+
         let imageWidth = this.currentScanObj.imageWidth;
         let imageHeight= this.currentScanObj.imageHeight;
         let imageLength=imageWidth*imageHeight;
         let dataPts = [currentPt]
         var currentEigenVectors = currentPt.eigenVectors;
-     
+       
+
         //searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
         let currentTheta = Math.atan(currentEigenVectors[1][0]/currentEigenVectors[0][0])
         var segmentLengths = [];
@@ -441,20 +455,44 @@ class FileManipPage extends React.Component {
             if(i==0) continue;
             var nextX = Math.round(i*Math.cos(currentTheta))    //-1.57079 ( -90 deg)
             var nextY = Math.round(i*Math.sin(currentTheta))
+            var nextIdx = Math.round((currentPt.x+nextX) + ((nextY+currentPt.y)*imageWidth))
+           
+            if(nextIdx > 0 && nextIdx < imageLength-1) {    //next pixel is in bounds of the image
 
-            var nextIdx = (currentPt.x+nextX) + ((nextY+currentPt.y)*imageWidth)
-            nextIdx = Math.round(nextIdx)
-            if(nextIdx > 0 && nextIdx < imageLength-1) {
-                if(resultData["pixelVisited"][nextIdx]!=0) {
-
+                var nextPixelStatus = resultData["pixelVisited"][nextIdx];
+                if(nextPixelStatus!=0 && nextPixelStatus!=thisCurveName) {  //the next pixel has been visited by another curve
+                    //merge the pts of this scan with the pts of the existing curve 
+                    destination = nextPixelStatus;
                 }
+                
+                if(nextPixelStatus==0) {                    //the next pixel has not been visited
+                    resultData["pixelVisited"][nextIdx] = thisCurveName;
+                    var nextEigenVectors = resultData["eigenVectors"][nextIdx];
+                    var nextLaplacian = resultData["laplacian"][nextIdx];
+                    var nextTheta = Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0])     // 0.06544
+                    var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.06544);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
+                    var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.06544);
+                    if((nextThetaIsSimilar || nextThetaIsParallel)  && nextLaplacian > 0) { 
+                        //var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx], x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], theta:nextTheta};
+                        var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx], x:currentPt.x+nextX,  y:currentPt.y+nextY, magGradient:resultData["magGradient"][nextIdx], theta:nextTheta};
+                        dataPts = dataPts.concat(nextObj);
+                        lastValidObj = nextObj;
+                        segmentLengths.push(Math.sqrt((i+1)*(i+1)))
+                        
+                    }
+                    
+                    else if(lastValidObj!=null) {
+                        var [nextLengths, nextResult, finalDestination] = this.tracingWindow(resultData, lastValidObj, currentLength, destination)
+                        dataPts = dataPts.concat(nextResult);
+                        segmentLengths = segmentLengths.concat(nextLengths)
+                        break;  
+                    }
+                }
+                
+
               
-                var nextEigenVectors = resultData["eigenVectors"][nextIdx];
-                var nextLaplacian = resultData["laplacian"][nextIdx];
-                var nextTheta = Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0])     // 0.06544
-                var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.06544);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
-                var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.06544);
-                // var nextGaussCurvature = resultData["gaussCurvature"][nextIdx];
+                
+              
 
                 // var cornerScan = scanRadiusForCorner(resultData, nextIdx, 5, eigenValEstimate);
                 // if(cornerScan!=null)  {
@@ -468,21 +506,7 @@ class FileManipPage extends React.Component {
                 //     break;
                 // } 
                 
-                if((nextThetaIsSimilar || nextThetaIsParallel)  && nextLaplacian > 0) { 
-                    //var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx], x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], theta:nextTheta};
-                    var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx], x:currentPt.x+nextX,  y:currentPt.y+nextY, magGradient:resultData["magGradient"][nextIdx], theta:nextTheta};
-                    dataPts = dataPts.concat(nextObj);
-                    lastValidObj = nextObj;
-                    segmentLengths.push(Math.sqrt((i+1)*(i+1)))
-                    
-                }
                 
-                else if(lastValidObj!=null) {
-                    var [nextLengths, nextResult] = this.tracingWindow(resultData, lastValidObj, currentLength)
-                    dataPts = dataPts.concat(nextResult);
-                    segmentLengths = segmentLengths.concat(nextLengths)
-                    break;  
-                }
 
                 
                 
@@ -490,7 +514,7 @@ class FileManipPage extends React.Component {
         }
         
         //segmentLengths is a list of each 'trace' between dataPts, will be used in calculating important parameter for clustering algorithm
-        return [segmentLengths,dataPts];
+        return [segmentLengths,dataPts, destination];
     }
 
     setImageLayers() {

@@ -207,7 +207,7 @@ export class ImageScan {
                         // parallelComponent["resultData"]["eigenVectorTheta"].push(Math.atan(eigVectors[1][0]/eigVectors[0][0]))
                         parallelComponent["resultData"]["gaussCurvature"].push(eigs.realEigenvalues[0]*eigs.realEigenvalues[1]);
                           
-                        parallelComponent["resultData"]["neighborLinkWeights"].push([1,1,1,1,1,1,1,1])
+                        // parallelComponent["resultData"]["neighborLinkWeights"].push([1,1,1,1,1,1,1,1])
                         parallelComponent["resultData"]["pixelVisited"].push(0);
 
                         if(!isLocalPeak) continue;

@@ -171,7 +171,7 @@ export class ImageScan {
                     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {   
                         var Ixx = [], Iyy = [], Ixy = [];
                         var isLocalPeak = true;
-                        var centerMag = parallelComponent["resultData"]["laplacian"][((imgX) + (imgY)*this.imageWidth)]
+                        var centerLaplace = parallelComponent["resultData"]["laplacian"][((imgX) + (imgY)*this.imageWidth)]
                         if(imgY <= windowR || imgY>=this.imageHeight-windowR || imgX <= windowR || imgX>=this.imageWidth-windowR) {
                             Ixx = Matrix.ones(windowR*2, windowR*2)
                             Iyy = Matrix.ones(windowR*2, windowR*2)
@@ -181,7 +181,7 @@ export class ImageScan {
                             for(var kY=-windowR; kY <= windowR; ++kY) {  
                                 var xRow = [], yRow = [], xyRow = [];
                                 for(var kX=-windowR; kX <= windowR; ++kX) {   
-                                    if(parallelComponent["resultData"]["laplacian"][((imgX-kX) + (imgY-kY)*this.imageWidth)] > centerMag) {
+                                    if(parallelComponent["resultData"]["laplacian"][((imgX-kX) + (imgY-kY)*this.imageWidth)] > centerLaplace) {
                                         isLocalPeak = false;
                                     }
                                     let xComp = parallelComponent["resultData"]["xGradient1"][((imgX-kX) + (imgY-kY)*this.imageWidth)];

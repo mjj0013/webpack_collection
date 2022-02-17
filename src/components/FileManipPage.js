@@ -78,7 +78,7 @@ class FileManipPage extends React.Component {
         this.loadingCurrentStep=-1;
 
 
-        // this.pixelLinkAlgorithm = this.pixelLinkAlgorithm.bind(this);
+      
 
         
 
@@ -288,19 +288,7 @@ class FileManipPage extends React.Component {
 
     numOfPagesChanged(e) { this.setState({num: e.target.value});  }
 
-    // pixelLinkAlgorithm(resultData) {
 
-    //     function findWeight(p,q) {
-    //         var pLaplace = resultData["laplacian"][p]
-    //         var qLaplace = resultData["laplacian"][q]
-    //         var pThetaNorm = resultData["thetaGradient"][p] - 1.570795;
-    //         var qThetaNorm = resultData["thetaGradient"][q] - 1.570795;
-    //         var pqDot = 
-    //         Math.acos()
-
-    //         0.43*(qLaplace==0?0:1) + 0.43*()
-    //     }
-    // }
 
     async edgeTracer(resultData,layerIdx, movWinRadius=5) {
         // Traces edges starting from each detected corner. A 5x5 window is mapped around each corner to account for multiple edges coming from corner. Duplicates edges are detected 
@@ -356,6 +344,9 @@ class FileManipPage extends React.Component {
             //     theta += 5;
             // }
 
+
+            //  https://mathinsight.org/directional_derivative_gradient_introduction
+            //  https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
             var foundEdges = [];
             for(var wY=-movWinRadius; wY < movWinRadius; ++wY) {        //try -15 to 15
                 for(var wX=-movWinRadius; wX < movWinRadius; ++wX) {
@@ -365,6 +356,7 @@ class FileManipPage extends React.Component {
                         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
                         var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
                         var edgeIsUnique = true;
+
                         for(var edge=0; edge < foundEdges.length; ++edge) {
                             var nextThetaIsSimilar = numberInRange(relativeTheta, foundEdges[edge].theta, 0.0654);
                             var nextThetaIsParallel = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.0654);
@@ -438,9 +430,7 @@ class FileManipPage extends React.Component {
         //************************************************ */
 
         //cluster together curves based on the density of their Bezier-control points ( meaning they have relatively same curvature)
-        // var controlPtCluster = new Cluster(curveRelations, [
-        //     {name:'density', epsilonMultiplier:1, minPts:2, epsilon:25}
-        // ]);
+        // var controlPtCluster = new Cluster(curveRelations, [ {name:'density', epsilonMultiplier:1, minPts:2, epsilon:25} ] );
 
         
         for(var curve=0; curve < curveObjs.length; ++curve) {
@@ -449,24 +439,6 @@ class FileManipPage extends React.Component {
             var thisCurveFunc = geval(curveObj.currentEquationName)
             let xMin = curveObj.xRange[0];
             let xMax = curveObj.xRange[1];
-
-            //testing curve ... testing if every pt on curve has similar pixel data
-            var curveEigenThetas = [];
-           
-            // for(var x=xMin; x < xMax; ++x) {
-            //     let y = Math.round(thisCurveFunc(x));
-            //     var pixelIdx = x + y*this.currentScanObj.imageWidth;
-            //     pixelIdx = Math.round(pixelIdx)
-            //     if(pixelIdx <0 || pixelIdx>this.currentScanObj.imageLength) continue;
-            //     var ptEigenVectors = resultData["eigenVectors"][pixelIdx]
-            //     var ptEigenTheta = Math.atan(ptEigenVectors[1][0]/ptEigenVectors[0][0]);
-            //     curveEigenThetas.push(ptEigenTheta);
-            // }
-            // if(curveEigenThetas.length==1) {
-            //     curveObjs.splice(curve,1); 
-            //     continue;
-            // }
-
             
             var P1 = {x:xMin, y:thisCurveFunc(xMin)}
             var P2 = {x:xMax, y:thisCurveFunc(xMax)}
@@ -526,14 +498,15 @@ class FileManipPage extends React.Component {
         var lastValidObj = null;
       
         for(var shot=0; shot < nextShots.length; ++shot) {
-            
             var nextIdx = (currentPt.x+nextShots[shot].x) + ((nextShots[shot].y+currentPt.y)*imageWidth)
+            var nextX = currentPt.x+nextShots[shot].x;
+            var nextY = (nextShots[shot].y+currentPt.y)*imageWidth
             nextIdx = Math.round(nextIdx)
             if(nextIdx >= 0 && nextIdx < imageLength) {
                 var nextEigenVectors = resultData["eigenVectors"][nextIdx];
                 var nextLaplacian = resultData["laplacian"][nextIdx];
-
-                var nextTheta = Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0])
+ 
+                var nextTheta = Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0])     // 0.06544
                 var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.06544);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
                 var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.06544);
                 // var nextIsSimilarToRoot = numberInRange(currentPt.rootTheta, nextTheta*57.2958, )
@@ -548,6 +521,7 @@ class FileManipPage extends React.Component {
                 //     dataPts = dataPts.concat(nextObj);
                 //     break;
                 // } 
+                //if((nextThetaIsSimilar)  && nextLaplacian >0) { 
                 if((nextThetaIsSimilar || nextThetaIsParallel)  && nextLaplacian >0) {          //&& nextMagIsSimilar
                     var slope = resultData["slopeRateY1"][nextIdx]/resultData["slopeRateX1"][nextIdx];
                     var nextObj = {eigenVectors:resultData["eigenVectors"][nextIdx], eigenVals:resultData["eigenVals"][nextIdx],slope:slope, x:currentPt.x+nextShots[shot].x,  y:currentPt.y+nextShots[shot].y, magGradient:resultData["magGradient"][nextIdx], theta:nextTheta};

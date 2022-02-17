@@ -1,12 +1,11 @@
 import React, {useState,createRef} from 'react';
 import {Container } from 'semantic-ui-react';
-import Offcanvas from 'react-bootstrap/Offcanvas'
 import Modal from 'react-bootstrap/Modal'
 import Tabs from 'react-bootstrap/Tabs';
 import Spinner from 'react-bootstrap/Spinner'
 import Tab from 'react-bootstrap/Tab';
 // import {ProgressBar} from './ProgressBar.js'
-import ProgressBar from 'react-bootstrap/ProgressBar'
+// import ProgressBar from 'react-bootstrap/ProgressBar'
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
 import { documentElement } from 'min-document';
@@ -24,29 +23,26 @@ class FileManipPage extends React.Component {
         super(props);
         this.loadText= this.loadText.bind(this);
         this.numOfPagesChanged= this.numOfPagesChanged.bind(this);
-        this.state = {num:''};
         this.loadImage = this.loadImage.bind(this);
         this.showValuesOnHover = this.showValuesOnHover.bind(this)
-        this.imageScanInstances = [];
         this.selectImageLayerToDisplay = this.selectImageLayerToDisplay.bind(this);
         this.tracingWindow = this.tracingWindow.bind(this);
         this.edgeTracer = this.edgeTracer.bind(this);
         this.selectedImage = null
-
-        this.state = {completionPercentage:0}
+        this.state = {num:''};
+        this.imageScanInstances = [];
        
         this.curveObjs = [];
         this.setImageLayers = this.setImageLayers.bind(this);
         
-        this.currentPts = [];//for testing clustering algorithm
-        this.keyMag = 2;    //for testing clustering algorithm
+        
         this.currentImageLayerIdx = 0;
 
         //SVG zoom handling functions
         this.captureZoomEvent = this.captureZoomEvent.bind(this);
+        this.updateZoom = this.updateZoom.bind(this);
         this.lastZoom = {x:0,y:0};
         this.zoomHasHappened = false;
-        this.updateZoom = this.updateZoom.bind(this);
         this.zoomIntensity = 0.2;
         this.transformMatrix = [1, 0, 0, 1, 0, 0];
 
@@ -56,31 +52,17 @@ class FileManipPage extends React.Component {
         this.elementDrag = this.elementDrag.bind(this);
         this.dragMouseDown = this.dragMouseDown.bind(this);
         this.panSVG = this.panSVG.bind(this);
+        this.resultSVGModeSelect = this.resultSVGModeSelect.bind(this)
         this.currentlyDragging = null;
-
         this.selectBoxOrigin = {x:0,y:0}
         this.currentSVGCursorMode = "drag"
 
-        this.progressBar1 = React.createRef();
-       
-        this.state = {show:false, loadPercent:0, showLoadMessage0:false, showLoadMessage1:false, showLoadMessage2:false}
-
+        // Loading panel's handler functions
         this.handlePanelClose = this.handlePanelClose.bind(this);
         this.handlePanelShow = this.handlePanelShow.bind(this);
-       
-        this.resultSVGModeSelect = this.resultSVGModeSelect.bind(this)
-       
-        this.loadingMessages = [
-            "Loading image step 1",
-            "Loading image step 2",
-            "Loading image step 3"
-        ]
+        this.state = {show:false, loadPercent:0, showLoadMessage0:false, showLoadMessage1:false, showLoadMessage2:false}
         this.loadingCurrentStep=-1;
 
-
-      
-
-        
 
     }
     resultSVGModeSelect = (e) =>{
@@ -202,10 +184,8 @@ class FileManipPage extends React.Component {
     }
 
     selectImageLayerToDisplay(e,selectedIdx=null) {
-        var resultSVG = document.getElementById("resultSVG");
         var curveGroup = document.getElementById("curveGroup")
         selectedIdx = selectedIdx==null? e.target.value : selectedIdx;
-        
         this.currentImageLayerIdx = selectedIdx
         var selectedCurvePaths = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["curvePaths"];
 
@@ -278,17 +258,11 @@ class FileManipPage extends React.Component {
         reader.onload = async (e) => {
             const text=(e.target.result);
             const words  = text.split(' ');
-            words.forEach((w) => {
-                document.getElementById("fileText").value += w;
-                document.getElementById("fileText").value += " ";
-            });            
+            words.forEach((w) => {document.getElementById("fileText").value += w+" "; });            
         };
         reader.readAsText(e.target.files[0]);
     }
-
     numOfPagesChanged(e) { this.setState({num: e.target.value});  }
-
-
 
     async edgeTracer(resultData,layerIdx, movWinRadius=5) {
         // Traces edges starting from each detected corner. A 5x5 window is mapped around each corner to account for multiple edges coming from corner. Duplicates edges are detected 
@@ -312,26 +286,19 @@ class FileManipPage extends React.Component {
             //     var rY = movWinRadius*Math.sin(theta/57.2958);
             //     var relativeIdx = (currentCorner.x+rX) + (currentCorner.y+rY)*this.currentScanObj.imageWidth;
             //     relativeIdx = Math.round(relativeIdx);
-                
             //     if(relativeIdx < 0 || relativeIdx >=this.currentScanObj.imageLength) {theta+=5; continue;}
             //     var relativeEigenVals = resultData["eigenVals"][relativeIdx];
             //     var real = relativeEigenVals.realEigenvalues;
             //     //if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0 && resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response; > 0 means its classified as a corner by Harris Response
-                 
             //     if((real[0] + eigenValEstimate < real[1]) || (real[1] + eigenValEstimate < real[0])) {
-                   
             //         //if(resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response; > 0 means its classified as a corner by Harris Response
-                 
             //         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
-                    
             //         var relativeMagGradient = resultData["magGradient"][relativeIdx];
             //         if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0) {   
-                        
             //             if((relativeMagGradient/resultData["maxMagGradient"]) > .15) {
             //                 var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0]);
             //                 var relativePt = {rootTheta:theta/57.2958, eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:relativeMagGradient,  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+rX, y:currentCorner.y+rY}
             //                 //changed theta:relativeTheta to theta:theta
-                            
             //                 //scanning out from a corner at the found angle (looking for valid lengths)
             //                 var [segmentLengths, edgePts] = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
             //                 // var edgePts = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
@@ -343,10 +310,13 @@ class FileManipPage extends React.Component {
             //     }
             //     theta += 5;
             // }
-
-
             //  https://mathinsight.org/directional_derivative_gradient_introduction
             //  https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
+
+
+
+
+            //before calling tracingWindow, find the most common angles and only use those so that there aren't any redundant edges
             var foundEdges = [];
             for(var wY=-movWinRadius; wY < movWinRadius; ++wY) {        //try -15 to 15
                 for(var wX=-movWinRadius; wX < movWinRadius; ++wX) {
@@ -356,7 +326,6 @@ class FileManipPage extends React.Component {
                         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
                         var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
                         var edgeIsUnique = true;
-
                         for(var edge=0; edge < foundEdges.length; ++edge) {
                             var nextThetaIsSimilar = numberInRange(relativeTheta, foundEdges[edge].theta, 0.0654);
                             var nextThetaIsParallel = numberInRange(relativeTheta+Math.PI, foundEdges[edge].theta, 0.0654);
@@ -368,7 +337,6 @@ class FileManipPage extends React.Component {
                         if(edgeIsUnique) {       //edge is completely different from other edges
                             // +/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
                             foundEdges.push({eigenVectors:relativeEigenVectors, theta:relativeTheta, pt1:{x:currentCorner.x, y:currentCorner.y}, pt2:{x:currentCorner.x+wX, y:currentCorner.y+wY}}) 
-
                             var relativePt = {eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx] , x:currentCorner.x+wX, y:currentCorner.y+wY}
                             var [thisSegmentLength,edgePts] = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
                             clusterMatrix.push(edgePts);
@@ -379,10 +347,7 @@ class FileManipPage extends React.Component {
             }
         }
         console.log('clusterMatrix',clusterMatrix)
-        
-        
         var curveObjs = [];
-
         for(var clm=0; clm < clusterMatrix.length; ++clm) {
             // var clusterSpacing = clusterSpacings[clm];
             // var avg =0;
@@ -432,7 +397,6 @@ class FileManipPage extends React.Component {
         //cluster together curves based on the density of their Bezier-control points ( meaning they have relatively same curvature)
         // var controlPtCluster = new Cluster(curveRelations, [ {name:'density', epsilonMultiplier:1, minPts:2, epsilon:25} ] );
 
-        
         for(var curve=0; curve < curveObjs.length; ++curve) {
             var curveObj = curveObjs[curve];
             geval(curveObj["currentEquationStr"])
@@ -443,7 +407,6 @@ class FileManipPage extends React.Component {
             var P1 = {x:xMin, y:thisCurveFunc(xMin)}
             var P2 = {x:xMax, y:thisCurveFunc(xMax)}
             var curveDerivativeMin = curveObj.currentDerivative(xMin);
-
 
             var C = {x:(xMin+xMax)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2}
             var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
@@ -457,14 +420,6 @@ class FileManipPage extends React.Component {
             // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
             document.getElementById("curveGroup").append(path);
             resultData['curvePaths'].push([pathId, d])
-
-
-            // var controlPt = document.createElementNS("http://www.w3.org/2000/svg","circle");
-            // controlPt.setAttribute("cx", C.x);
-            // controlPt.setAttribute("cy",C.y);
-            // controlPt.setAttribute("r",1);
-            // controlPt.setAttribute("fill","black");
-            // document.getElementById("ptGroup").append(controlPt);
 
             console.log("Percent done: ",(curve/curveObjs.length))
             this.setState({...this.state, loadPercent:(curve/curveObjs.length)})
@@ -571,17 +526,13 @@ class FileManipPage extends React.Component {
        
         imageReadPromise.then(result1 => {
             var detectBlobPromise =  this.currentScanObj.detectBlobs();      //detects blobs on each layer
-            detectBlobPromise.then(result2 => {
-                // var message2 =  this.insertStatusText(2);
-                var processBlobPromise = this.currentScanObj.processBlobs()
-                processBlobPromise.then(result3=> {
-                    
-                    var saveLayerImagePromise = this.currentScanObj.saveLayerImageData(context); 
-                    saveLayerImagePromise.then(result4=>{
-                        this.setImageLayers();
-                        this.handlePanelClose();
-                    })
+            detectBlobPromise.then(result2 => {  
+                var saveLayerImagePromise = this.currentScanObj.saveLayerImageData(context); 
+                saveLayerImagePromise.then(result3=>{
+                    this.setImageLayers();
+                    this.handlePanelClose();
                 })
+
             })
         });
         document.getElementById("testCanvas").onmousemove = (e) => this.showValuesOnHover(e);
@@ -608,7 +559,6 @@ class FileManipPage extends React.Component {
                             <label htmlFor="imgFile">Choose image file: </label>
                             <input type="file" id="imgFile" onChange={this.loadImage}></input>
                         </Container>
-                        
                         
                         <canvas className="imageContainer inputImage" id="testCanvas"   />
                         {/* <svg id="eigenVectors" xmlns="http://www.w3.org/2000/svg" >
@@ -650,17 +600,9 @@ class FileManipPage extends React.Component {
                         <Modal.Title>Processing input image...</Modal.Title>
                         <Spinner animation="border" />
                     </Modal.Header>
-                    <Modal.Body id="modalBody">
-                        
-                    </Modal.Body>
-                    <Modal.Footer>
-
-                    </Modal.Footer>
-
+                    {/* <Modal.Body id="modalBody"></Modal.Body> */}
+                    {/* <Modal.Footer></Modal.Footer> */}
                 </Modal>
-
-
-                
             </Layout> 
             
       );

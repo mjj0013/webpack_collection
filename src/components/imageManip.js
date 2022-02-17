@@ -27,7 +27,7 @@ export class ImageScan {
         this.simpleGrayscaleConvert = this.simpleGrayscaleConvert.bind(this);
        
         this.detectBlobs = this.detectBlobs.bind(this);
-        this.processBlobs = this.processBlobs.bind(this);
+    
         this.saveLayerImageData = this.saveLayerImageData.bind(this);
         this.imageLayers = [];
         this.combinedGrid = []  //should eventually be where clusters of each image layer in 'imageLayers' are combined 
@@ -35,23 +35,6 @@ export class ImageScan {
         this.selectedImage = null
     }
 
-    async processBlobs(windowHeight=100, windowWidth=100) {
-        /********************************************************************************************************************************************* 
-        For edge detection... simply find the distinct slopes in the image and their locations. 
-        If points are very close in their gradient values and are local to each other(in a window), consider them members of the same curve/line 
-        Therefore, group together data points that are BOTH relative in their gradients and location. 
-        Then perform curve fitting on those data points. 
-        Move a window  throughout  image (from top-left to bottom-right) like normal. If a distinct gradient is found, record the position of it and any other pixels that are the same
-        When you move the window adjacent to that region again, see whether the slope continues or not. You would most likely already have covered 4 of 8 possible directions it could move in
-        After testing all 8 directions on that location, determine which direction it may continue in. 
-        If gradient continues in a direction, update its  with newly discovered part. 
-        *********************************************************************************************************************************************/
-       
-        //makes sure window makes IxJ evenly divided regions.    
-        return new Promise((resolve,reject)=> {
-            resolve();
-        })
-    }
 
     async detectBlobs(gaussLength=15, baseSig=2, numLayers=2, sigExpMax=6, k=.04, eigenValEstimate=5000) {      //5000
         //  k is sensitivity factor, default .04
@@ -241,6 +224,9 @@ export class ImageScan {
                     }
                     console.log(`Completed iter ${(imgX + imgY*this.imageWidth)} of ${this.imageHeight*this.imageWidth}`);
                 }
+
+
+                // from "Smart Scissors" project in https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L06.pdf
                 // for(var imgY=0; imgY < this.imageHeight; imgY+=1) {      
                 //     for(var imgX=0; imgX < this.imageWidth; imgX+=1) {  
                 //         //order of neighborLinkWeights is [top, topRight, left, bottomRight, bottom, bottomLeft, left, topLeft] 
@@ -382,13 +368,14 @@ export class ImageScan {
         return [newR, newG, newB, newA];
     }
 
-    colorGammaTransferComponent(inColor, amplitude, exponent, offset, isAlpha=false) { return amplitude*Math.pow(inColor,exponent) + offset; }
+    colorGammaTransferComponent(inColor, amplitude, exponent, offset, isAlpha=false) { 
+        return amplitude*Math.pow(inColor,exponent) + offset; 
+    }
 
     async imageReader(addr=null) {
         //from https://www.youtube.com/watch?v=-AR-6X_98rM&ab_channel=KyleRobinsonYoung
         //filterInfo will be a list of component-objects of form-> {type:"gauss", kernelLength:5, sig:1};    components will be applied in order
         return new Promise((resolve,reject)=> {
-
             var canvas = document.getElementById(this.canvasId);
             var context = canvas.getContext("2d");
             // var input = addr==null? document.querySelector('input[type="file"]'): addr
@@ -501,8 +488,6 @@ export class ImageScan {
                         let mag = this.imageLayers[layerIndex]["resultData"]["magGradient"][imgX + (imgY*this.imageWidth)];
                         let theta = this.imageLayers[layerIndex]["resultData"]["thetaGradient"][imgX + (imgY*this.imageWidth)];
                         let R = (mag)*Math.cos(theta),  G = 0,  B = (mag)*Math.sin(theta);
-                        
-                        
                         dataCopy[4*(imgX + imgY*this.imageWidth)] = R;
                         dataCopy[4*(imgX + imgY*this.imageWidth)+1] = G;
                         dataCopy[4*(imgX + imgY*this.imageWidth)+2] = B;
@@ -535,10 +520,7 @@ export class ImageScan {
 
     gaussianBlurComponent(kernelLength=5,sig=1) {
         //https://aryamansharda.medium.com/image-filters-gaussian-blur-eb36db6781b1 
-        if(kernelLength%2!=1) {
-            console.log("ERROR: kernelLength must be odd");
-            return -1;
-        }
+        if(kernelLength%2!=1) { console.log("ERROR: kernelLength must be odd");  return -1;  }
         let kernelRadius=Math.floor(kernelLength/2);
         sig = Math.max((kernelRadius / 2), sig)      //set minimum standard deviation as a baseline; link above says to scale sigma value in proportion to radius
         let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));

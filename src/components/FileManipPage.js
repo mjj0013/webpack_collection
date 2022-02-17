@@ -331,10 +331,12 @@ class FileManipPage extends React.Component {
                 var initialCurveName = `curve${layerIdx}_${cluster}`
                 var [thisSegmentLength,edgePts, finalDestination] = this.tracingWindow(resultData, subCluster[0], movWinRadius, initialCurveName)  //make this a cluster
                 if(finalDestination!= initialCurveName) {
+                    // console.log('finalDestination',finalDestination, initialCurveName)
+                    // console.log('this.allCurveData',this.allCurveData)
                     this.allCurveData[finalDestination].pts = this.allCurveData[finalDestination].pts.concat(edgePts);
                 }
                 else {
-                    this.allCurveData[initialCurveName] = {"curveObj":null,  "pts":edgePts};
+                    this.allCurveData[initialCurveName]={"curveObj":null, "pts":edgePts};
                 }
                 
                 
@@ -423,8 +425,8 @@ class FileManipPage extends React.Component {
             document.getElementById("curveGroup").append(path);
             resultData['curvePaths'].push([pathId, d])
 
-            console.log("Percent done: ",(curve/this.allCurveData.length))
-            this.setState({...this.state, loadPercent:(curve/this.allCurveData.length)})
+            console.log("Percent done: ",(nameIdx/Object.keys(this.allCurveData).length))
+            this.setState({...this.state, loadPercent:(nameIdx/Object.keys(this.allCurveData).length)})
         }
         console.log('***Done tracing edges***')
     }
@@ -485,14 +487,10 @@ class FileManipPage extends React.Component {
                         var [nextLengths, nextResult, finalDestination] = this.tracingWindow(resultData, lastValidObj, currentLength, destination)
                         dataPts = dataPts.concat(nextResult);
                         segmentLengths = segmentLengths.concat(nextLengths)
+                        destination = finalDestination;
                         break;  
                     }
                 }
-                
-
-              
-                
-              
 
                 // var cornerScan = scanRadiusForCorner(resultData, nextIdx, 5, eigenValEstimate);
                 // if(cornerScan!=null)  {
@@ -505,11 +503,7 @@ class FileManipPage extends React.Component {
                 //     // dataPts = dataPts.concat(nextObj);
                 //     break;
                 // } 
-                
-                
 
-                
-                
             }
         }
         

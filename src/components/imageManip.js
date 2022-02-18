@@ -156,9 +156,9 @@ export class ImageScan {
                         var isLocalPeak = true;
                         var centerLaplace = parallelComponent["resultData"]["laplacian"][((imgX) + (imgY)*this.imageWidth)]
                         if(imgY <= windowR || imgY>=this.imageHeight-windowR || imgX <= windowR || imgX>=this.imageWidth-windowR) {
-                            Ixx = Matrix.ones(windowR*2, windowR*2)
-                            Iyy = Matrix.ones(windowR*2, windowR*2)
-                            Ixy = Matrix.ones(windowR*2, windowR*2)
+                            Ixx = Matrix.zeros(windowR*2, windowR*2)
+                            Iyy = Matrix.zeros(windowR*2, windowR*2)
+                            Ixy = Matrix.zeros(windowR*2, windowR*2)
                         }
                         else {
                             for(var kY=-windowR; kY <= windowR; ++kY) {  
@@ -208,7 +208,7 @@ export class ImageScan {
                         parallelComponent["resultData"]["gaussCurvature"].push(eigs.realEigenvalues[0]*eigs.realEigenvalues[1]);
                           
                         // parallelComponent["resultData"]["neighborLinkWeights"].push([1,1,1,1,1,1,1,1])
-                        parallelComponent["resultData"]["pixelVisited"].push(0);
+                        parallelComponent["resultData"]["pixelVisited"].push('none');
 
                         if(!isLocalPeak) continue;
                         if(R>0) {

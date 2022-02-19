@@ -295,32 +295,43 @@ class FileManipPage extends React.Component {
             //  https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
 
             
-            
-            var foundEdges = [];           
+            var foundEdges = [];   
+            // for(var angle=1; angle <=360; angle+=.5) {
+            //     var thetaFromCorner = angle/57.2958
+            //     var wX = Math.round(5*Math.cos(thetaFromCorner))
+            //     var wY = Math.round(5*Math.sin(thetaFromCorner))
+            //     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
+            //     if(Math.abs(resultData["gaussCurvature"][relativeIdx]) >= eigenValEstimate) {  
+            //         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
+            //         var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
+            //         // +/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
+            //         var eigenVals = resultData["eigenVals"][relativeIdx].realEigenvalues;
+            //         var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , eigenVals:eigenVals, lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
+            //         foundEdges.push(relativePt) 
+            //     }
+            // }        
+
             for(var wY=-movWinRadius; wY <= movWinRadius; ++wY) {        //try -15 to 15
                 for(var wX=-movWinRadius; wX <= movWinRadius; ++wX) {
                     if(wY==0 && wX==0) continue;
                     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
+                    // if(Math.abs(resultData["gaussCurvature"][relativeIdx]) >= eigenValEstimate && resultData["laplacian"][relativeIdx] > 0) {
                     if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0 && resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response
                         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
                         var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
-                     
                         // +/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
                         var thetaFromCorner = Math.atan(wY/wX)
                         thetaFromCorner = thetaFromCorner<0? 2*Math.PI-thetaFromCorner : thetaFromCorner;
-                        var eigenVals = resultData["eigenVals"][relativeIdx].realEigenvalues;
-                        var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , eigenVals:eigenVals, lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
                         
+                        var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
                         foundEdges.push(relativePt) 
-                        // var [thisSegmentLength,edgePts] = this.tracingWindow(resultData, relativePt, movWinRadius)  //make this a cluster
-                        // clusterMatrix.push(edgePts);   
                         
                     }
                 }
             }
             
-            var condensedEdges = new Cluster(foundEdges, [{name:'thetaFromCorner',  epsilonMultiplier:1, minPts:2, epsilon:null}])  //0.261799
-            
+            var condensedEdges = new Cluster(foundEdges, [{name:'thetaFromCorner',  epsilonMultiplier:1, minPts:3, epsilon:null}])  //0.261799
+          
            
             for(let cluster=0; cluster < condensedEdges.subClusters.length; ++cluster) {
                 var subCluster = condensedEdges.subClusters[cluster];
@@ -343,20 +354,20 @@ class FileManipPage extends React.Component {
                 var initialCurveName = `curve${corn}_${layerIdx}_${cluster}`
                 if(Object.keys(this.allCurveData).includes(initialCurveName)) {
                     var [lengths, edges, destination] = this.tracingWindow(resultData, subCluster[0], movWinRadius, initialCurveName)
-                    var clusterObj = new Cluster(edges, [{name:'density', epsilonMultiplier:1, minPts:2, epsilon:null, attribute:null}])
-                    if(clusterObj.subClusters.length > 1) {
-                        // delete this.allCurveData[initialCurveName];
-                        this.allCornerData[`corner${corn}`].edges.splice(initialCurveName)
-                        for(let c=0; c < clusterObj.subClusters.length; ++c) {
-                            var subCluster = clusterObj.subClusters[c]
+                    // var clusterObj = new Cluster(edges, [{name:'density', epsilonMultiplier:1, minPts:2, epsilon:null, attribute:null}])
+                    // if(clusterObj.subClusters.length > 1) {
+                    //     // delete this.allCurveData[initialCurveName];
+                    //     this.allCornerData[`corner${corn}`].edges.splice(initialCurveName)
+                    //     for(let c=0; c < clusterObj.subClusters.length; ++c) {
+                    //         var subCluster = clusterObj.subClusters[c]
                             
-                            this.allCurveData[initialCurveName+`_${c}`] = {"curveObj":null, "pts":[], "origin":`corner${corn}`};
-                            this.allCurveData[initialCurveName+`_${c}`].pts = subCluster;
-                            this.allCornerData[`corner${corn}`].edges.push(initialCurveName);
+                    //         this.allCurveData[initialCurveName+`_${c}`] = {"curveObj":null, "pts":[], "origin":`corner${corn}`};
+                    //         this.allCurveData[initialCurveName+`_${c}`].pts = subCluster;
+                    //         this.allCornerData[`corner${corn}`].edges.push(initialCurveName);
                             
                             
-                        }
-                    }
+                    //     }
+                    // }
                     
                 }
             }

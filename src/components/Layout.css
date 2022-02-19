@@ -76,9 +76,6 @@ body {
 	height:150px;
 }
 
-/* #imageFileLoader{
-	display:inline;
-} */
 #imageFileLoader > *{
 	display:inline;
 }

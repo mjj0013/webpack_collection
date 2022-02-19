@@ -271,11 +271,11 @@ class FileManipPage extends React.Component {
     }
     numOfPagesChanged(e) { this.setState({num: e.target.value});  }
 
-    async edgeTracer(resultData,layerIdx, movWinRadius=15) {
+    async edgeTracer(resultData,layerIdx, movWinRadius=15, eigenValEstimate = 5000) {
         // Traces edges starting from each detected corner. A 5x5 window is mapped around each corner to account for multiple edges coming from corner. Duplicates edges are detected 
         // Calls 'tracingWindow' recursively when an edge continues in a specific direction.
         // TODO: add Hough Transform for ellipse detection (iterating through different radius lengths to see which radius has most 'votes'/ fits data points)
-        var eigenValEstimate = 5000;
+        
         var cornerLocations = resultData["cornerLocations"];
         var clusterMatrix=[];
         var clusterSpacings = [];
@@ -354,18 +354,17 @@ class FileManipPage extends React.Component {
                 var initialCurveName = `curve${corn}_${layerIdx}_${cluster}`
                 if(Object.keys(this.allCurveData).includes(initialCurveName)) {
                     var [lengths, edges, destination] = this.tracingWindow(resultData, subCluster[0], movWinRadius, initialCurveName)
+                    this.allCurveData[destination].pts = this.allCurveData[destination].pts.concat(edges);
+
                     // var clusterObj = new Cluster(edges, [{name:'density', epsilonMultiplier:1, minPts:2, epsilon:null, attribute:null}])
                     // if(clusterObj.subClusters.length > 1) {
                     //     // delete this.allCurveData[initialCurveName];
                     //     this.allCornerData[`corner${corn}`].edges.splice(initialCurveName)
                     //     for(let c=0; c < clusterObj.subClusters.length; ++c) {
                     //         var subCluster = clusterObj.subClusters[c]
-                            
                     //         this.allCurveData[initialCurveName+`_${c}`] = {"curveObj":null, "pts":[], "origin":`corner${corn}`};
                     //         this.allCurveData[initialCurveName+`_${c}`].pts = subCluster;
                     //         this.allCornerData[`corner${corn}`].edges.push(initialCurveName);
-                            
-                            
                     //     }
                     // }
                     
@@ -374,25 +373,6 @@ class FileManipPage extends React.Component {
             console.log(`corner ${corn} of ${cornerLocations.length} completed`)
             
         }
-        // console.log('clusterMatrix',clusterMatrix)
-        // var curveObjs = [];
-        // for(var clm=0; clm < clusterMatrix.length; ++clm) {
-        //     // var clusterOperations = [
-        //     //     {name:'density', epsilonMultiplier:1, minPts:2, epsilon:null, attribute:null},  //movWinRadius*2
-        //     //     // {name:'theta',epsilon:null, minPts:2, epsilonMultiplier:1},
-        //     //     // {name:'thetaGradient',epsilon:null, minPts:3, epsilonMultiplier:1},
-        //     //     // {name:'slope',epsilon:null, minPts:4, epsilonMultiplier:1},
-        //     // ]
-        //     // var clusterObj = new Cluster(clusterMatrix[clm], clusterOperations);
-        //     // var curve = new Curve(clusterMatrix[clm],`curve${layerIdx}_${clm}`,2);
-        //     // this.allCurveData[`curve${layerIdx}_${clm}`] = {"curveObj":curve,  "pts":clusterMatrix[clm]};
-        //     // curveObjs.push(curve)
-        //     // for(var cl=0; cl < clusterObj.subClusters.length; ++cl) {
-        //     //     var curve = new Curve(clusterObj.subClusters[cl],`curve${layerIdx}_${clm}_${cl}`,2);
-        //     //     if(curve.pts.length==0) continue;
-        //     //     curveObjs.push(curve)
-        //     // }
-        // }
         //all curves from each corners are now processed together (??)
 
         var curveRelations = []
@@ -490,14 +470,12 @@ class FileManipPage extends React.Component {
     }
 
     
-    tracingWindow(resultData, currentPt, currentLength, thisCurveName) {      
+    tracingWindow(resultData, currentPt, currentLength, thisCurveName, eigenValEstimate=5000) {      
         //gathers data points by following/tracing a line with common gradient value and  with 15 degrees of flexibility between each data point (so it results in a curve if applicable). Clustering happens after this function, not during
         // currentLength is the current length of the 'traced' edge from the starting point (from edgeTracer)
         //currentPt is object {x:..., y:...}
-        var eigenValEstimate = 5000;
 
         var destination = thisCurveName;
-
 
         let imageWidth = this.currentScanObj.imageWidth;
         let imageHeight= this.currentScanObj.imageHeight;
@@ -517,30 +495,27 @@ class FileManipPage extends React.Component {
         // while(canExtend) {
 
        
-        for(var i=1; i < 25; ++i) {        //25
-            if(i==0) continue;
+        for(var i=1; i < 25; ++i) { 
+            
             var nextX = Math.round(i*Math.cos(currentTheta))
             var nextY = Math.round(i*Math.sin(currentTheta))
             var nextIdx = Math.round((currentPt.x+nextX) + ((nextY+currentPt.y)*imageWidth))
             var inXRange = ((currentPt.x+nextX) >= 0 && (currentPt.x+nextX) < imageWidth);
             var inYRange = ((currentPt.y+nextY) >= 0 && (currentPt.y+nextY) < imageHeight);
             if(inXRange && inYRange) {      //next pixel is in bounds of the image
-
                 var nextPixelStatus = resultData["pixelVisited"][nextIdx];
-                var cornerScan = scanRadiusForCorner(resultData, nextIdx, 3, eigenValEstimate);
+                var cornerScan = scanRadiusForCorner(resultData, nextIdx, 1, eigenValEstimate);
                 if(cornerScan!=null)  {
                     var cornerEigenVectors = resultData["eigenVectors"][cornerScan.idx];
                     var cornerTheta = Math.atan(cornerEigenVectors[1][0]/cornerEigenVectors[0][0])
                     var nextObj = {eigenVectors:cornerEigenVectors, eigenVals:resultData["eigenVals"][cornerScan.idx], x:cornerScan.x,  y:cornerScan.y, magGradient:resultData["magGradient"][cornerScan.idx], thetaGradient:cornerTheta};
-                    
+                    dataPts = dataPts.concat(nextObj);
                     //*** this would also be a good spot to create connection b/w two corners in the graph object***
-                    
                     if(nextPixelStatus.substr(0,6) =="corner") {
                         var thisOrigin = this.allCurveData[thisCurveName].origin
                         if(!this.allCornerData[nextPixelStatus].neighbors.includes(thisOrigin)) this.allCornerData[nextPixelStatus].neighbors.push(thisOrigin);
                         if(!this.allCornerData[thisOrigin].neighbors.includes(nextPixelStatus)) this.allCornerData[thisOrigin].neighbors.push(nextPixelStatus);
                     }
-                    dataPts = dataPts.concat(nextObj);
                     break;
 
                 } 
@@ -548,24 +523,22 @@ class FileManipPage extends React.Component {
                     //merge the pts of this scan with the pts of the existing curve 
                     destination = nextPixelStatus;
                     break;
-
                 }
                 
                 // else if(nextPixelStatus=='none') {                    //the next pixel has not been visited
                     resultData["pixelVisited"][nextIdx] = thisCurveName;
                     var nextEigenVectors = resultData["eigenVectors"][nextIdx];
-                    var nextLaplacian = resultData["laplacian"][nextIdx];
+                    // var nextLaplacian = resultData["laplacian"][nextIdx];
                     var nextGaussCurve = resultData["gaussCurvature"][nextIdx];
                     var nextTheta = Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0])     // 0.06544
                     var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.3490);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
                     var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.3490);
                     
-                    if((nextThetaIsSimilar || nextThetaIsParallel)  && Math.abs(nextGaussCurve) > eigenValEstimate) { 
+                    if((nextThetaIsSimilar || nextThetaIsParallel)  && Math.abs(nextGaussCurve) >= eigenValEstimate) { 
                         var nextObj = {eigenVectors:nextEigenVectors, eigenVals:resultData["eigenVals"][nextIdx], x:currentPt.x+nextX,  y:currentPt.y+nextY, magGradient:resultData["magGradient"][nextIdx], theta:nextTheta};
                         dataPts = dataPts.concat(nextObj);
                         lastValidObj = nextObj;
                         segmentLengths.push(Math.sqrt((i+1)*(i+1)))
-                        
                     }
                     
                     else if(lastValidObj!=null) {
@@ -584,7 +557,7 @@ class FileManipPage extends React.Component {
             // else canExtend=false;
             // ++i;
         }
-        this.allCurveData[destination].pts = this.allCurveData[destination].pts.concat(dataPts);
+        // this.allCurveData[destination].pts = this.allCurveData[destination].pts.concat(dataPts);
         //segmentLengths is a list of each 'trace' between dataPts, will be used in calculating important parameter for clustering algorithm
         return [segmentLengths,dataPts, destination];
     }
@@ -597,7 +570,7 @@ class FileManipPage extends React.Component {
             var layerName = `Layer ${l} | Sigma=${imageLayers[l]["component"].sig}`
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
             var resultData = imageLayers[l]["resultData"];
-            this.edgeTracer(resultData,l);
+            this.edgeTracer(resultData,l,15,3000);
         }
         return new Promise((resolve,reject)=> { resolve(); });
     }
@@ -649,6 +622,7 @@ class FileManipPage extends React.Component {
                         <Container id="imageFileLoader">
                             <label htmlFor="imgFile">Choose image file: </label>
                             <input type="file" id="imgFile" onChange={this.loadImage}></input>
+                           
                         </Container>
                         
                         <canvas className="imageContainer inputImage" id="testCanvas"   />

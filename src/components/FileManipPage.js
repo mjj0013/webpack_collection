@@ -512,15 +512,22 @@ class FileManipPage extends React.Component {
         // //for testing different lengths of edges
 
         var lastValidObj = null;
+        var canExtend = true;
+        // var i =1;
+        // while(canExtend) {
+
+       
         for(var i=1; i < 25; ++i) {        //25
             if(i==0) continue;
             var nextX = Math.round(i*Math.cos(currentTheta))
             var nextY = Math.round(i*Math.sin(currentTheta))
             var nextIdx = Math.round((currentPt.x+nextX) + ((nextY+currentPt.y)*imageWidth))
-           
-            if(nextIdx >= 0 && nextIdx <= imageLength-1) {    //next pixel is in bounds of the image
+            var inXRange = ((currentPt.x+nextX) >= 0 && (currentPt.x+nextX) < imageWidth);
+            var inYRange = ((currentPt.y+nextY) >= 0 && (currentPt.y+nextY) < imageHeight);
+            if(inXRange && inYRange) {      //next pixel is in bounds of the image
+
                 var nextPixelStatus = resultData["pixelVisited"][nextIdx];
-                var cornerScan = scanRadiusForCorner(resultData, nextIdx, 1, eigenValEstimate);
+                var cornerScan = scanRadiusForCorner(resultData, nextIdx, 3, eigenValEstimate);
                 if(cornerScan!=null)  {
                     var cornerEigenVectors = resultData["eigenVectors"][cornerScan.idx];
                     var cornerTheta = Math.atan(cornerEigenVectors[1][0]/cornerEigenVectors[0][0])
@@ -548,10 +555,12 @@ class FileManipPage extends React.Component {
                     resultData["pixelVisited"][nextIdx] = thisCurveName;
                     var nextEigenVectors = resultData["eigenVectors"][nextIdx];
                     var nextLaplacian = resultData["laplacian"][nextIdx];
+                    var nextGaussCurve = resultData["gaussCurvature"][nextIdx];
                     var nextTheta = Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0])     // 0.06544
                     var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.3490);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
                     var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.3490);
-                    if((nextThetaIsSimilar || nextThetaIsParallel)  && nextLaplacian > 0) { 
+                    
+                    if((nextThetaIsSimilar || nextThetaIsParallel)  && Math.abs(nextGaussCurve) > eigenValEstimate) { 
                         var nextObj = {eigenVectors:nextEigenVectors, eigenVals:resultData["eigenVals"][nextIdx], x:currentPt.x+nextX,  y:currentPt.y+nextY, magGradient:resultData["magGradient"][nextIdx], theta:nextTheta};
                         dataPts = dataPts.concat(nextObj);
                         lastValidObj = nextObj;
@@ -564,13 +573,16 @@ class FileManipPage extends React.Component {
                         dataPts = dataPts.concat(nextEdges);
                         segmentLengths = segmentLengths.concat(nextLengths)
                         destination = finalDestination;
+                        // canExtend=false;
                         break;  
                     }
-            //    }
+                //}
 
                 
 
             }
+            // else canExtend=false;
+            // ++i;
         }
         this.allCurveData[destination].pts = this.allCurveData[destination].pts.concat(dataPts);
         //segmentLengths is a list of each 'trace' between dataPts, will be used in calculating important parameter for clustering algorithm

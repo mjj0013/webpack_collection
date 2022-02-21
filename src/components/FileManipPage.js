@@ -318,12 +318,13 @@ class FileManipPage extends React.Component {
                     // if(Math.abs(resultData["gaussCurvature"][relativeIdx]) >= eigenValEstimate && resultData["laplacian"][relativeIdx] > 0) {
                     if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0 && resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response
                         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
-                        var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
+                        var relativeEigenTheta = resultData["eigenVectorTheta"][relativeIdx]
+                        // var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
                         // +/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
                         var thetaFromCorner = Math.atan(wY/wX)
                         thetaFromCorner = thetaFromCorner<0? 2*Math.PI-thetaFromCorner : thetaFromCorner;
                         
-                        var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
+                        var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, eigenTheta:relativeEigenTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
                         foundEdges.push(relativePt) 
                         
                     }
@@ -437,7 +438,11 @@ class FileManipPage extends React.Component {
             
             var path = document.createElementNS("http://www.w3.org/2000/svg","path");
             path.setAttribute("id",pathId)
-            path.addEventListener("mouseover", (e)=>{console.log(e.target.id)}, false);
+            path.addEventListener("mouseover", (e)=>{
+                console.log(e.target.id, this.allCurveData[e.target.id].curveObj.currentDerivative(xMax-xMin))
+               
+               
+            }, false);
             path.setAttribute("d",d);
             path.setAttribute("stroke",`black`);
             path.setAttribute("fill","none");
@@ -507,6 +512,7 @@ class FileManipPage extends React.Component {
                 var cornerScan = scanRadiusForCorner(resultData, nextIdx, 1, eigenValEstimate);
                 if(cornerScan!=null)  {
                     var cornerEigenVectors = resultData["eigenVectors"][cornerScan.idx];
+                    
                     var cornerTheta = Math.atan(cornerEigenVectors[1][0]/cornerEigenVectors[0][0])
                     var nextObj = {eigenVectors:cornerEigenVectors, eigenVals:resultData["eigenVals"][cornerScan.idx], x:cornerScan.x,  y:cornerScan.y, magGradient:resultData["magGradient"][cornerScan.idx], thetaGradient:cornerTheta};
                     dataPts = dataPts.concat(nextObj);
@@ -596,7 +602,6 @@ class FileManipPage extends React.Component {
                     this.setImageLayers();
                     this.handlePanelClose();
                 })
-
             })
         });
         document.getElementById("testCanvas").onmousemove = (e) => this.showValuesOnHover(e);

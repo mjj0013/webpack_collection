@@ -78,7 +78,6 @@ export class Curve {
         for(let i=0; i < n; ++i) {
             let xy = clusterPts[i].x*clusterPts[i].y;
             let xx = clusterPts[i].x*clusterPts[i].x;
-
             xVals.push(clusterPts[i].x);
             yVals.push(clusterPts[i].y);
             xyVals.push(xy);
@@ -144,10 +143,30 @@ export class Curve {
         return curveObj;
     }
 
-    currentDerivative(x) {
-        let c = this.currentCoeffs[2];
-        let b = this.currentCoeffs[1];
-        return b+(2*c*x);
+    currentDerivative(x, order=1) {
+        //order means the nth derivative
+        
+        var getDeriv = (A) => {
+            var tempCoeffs = [];
+            for(let coeff=1; coeff< A.length; ++coeff) {
+                tempCoeffs.push(A[coeff]*coeff);
+            }
+            return tempCoeffs;
+        }
+        var temp = [...this.currentCoeffs]
+        for(let o=0; o < order; ++o) {
+            temp = getDeriv(temp);
+        }
+
+        var result = 0;
+        for(let c=0; c < temp.length; ++c) {
+            result += Math.pow(x,c)*temp[c]
+        }
+        return result;
+
+        // let c = this.currentCoeffs[2];
+        // let b = this.currentCoeffs[1];
+        // return b+(2*c*x);
     }
     currentMidpointX() {
         let c = this.currentCoeffs[2];

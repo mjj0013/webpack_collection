@@ -18,7 +18,6 @@ var geval = eval;
 import { Matrix, solve } from 'ml-matrix';
 
 class FileManipPage extends React.Component {
-    
     constructor(props) {
         super(props);
         this.loadText= this.loadText.bind(this);
@@ -30,8 +29,7 @@ class FileManipPage extends React.Component {
         this.edgeTracer = this.edgeTracer.bind(this);
         this.selectedImage = null
         this.state = {num:''};
-        this.imageScanInstances = [];
-       
+
         this.curveObjs = [];
         this.setImageLayers = this.setImageLayers.bind(this);
         
@@ -70,6 +68,8 @@ class FileManipPage extends React.Component {
         //will have object of form: <key>: {pts:[..],  curveObj:..}
         //this hopefully enables the merging of clusters and redrawing of curves
 
+        this.testPts = [];
+
 
     }
     resultSVGModeSelect = (e) =>{
@@ -94,6 +94,53 @@ class FileManipPage extends React.Component {
         resultSVG.addEventListener("wheel",this.captureZoomEvent,false);
         resultSVG.addEventListener("DOMMouseScroll", this.captureZoomEvent,false);
         this.makeDraggable('resultSVG');
+
+        // resultSVG.addEventListener("click",(e)=>{
+        //     if(this.testPts.length==5) {
+        //         var curve = new Curve(this.testPts,'test',2)
+        //         let xMin=curve.xRange[0];
+        //         let xMax=curve.xRange[1];
+                
+        //         geval(curve.currentEquationStr)
+        //         var thisCurveFunc = geval(curve.currentEquationName);
+
+        //         var P1 = {x:xMin, y:thisCurveFunc(xMin)}
+        //         var P2 = {x:xMax, y:thisCurveFunc(xMax)}
+        //         var curveDerivativeMin = curve.currentDerivative(xMin);
+    
+        //         var QC = {x:(xMin+xMax)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2}
+             
+        //         var CC1 = {x:(2*QC.x+P1.x)/3, y:(2*QC.y+P1.y)/3}
+        //         var CC2 = {x:(2*QC.x+P2.x)/3, y:(2*QC.y+P2.y)/3}
+        //         // var d = `M${P1.x},${P1.y} C${CC1.x},${CC1.y},${CC2.x},${CC2.y},${P2.x},${P2.y} `
+        //         var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
+        //         // var pathId = `curve${layerIdx}_${curve}`
+                
+        //         var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+        //         path.setAttribute("id","test")
+               
+        //         path.setAttribute("d",d);
+        //         path.setAttribute("stroke",`black`);
+        //         path.setAttribute("fill","none");
+        //         // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
+        //         document.getElementById("curveGroup").append(path);
+             
+        //     }
+        //     else {
+        //         var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        //         circle.setAttribute("id",`pt${this.testPts.length}`)
+        //         var x = e.offsetX;
+        //         var y = e.offsetY;
+        //         circle.setAttribute("cx",x);
+        //         circle.setAttribute("cy",y);
+        //         circle.setAttribute("r",1);
+        //         circle.setAttribute("stroke",`black`);
+        //         circle.setAttribute("fill","none");
+        //         document.getElementById("curveGroup").append(circle);
+               
+        //         this.testPts.push({x:x,y:y})
+        //     }
+        // })
     }
 
     makeDraggable(item_id) {
@@ -271,30 +318,24 @@ class FileManipPage extends React.Component {
     }
     numOfPagesChanged(e) { this.setState({num: e.target.value});  }
 
-    async edgeTracer(resultData,layerIdx, movWinRadius=15, eigenValEstimate = 5000) {
+    async edgeTracer(resultData,layerIdx, {movWinRadius=15, eigenValEstimate = 5000}={}) {
         // Traces edges starting from each detected corner. A 5x5 window is mapped around each corner to account for multiple edges coming from corner. Duplicates edges are detected 
         // Calls 'tracingWindow' recursively when an edge continues in a specific direction.
         // TODO: add Hough Transform for ellipse detection (iterating through different radius lengths to see which radius has most 'votes'/ fits data points)
         
         var cornerLocations = resultData["cornerLocations"];
-        var clusterMatrix=[];
-        var clusterSpacings = [];
         var graphObject = []    // will be list of objects representing each corner. each corner's object has list of edges/curves
         for(var corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
-            this.allCornerData[`corner${corn}`] = {"edges":[], "neighbors":[], "node":currentCorner}
+            this.allCornerData[`corner${corn}`] = {"edges":[], "neighbors":[], "node":currentCorner, "edgeEndPts":[]}
             resultData["pixelVisited"][(currentCorner.x) + (currentCorner.y)*this.currentScanObj.imageWidth] = `corner${corn}`
         }
         for(var corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
 
-            // var cornerObj = {}
             // searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
- 
             //  https://mathinsight.org/directional_derivative_gradient_introduction
             //  https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
-
-            
             var foundEdges = [];   
             // for(var angle=1; angle <=360; angle+=.5) {
             //     var thetaFromCorner = angle/57.2958
@@ -310,7 +351,6 @@ class FileManipPage extends React.Component {
             //         foundEdges.push(relativePt) 
             //     }
             // }        
-
             for(var wY=-movWinRadius; wY <= movWinRadius; ++wY) {        //try -15 to 15
                 for(var wX=-movWinRadius; wX <= movWinRadius; ++wX) {
                     if(wY==0 && wX==0) continue;
@@ -319,42 +359,32 @@ class FileManipPage extends React.Component {
                     if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0 && resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response
                         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
                         var relativeEigenTheta = resultData["eigenVectorTheta"][relativeIdx]
-                        // var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
+                        
                         // +/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
                         var thetaFromCorner = Math.atan(wY/wX)
                         thetaFromCorner = thetaFromCorner<0? 2*Math.PI-thetaFromCorner : thetaFromCorner;
-                        
                         var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, eigenTheta:relativeEigenTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
                         foundEdges.push(relativePt) 
-                        
                     }
                 }
             }
             
             var condensedEdges = new Cluster(foundEdges, [{name:'thetaFromCorner',  epsilonMultiplier:1, minPts:3, epsilon:null}])  //0.261799
           
-           
             for(let cluster=0; cluster < condensedEdges.subClusters.length; ++cluster) {
                 var subCluster = condensedEdges.subClusters[cluster];
-                subCluster.sort(function(a,b) {
-                    return Math.abs(b.magGradient) - Math.abs(a.magGradient);
-                })
-                // if(subCluster[0].gaussCurvature < eigenValEstimate) continue;
-                // else {
-                    var initialCurveName = `curve${corn}_${layerIdx}_${cluster}`
-                    this.allCurveData[initialCurveName]={"curveObj":null, "pts":[], "origin":`corner${corn}`};
-                    this.allCornerData[`corner${corn}`].edges.push(initialCurveName);
-                // }
-                
-                
+                subCluster.sort(function(a,b) {    return Math.abs(b.magGradient) - Math.abs(a.magGradient); })
+                var initialCurveName = `curve${corn}_${layerIdx}_${cluster}`
+                this.allCurveData[initialCurveName]={"curveObj":null, "pts":[], "origin":`corner${corn}`};
+                this.allCornerData[`corner${corn}`].edges.push(initialCurveName);
             }
             for(let cluster=0; cluster < condensedEdges.subClusters.length; ++cluster) {
                 var subCluster = condensedEdges.subClusters[cluster];
-                
-                
                 var initialCurveName = `curve${corn}_${layerIdx}_${cluster}`
                 if(Object.keys(this.allCurveData).includes(initialCurveName)) {
-                    var [lengths, edges, destination] = this.tracingWindow(resultData, subCluster[0], movWinRadius, initialCurveName)
+                    
+                    var [lengths, edges, destination] = this.tracingWindow(resultData, subCluster[0], movWinRadius, initialCurveName,eigenValEstimate)
+                    //console.log('destination',destination, 'this.allCurveData',this.allCurveData)
                     this.allCurveData[destination].pts = this.allCurveData[destination].pts.concat(edges);
 
                     // var clusterObj = new Cluster(edges, [{name:'density', epsilonMultiplier:1, minPts:2, epsilon:null, attribute:null}])
@@ -379,11 +409,11 @@ class FileManipPage extends React.Component {
         var curveRelations = []
         var curveNames = Object.keys(this.allCurveData);
         for(var nameIdx=0;  nameIdx < curveNames.length; ++nameIdx) {
-
             var curveEntry = this.allCurveData[curveNames[nameIdx]]
-            var curveObj = new Curve(curveEntry.pts,curveNames[nameIdx],2);
+            var curveObj = new Curve(curveEntry.pts, curveNames[nameIdx], 2);
 
             curveEntry["curveObj"] = curveObj;
+
             let xMin=curveObj.xRange[0];
             let xMax=curveObj.xRange[1];
             
@@ -395,11 +425,17 @@ class FileManipPage extends React.Component {
             let midPt = (xMax+xMin)/2;
             var slopeAtMidPt = curveObj.currentDerivative(midPt);
             var curveDerivativeMin = curveObj.currentDerivative(xMin);
-            var C = {x:(xMax+xMin)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2} //C is control point of Bezier curve
+            var C = {x:midPt,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2} //C is control point of Bezier curve
             curveRelations.push({numPts:curveObj.pts.length, x:C.x, y:C.y, minPt:P1,  maxPt:P2, slopeAtMidPt:slopeAtMidPt})
 
-
         }
+
+        // for(let corn=0; corn < this.allCornerData.length; ++corn) {
+        //     var cornerEdges = this.allCornerData[`corner${corn}`].edges
+        //     for(let edge=0; edge < cornerEdges.length; ++edge) {
+        //         var curveObj = this.allCurveData[cornerEdges[edge]].curveObj;
+        //     }
+        // }
 
         /*************************************************************************************************/
         //to determine which curves to merge: 
@@ -408,25 +444,27 @@ class FileManipPage extends React.Component {
 
         //cluster together curves based on the density of their Bezier-control points ( meaning they have relatively same curvature)
         // var controlPtCluster = new Cluster(curveRelations, [ {name:'density', epsilonMultiplier:1, minPts:2, epsilon:25} ] );
-        
+        var groupColors = [];
+
+        for(let c=0; c < Object.keys(this.allCornerData).length; ++c) {
+            
+            groupColors.push(`hsl(${getRandomInt(0,359)}, ${getRandomInt(1,99)}%, ${getRandomInt(30,70)}%)`)
+        }
+        console.log('groupColors',groupColors)
         for(var nameIdx=0; nameIdx < curveNames.length; ++nameIdx) {
             var pathId = curveNames[nameIdx]
             var curveObj = this.allCurveData[pathId].curveObj;
-            
             geval(curveObj.currentEquationStr)
             var thisCurveFunc = geval(curveObj.currentEquationName)
             let xMin = curveObj.xRange[0];
             let xMax = curveObj.xRange[1];
-            
-
             var isValid = true;
             for(let x=xMin; x <= xMax; ++x) {
                 let y = thisCurveFunc(x);
                 var idx = x + y*this.currentScanObj.imageWidth;
-               
                 if(Math.abs(resultData['gaussCurvature'][idx]) < eigenValEstimate) isValid=false;
             }
-            if(!isValid) continue;
+            // if(!isValid) continue;
 
             var P1 = {x:xMin, y:thisCurveFunc(xMin)}
             var P2 = {x:xMax, y:thisCurveFunc(xMax)}
@@ -434,17 +472,18 @@ class FileManipPage extends React.Component {
 
             var C = {x:(xMin+xMax)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2}
             var d = `M${P1.x},${P1.y} Q${C.x},${C.y},${P2.x},${P2.y} `
-            // var pathId = `curve${layerIdx}_${curve}`
             
             var path = document.createElementNS("http://www.w3.org/2000/svg","path");
             path.setAttribute("id",pathId)
             path.addEventListener("mouseover", (e)=>{
                 console.log(e.target.id, this.allCurveData[e.target.id].curveObj.currentDerivative(xMax-xMin))
-               
-               
             }, false);
+            
             path.setAttribute("d",d);
-            path.setAttribute("stroke",`black`);
+           
+            
+            
+            path.setAttribute("stroke",groupColors[parseInt(curveObj.equationId.substr(5).split("_")[0])])        //groupColors[parseInt(curveObj.currentEquationName.substr(5).split("_")[0])]
             path.setAttribute("fill","none");
             // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
             document.getElementById("curveGroup").append(path);
@@ -453,29 +492,27 @@ class FileManipPage extends React.Component {
             console.log("Percent done: ",(nameIdx/Object.keys(this.allCurveData).length))
             this.setState({...this.state, loadPercent:(nameIdx/Object.keys(this.allCurveData).length)})
         }
+        console.log("this.allCornerData", this.allCornerData)
         console.log("this.allCurveData", this.allCurveData)
         console.log('***Done tracing edges***')
-        // var cornerKeys = Object.keys(this.allCornerData)
-        // for(let corn=0; corn < cornerKeys.length; ++corn) {
-        //     var cornerKey = cornerKeys[corn];
-        //     var cornerData = this.allCornerData[cornerKeys[corn]]["node"]
-        //     var pt = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        //     pt.setAttribute("id",cornerKey)
-        //     // path.addEventListener("mouseover", (e)=>{console.log(e.target.id)}, false);
-        //     pt.setAttribute("cx",cornerData.x);
-        //     pt.setAttribute("cy",cornerData.y);
-        //     pt.setAttribute("r",1);
-            
-        //     pt.setAttribute("fill","black");
-            
-        //     document.getElementById("ptGroup").append(pt);
-            
-        // }
-    
+        var cornerKeys = Object.keys(this.allCornerData)
+        for(let corn=0; corn < cornerKeys.length; ++corn) {
+            var cornerKey = cornerKeys[corn];
+            var cornerData = this.allCornerData[cornerKeys[corn]]["node"]
+            var pt = document.createElementNS("http://www.w3.org/2000/svg","circle");
+            pt.setAttribute("id",cornerKey)
+            pt.addEventListener("mouseover", (e)=>{
+                console.log(e.target.id, this.allCornerData[cornerKeys[parseInt(e.target.id.substr(6))]]["edges"].length)
+            }, false);
+            pt.setAttribute("cx",cornerData.x);
+            pt.setAttribute("cy",cornerData.y);
+            pt.setAttribute("r",1);
+            pt.setAttribute("fill",groupColors[corn]);   //groupColors[parseInt(cornerKey.substr(6))]
+            document.getElementById("ptGroup").append(pt);
+        }
     }
 
-    
-    tracingWindow(resultData, currentPt, currentLength, thisCurveName, eigenValEstimate=5000) {      
+    tracingWindow(resultData, currentPt, currentLength, thisCurveName, {eigenValEstimate=5000}={}) {      
         //gathers data points by following/tracing a line with common gradient value and  with 15 degrees of flexibility between each data point (so it results in a curve if applicable). Clustering happens after this function, not during
         // currentLength is the current length of the 'traced' edge from the starting point (from edgeTracer)
         //currentPt is object {x:..., y:...}
@@ -488,7 +525,6 @@ class FileManipPage extends React.Component {
         var dataPts = [currentPt]
         var currentEigenVectors = currentPt.eigenVectors;
        
-
         //searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
         let currentTheta = Math.atan(currentEigenVectors[1][0]/currentEigenVectors[0][0])
         var segmentLengths = [];
@@ -499,7 +535,6 @@ class FileManipPage extends React.Component {
         // var i =1;
         // while(canExtend) {
 
-       
         for(var i=1; i < 25; ++i) { 
             
             var nextX = Math.round(i*Math.cos(currentTheta))
@@ -548,7 +583,7 @@ class FileManipPage extends React.Component {
                     }
                     
                     else if(lastValidObj!=null) {
-                        var [nextLengths, nextEdges, finalDestination] = this.tracingWindow(resultData, lastValidObj, currentLength, destination)
+                        var [nextLengths, nextEdges, finalDestination] = this.tracingWindow(resultData, lastValidObj, currentLength, destination,eigenValEstimate)
                         dataPts = dataPts.concat(nextEdges);
                         segmentLengths = segmentLengths.concat(nextLengths)
                         destination = finalDestination;
@@ -568,15 +603,23 @@ class FileManipPage extends React.Component {
         return [segmentLengths,dataPts, destination];
     }
 
-    setImageLayers() {
+    // setImageLayers({eigenValEstimates=[5000]}={}) {
+    setImageLayers(eigenValEstimates) {
         console.log("Inserting image layers into selector")
         var selectFilter = document.getElementById("selectFilter");
         var imageLayers = this.currentScanObj.imageLayers
+        console.log('eigenValEstimates[0]',eigenValEstimates[0])
         for(var l =0; l < imageLayers.length; ++l) {
             var layerName = `Layer ${l} | Sigma=${imageLayers[l]["component"].sig}`
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
             var resultData = imageLayers[l]["resultData"];
-            this.edgeTracer(resultData,l,15,3000);
+            this.edgeTracer(resultData,l,15,eigenValEstimates[0])
+            // if(l>eigenValEstimates.length) {
+            //     this.edgeTracer(resultData,l,15,eigenValEstimates[eigenValEstimates.length-1])
+            // }
+            // else this.edgeTracer(resultData,l,15,eigenValEstimates[l])
+            
+
         }
         return new Promise((resolve,reject)=> { resolve(); });
     }
@@ -593,13 +636,15 @@ class FileManipPage extends React.Component {
         await this.handlePanelShow();
       
         var imageReadPromise = this.currentScanObj.imageReader();
-       
+        var startingEigenValEst = 4000;
         imageReadPromise.then(result1 => {
+            // var detectBlobPromise =  this.currentScanObj.detectBlobs({eigenValEstimate:startingEigenValEst});      //detects blobs on each layer
             var detectBlobPromise =  this.currentScanObj.detectBlobs();      //detects blobs on each layer
             detectBlobPromise.then(result2 => {  
                 var saveLayerImagePromise = this.currentScanObj.saveLayerImageData(context); 
                 saveLayerImagePromise.then(result3=>{
-                    this.setImageLayers();
+                    // this.setImageLayers({eigenValEstimate:[startingEigenValEst]});
+                    this.setImageLayers([5000]);
                     this.handlePanelClose();
                 })
             })

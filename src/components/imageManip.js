@@ -36,6 +36,7 @@ export class ImageScan {
     }
 
 
+    //async detectBlobs({gaussLength=15, baseSig=2, numLayers=2, sigExpMax=6, k=.04, eigenValEstimate=5000}={}) {      //5000
     async detectBlobs(gaussLength=15, baseSig=2, numLayers=2, sigExpMax=6, k=.04, eigenValEstimate=5000) {      //5000
         //  k is sensitivity factor, default .04
         //  eigenValEstimate is the eigen-value used as a threshold for determining if eigen-values are large enough. If larger than it, they are accepted.

@@ -36,8 +36,8 @@ export class ImageScan {
     }
 
 
-    //async detectBlobs({gaussLength=15, baseSig=2, numLayers=2, sigExpMax=6, k=.04, eigenValEstimate=5000}={}) {      //5000
-    async detectBlobs(gaussLength=15, baseSig=2, numLayers=2, sigExpMax=6, k=.04, eigenValEstimate=5000) {      //5000
+    async detectBlobs({gaussLength=15, baseSig=2, numLayers=2, sigExpMax=6, k=.04, eigenValEstimate=5000}={}) {      //5000
+    // async detectBlobs(gaussLength=15, baseSig=2, numLayers=2, sigExpMax=6, k=.04, eigenValEstimate=5000) {      //5000
         //  k is sensitivity factor, default .04
         //  eigenValEstimate is the eigen-value used as a threshold for determining if eigen-values are large enough. If larger than it, they are accepted.
         //  http://vision.stanford.edu/teaching/cs231a_autumn1112/lecture/lecture11_detectors_descriptors_cs231a.pdf
@@ -103,7 +103,7 @@ export class ImageScan {
                 }
             }
             
-            var windowR = 5; //3 worked good
+            var windowR = 5; //3 worked good        //5
             // var tempKernel = this.gaussianBlurComponent(2*windowR-1, 1);
             // var gaussKernel = tempKernel.kernel;
             // gaussKernel = new Matrix(gaussKernel)

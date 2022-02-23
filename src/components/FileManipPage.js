@@ -647,10 +647,10 @@ class FileManipPage extends React.Component {
         await this.handlePanelShow();
       
         var imageReadPromise = this.currentScanObj.imageReader();
-        var startingEigenValEst = 6000;
+        var startingEigenValEst = 5000;
         imageReadPromise.then(result1 => {
             // var detectBlobPromise =  this.currentScanObj.detectBlobs({eigenValEstimate:startingEigenValEst});      //detects blobs on each layer
-            var detectBlobPromise =  this.currentScanObj.detectBlobs();      //detects blobs on each layer
+            var detectBlobPromise =  this.currentScanObj.detectBlobs({eigenValEstimate:startingEigenValEst});      //detects blobs on each layer
             detectBlobPromise.then(result2 => {  
                 var saveLayerImagePromise = this.currentScanObj.saveLayerImageData(context); 
                 saveLayerImagePromise.then(result3=>{

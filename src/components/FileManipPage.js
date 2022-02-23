@@ -330,6 +330,12 @@ class FileManipPage extends React.Component {
             this.allCornerData[`corner${corn}`] = {"edges":[], "neighbors":[], "node":currentCorner, "edgeEndPts":[]}
             resultData["pixelVisited"][(currentCorner.x) + (currentCorner.y)*this.currentScanObj.imageWidth] = `corner${corn}`
         }
+
+
+
+        //NEXT: when curves are windin/complex, create additional nodes to make it mnore accurate  (nodes are not limited to being corners)
+
+
         for(var corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
 
@@ -342,12 +348,14 @@ class FileManipPage extends React.Component {
             //     var wX = Math.round(5*Math.cos(thetaFromCorner))
             //     var wY = Math.round(5*Math.sin(thetaFromCorner))
             //     var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
-            //     if(Math.abs(resultData["gaussCurvature"][relativeIdx]) >= eigenValEstimate) {  
+            //     if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0 && resultData["laplacian"][relativeIdx] > 0) {  
             //         var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
             //         var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
+            //         var relativeEigenTheta = resultData["eigenVectorTheta"][relativeIdx]
             //         // +/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
             //         var eigenVals = resultData["eigenVals"][relativeIdx].realEigenvalues;
-            //         var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , eigenVals:eigenVals, lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, theta:relativeTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
+            //         var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, eigenTheta:relativeEigenTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
+            //         // var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , eigenVals:eigenVals, lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, eigenTheta:relativeEigenTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
             //         foundEdges.push(relativePt) 
             //     }
             // }        
@@ -450,7 +458,7 @@ class FileManipPage extends React.Component {
             
             groupColors.push(`hsl(${getRandomInt(0,359)}, ${getRandomInt(1,99)}%, ${getRandomInt(30,70)}%)`)
         }
-        console.log('groupColors',groupColors)
+        
         for(var nameIdx=0; nameIdx < curveNames.length; ++nameIdx) {
             var pathId = curveNames[nameIdx]
             var curveObj = this.allCurveData[pathId].curveObj;
@@ -464,7 +472,7 @@ class FileManipPage extends React.Component {
                 var idx = x + y*this.currentScanObj.imageWidth;
                 if(Math.abs(resultData['gaussCurvature'][idx]) < eigenValEstimate) isValid=false;
             }
-            // if(!isValid) continue;
+            if(!isValid) continue;
 
             var P1 = {x:xMin, y:thisCurveFunc(xMin)}
             var P2 = {x:xMax, y:thisCurveFunc(xMax)}
@@ -532,10 +540,13 @@ class FileManipPage extends React.Component {
 
         var lastValidObj = null;
         var canExtend = true;
-        // var i =1;
-        // while(canExtend) {
+        var i = 1;
+        var thetaDelta = 0.9;        //the farther it extends, the less flexible the theta comparison should be
+        var thetaFlexibility = 0.349;
+        
+        while(canExtend) {
 
-        for(var i=1; i < 25; ++i) { 
+            // for(var i=1; i < 25; ++i) { 
             
             var nextX = Math.round(i*Math.cos(currentTheta))
             var nextY = Math.round(i*Math.sin(currentTheta))
@@ -547,33 +558,32 @@ class FileManipPage extends React.Component {
                 var cornerScan = scanRadiusForCorner(resultData, nextIdx, 1, eigenValEstimate);
                 if(cornerScan!=null)  {
                     var cornerEigenVectors = resultData["eigenVectors"][cornerScan.idx];
-                    
                     var cornerTheta = Math.atan(cornerEigenVectors[1][0]/cornerEigenVectors[0][0])
-                    var nextObj = {eigenVectors:cornerEigenVectors, eigenVals:resultData["eigenVals"][cornerScan.idx], x:cornerScan.x,  y:cornerScan.y, magGradient:resultData["magGradient"][cornerScan.idx], thetaGradient:cornerTheta};
-                    dataPts = dataPts.concat(nextObj);
+                    // var nextObj = {eigenVectors:cornerEigenVectors, eigenVals:resultData["eigenVals"][cornerScan.idx], x:cornerScan.x,  y:cornerScan.y, magGradient:resultData["magGradient"][cornerScan.idx], thetaGradient:cornerTheta};
+                    // dataPts = dataPts.concat(nextObj);
                     //*** this would also be a good spot to create connection b/w two corners in the graph object***
                     if(nextPixelStatus.substr(0,6) =="corner") {
                         var thisOrigin = this.allCurveData[thisCurveName].origin
                         if(!this.allCornerData[nextPixelStatus].neighbors.includes(thisOrigin)) this.allCornerData[nextPixelStatus].neighbors.push(thisOrigin);
                         if(!this.allCornerData[thisOrigin].neighbors.includes(nextPixelStatus)) this.allCornerData[thisOrigin].neighbors.push(nextPixelStatus);
                     }
-                    break;
-
+                    canExtend=false;
                 } 
                 else if(nextPixelStatus!='none' && nextPixelStatus!=thisCurveName) {  //the next pixel has been visited by another curve
                     //merge the pts of this scan with the pts of the existing curve 
                     destination = nextPixelStatus;
-                    break;
+                    canExtend=false;
+                   
                 }
                 
-                // else if(nextPixelStatus=='none') {                    //the next pixel has not been visited
+                else if(nextPixelStatus=='none') {                    //the next pixel has not been visited
                     resultData["pixelVisited"][nextIdx] = thisCurveName;
                     var nextEigenVectors = resultData["eigenVectors"][nextIdx];
                     // var nextLaplacian = resultData["laplacian"][nextIdx];
                     var nextGaussCurve = resultData["gaussCurvature"][nextIdx];
                     var nextTheta = Math.atan(nextEigenVectors[1][0]/nextEigenVectors[0][0])     // 0.06544
-                    var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, 0.3490);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
-                    var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, 0.3490);
+                    var nextThetaIsSimilar = numberInRange(nextTheta, currentTheta, thetaFlexibility);    //returns true if nextTheta is +/-10 degrees (.26179 rad, .3490 rad) of currentTheta OR if difference b/w two angles is 180 
+                    var nextThetaIsParallel = numberInRange(nextTheta+Math.PI, currentTheta, thetaFlexibility);
                     
                     if((nextThetaIsSimilar || nextThetaIsParallel)  && Math.abs(nextGaussCurve) >= eigenValEstimate) { 
                         var nextObj = {eigenVectors:nextEigenVectors, eigenVals:resultData["eigenVals"][nextIdx], x:currentPt.x+nextX,  y:currentPt.y+nextY, magGradient:resultData["magGradient"][nextIdx], theta:nextTheta};
@@ -587,16 +597,17 @@ class FileManipPage extends React.Component {
                         dataPts = dataPts.concat(nextEdges);
                         segmentLengths = segmentLengths.concat(nextLengths)
                         destination = finalDestination;
-                        // canExtend=false;
+                        canExtend=false;
                         break;  
                     }
-                //}
+                }
 
                 
 
             }
-            // else canExtend=false;
-            // ++i;
+            else canExtend=false;
+            if(i >10) thetaFlexibility *= thetaDelta
+            ++i;
         }
         // this.allCurveData[destination].pts = this.allCurveData[destination].pts.concat(dataPts);
         //segmentLengths is a list of each 'trace' between dataPts, will be used in calculating important parameter for clustering algorithm
@@ -613,7 +624,7 @@ class FileManipPage extends React.Component {
             var layerName = `Layer ${l} | Sigma=${imageLayers[l]["component"].sig}`
             selectFilter.insertAdjacentHTML('beforeEnd', `<option value="${l}">${layerName}</option>`)
             var resultData = imageLayers[l]["resultData"];
-            this.edgeTracer(resultData,l,15,eigenValEstimates[0])
+            this.edgeTracer(resultData,l,{movWinRadius:15,eigenValEstimate:eigenValEstimates[0]})
             // if(l>eigenValEstimates.length) {
             //     this.edgeTracer(resultData,l,15,eigenValEstimates[eigenValEstimates.length-1])
             // }
@@ -636,7 +647,7 @@ class FileManipPage extends React.Component {
         await this.handlePanelShow();
       
         var imageReadPromise = this.currentScanObj.imageReader();
-        var startingEigenValEst = 4000;
+        var startingEigenValEst = 6000;
         imageReadPromise.then(result1 => {
             // var detectBlobPromise =  this.currentScanObj.detectBlobs({eigenValEstimate:startingEigenValEst});      //detects blobs on each layer
             var detectBlobPromise =  this.currentScanObj.detectBlobs();      //detects blobs on each layer
@@ -644,7 +655,7 @@ class FileManipPage extends React.Component {
                 var saveLayerImagePromise = this.currentScanObj.saveLayerImageData(context); 
                 saveLayerImagePromise.then(result3=>{
                     // this.setImageLayers({eigenValEstimate:[startingEigenValEst]});
-                    this.setImageLayers([5000]);
+                    this.setImageLayers([startingEigenValEst]);
                     this.handlePanelClose();
                 })
             })

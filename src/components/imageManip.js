@@ -38,7 +38,7 @@ export class ImageScan {
 
     async detectBlobs({gaussLength=15, baseSig=2, numLayers=2, sigExpMax=6, k=.04, eigenValEstimate=5000}={}) {      //5000
     // async detectBlobs(gaussLength=15, baseSig=2, numLayers=2, sigExpMax=6, k=.04, eigenValEstimate=5000) {      //5000
-        //  k is sensitivity factor, default .04
+        //  k is sensitivity factor, default .04, max is .06
         //  eigenValEstimate is the eigen-value used as a threshold for determining if eigen-values are large enough. If larger than it, they are accepted.
         //  http://vision.stanford.edu/teaching/cs231a_autumn1112/lecture/lecture11_detectors_descriptors_cs231a.pdf
         //  https://www.cs.toronto.edu/~mangas/teaching/320/slides/CSC320L12.pdf
@@ -51,7 +51,7 @@ export class ImageScan {
         return new Promise((resolve,reject)=> {
             this.originalData = this.originalImageData.data;
             var data = this.imageData.data;     //should normally be this.originalImageData.data;
-            gaussLength = 7       //was 7
+            gaussLength = 5       //was 7
             var componentLength = gaussLength;   //15 works good with space & rocket center, trying 7 for Red&Black checker board
             let sig0 = 1;
             var sigStack = []
@@ -103,15 +103,15 @@ export class ImageScan {
                 }
             }
             
-            var windowR = 5; //3 worked good        //5
+            var windowR = 5; //5 worked good ,so did 3
             // var tempKernel = this.gaussianBlurComponent(2*windowR-1, 1);
             // var gaussKernel = tempKernel.kernel;
             // gaussKernel = new Matrix(gaussKernel)
             
             // var LaplacianKernel = [[0,-1,0], [-1,4,-1], [0,-1,0]];
             var LaplacianKernel = [[1,1,1], [1,-8,1], [1,1,1]];
-            var SobelKernelX = [[1,0,-1], [2,0,-2], [1,0,-1]]
-            var SobelKernelY = [[1,2,1], [0,0,0], [-1,-2,-1]]
+            var SobelKernelX = [[1,0,-1], [2,0,-2], [1,0,-1]];
+            var SobelKernelY = [[1,2,1], [0,0,0], [-1,-2,-1]];
             //gaussKernel is multipled to every product of sum (Ixx, Ixy, Iyy)
             // https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
             // https://mathinsight.org/directional_derivative_gradient_introduction
@@ -211,7 +211,6 @@ export class ImageScan {
                         parallelComponent["resultData"]["eigenVectorTheta"].push(Math.atan(eigVectors[1][0]/eigVectors[0][0]))
                         parallelComponent["resultData"]["gaussCurvature"].push(eigs.realEigenvalues[0]*eigs.realEigenvalues[1]);
                           
-                        // parallelComponent["resultData"]["neighborLinkWeights"].push([1,1,1,1,1,1,1,1])
                         parallelComponent["resultData"]["pixelVisited"].push('none');
 
                         if(!isLocalPeak) continue;
@@ -293,7 +292,7 @@ export class ImageScan {
                     OBJ.imageWidth = OBJ.imageData.width;
                     OBJ.imageHeight= OBJ.imageData.height;
                     OBJ.pixelData = Array(OBJ.imageHeight).fill(Array(OBJ.imageWidth).fill({gradientX:0, gradientY:0, mag:0}))
-                    context.drawImage(img,0,0);
+                    context.drawImage(img,0,0,1000, 1000);
                     OBJ.filterInfo.forEach(component => {
                         let componentLength = component.kernelLength ? component.kernelLength : 2;
                         let filterSig = component.sig ? component.sig : 5;
@@ -389,19 +388,19 @@ export class ImageScan {
                         }
                     }
                 }
-                if(layer==0) {
-                    context.putImageData(this.imageData, 0,0);
-                    var cornerClusters = this.imageLayers[this.imageLayers.length-1]["resultData"]["cornerClusters"].subClusters;
-                    for(var cluster=0; cluster < cornerClusters.length; ++cluster) {
-                        var color = `rgb(${getRandomInt(0,255)},${getRandomInt(0,255)},${getRandomInt(0,255)} )`
-                        for(var pt=0; pt < cornerClusters[cluster].length; ++pt) {
-                            context.beginPath();
-                            context.arc(cornerClusters[cluster][pt].x, cornerClusters[cluster][pt].y, 1, 0, 2 * Math.PI)
-                            context.fillStyle = color
-                            context.fill();
-                        }
-                    }
-                }
+                // if(layer==0) {
+                //     context.putImageData(this.imageData, 0,0);
+                //     var cornerClusters = this.imageLayers[this.imageLayers.length-1]["resultData"]["cornerClusters"].subClusters;
+                //     for(var cluster=0; cluster < cornerClusters.length; ++cluster) {
+                //         var color = `rgb(${getRandomInt(0,255)},${getRandomInt(0,255)},${getRandomInt(0,255)} )`
+                //         for(var pt=0; pt < cornerClusters[cluster].length; ++pt) {
+                //             context.beginPath();
+                //             context.arc(cornerClusters[cluster][pt].x, cornerClusters[cluster][pt].y, 1, 0, 2 * Math.PI)
+                //             context.fillStyle = color
+                //             context.fill();
+                //         }
+                //     }
+                // }
                 this.imageLayers[layer]["resultData"]["imageData"] = dataCopy;
                 console.log(`****** Layer ${layer} of ${this.imageLayers.length} completed ******`);
             }

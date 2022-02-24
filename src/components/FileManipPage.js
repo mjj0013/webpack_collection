@@ -4,8 +4,7 @@ import Modal from 'react-bootstrap/Modal'
 import Tabs from 'react-bootstrap/Tabs';
 import Spinner from 'react-bootstrap/Spinner'
 import Tab from 'react-bootstrap/Tab';
-// import {ProgressBar} from './ProgressBar.js'
-// import ProgressBar from 'react-bootstrap/ProgressBar'
+
 import Layout from './Layout';
 import "regenerator-runtime/runtime";
 import { documentElement } from 'min-document';
@@ -69,6 +68,8 @@ class FileManipPage extends React.Component {
         //this hopefully enables the merging of clusters and redrawing of curves
 
         this.testPts = [];
+        this.testCurves = []
+        this.testCurveSplit = this.testCurveSplit.bind(this);
 
 
     }
@@ -88,6 +89,42 @@ class FileManipPage extends React.Component {
             document.getElementById("dragButton").classList.remove("selected");
         }
     }
+
+    testCurveSplit() {
+        var intersections = []
+        for(let c1=0; c1 < this.testCurves.length; ++c1) {
+            for(let c2=0; c2 < this.testCurves.length; ++c2) {
+                if(c1==c2) continue;
+                var curveObj1 = this.testCurves[c1].curveObj;
+                var curveObj2 = this.testCurves[c2].curveObj;
+
+                geval(curveObj1.currentEquationStr);
+                geval(curveObj2.currentEquationStr);
+                var curveFunc1 = geval(curveObj1.currentEquationName);
+                var curveFunc2 = geval(curveObj2.currentEquationName);
+
+                for(let x=curveObj1.xMin; x <= curveObj1.xMax; ++x) {
+                    var result1 = Math.round(curveFunc1(x));
+                    var result2 = Math.round(curveFunc2(x));
+             
+                    if(numberInRange(result1,result2,1)) {
+                        var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+                        circle.setAttribute("id",`intersection${intersections.length}`)
+                     
+                        circle.setAttribute("cx",x);
+                        circle.setAttribute("cy",result1);
+                        circle.setAttribute("r",5);
+                        circle.setAttribute("stroke",`red`);
+                        circle.setAttribute("fill","red");
+                        document.getElementById("ptGroup").append(circle);
+                        intersections.push({x:x,y:result1})
+                     
+                    }
+                }
+
+            }
+        }
+    }
     
     componentDidMount() {
         var resultSVG = document.getElementById("resultSVG")
@@ -95,52 +132,54 @@ class FileManipPage extends React.Component {
         resultSVG.addEventListener("DOMMouseScroll", this.captureZoomEvent,false);
         this.makeDraggable('resultSVG');
 
-        // resultSVG.addEventListener("click",(e)=>{
-        //     if(this.testPts.length==5) {
-        //         var curve = new Curve(this.testPts,'test',2)
-        //         let xMin=curve.xRange[0];
-        //         let xMax=curve.xRange[1];
+        window.addEventListener("keydown", (e) => {
+            if(e.code =="Space") {
+                var newCurveId = "testCurve"+this.testCurves.length;
+                var curve = new Curve(this.testPts,newCurveId,2, this.testPts[0])
+                let xMin=curve.xRange[0];
+                let xMax=curve.xRange[1];
                 
-        //         geval(curve.currentEquationStr)
-        //         var thisCurveFunc = geval(curve.currentEquationName);
+                geval(curve.currentEquationStr)
+                var thisCurveFunc = geval(curve.currentEquationName);
 
-        //         var P1 = {x:xMin, y:thisCurveFunc(xMin)}
-        //         var P2 = {x:xMax, y:thisCurveFunc(xMax)}
-        //         var curveDerivativeMin = curve.currentDerivative(xMin);
+                var P1 = {x:xMin, y:thisCurveFunc(xMin)}
+                var P2 = {x:xMax, y:thisCurveFunc(xMax)}
+                var curveDerivativeMin = curve.currentDerivative(xMin);
     
-        //         var QC = {x:(xMin+xMax)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2}
+                var QC = {x:(xMin+xMax)/2,  y:P1.y+curveDerivativeMin*(xMax-xMin)/2}
              
-        //         var CC1 = {x:(2*QC.x+P1.x)/3, y:(2*QC.y+P1.y)/3}
-        //         var CC2 = {x:(2*QC.x+P2.x)/3, y:(2*QC.y+P2.y)/3}
-        //         // var d = `M${P1.x},${P1.y} C${CC1.x},${CC1.y},${CC2.x},${CC2.y},${P2.x},${P2.y} `
-        //         var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
-        //         // var pathId = `curve${layerIdx}_${curve}`
+                var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
+                // var pathId = `curve${layerIdx}_${curve}`
                 
-        //         var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-        //         path.setAttribute("id","test")
-               
-        //         path.setAttribute("d",d);
-        //         path.setAttribute("stroke",`black`);
-        //         path.setAttribute("fill","none");
-        //         // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
-        //         document.getElementById("curveGroup").append(path);
-             
-        //     }
-        //     else {
-        //         var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        //         circle.setAttribute("id",`pt${this.testPts.length}`)
-        //         var x = e.offsetX;
-        //         var y = e.offsetY;
-        //         circle.setAttribute("cx",x);
-        //         circle.setAttribute("cy",y);
-        //         circle.setAttribute("r",1);
-        //         circle.setAttribute("stroke",`black`);
-        //         circle.setAttribute("fill","none");
-        //         document.getElementById("curveGroup").append(circle);
-               
-        //         this.testPts.push({x:x,y:y})
-        //     }
-        // })
+                var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+                
+                path.setAttribute("id",newCurveId)
+                path.setAttribute("d",d);
+                path.setAttribute("stroke",`black`);
+                path.setAttribute("fill","none");
+                // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
+                document.getElementById("curveGroup").append(path);
+
+                this.testCurves.push({curveObj:curve, curveId:newCurveId})
+                this.testPts = []
+                this.testCurveSplit();
+            }
+        })
+
+        resultSVG.addEventListener("click",(e)=>{
+            var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+            circle.setAttribute("id",`pt${this.testPts.length}`)
+            var x = e.offsetX;
+            var y = e.offsetY;
+            circle.setAttribute("cx",x);
+            circle.setAttribute("cy",y);
+            circle.setAttribute("r",1);
+            circle.setAttribute("stroke",`black`);
+            circle.setAttribute("fill","none");
+            document.getElementById("curveGroup").append(circle);
+            this.testPts.push({x:x,y:y})
+            
+        })
     }
 
     makeDraggable(item_id) {
@@ -331,10 +370,7 @@ class FileManipPage extends React.Component {
             resultData["pixelVisited"][(currentCorner.x) + (currentCorner.y)*this.currentScanObj.imageWidth] = `corner${corn}`
         }
 
-
-
         //NEXT: when curves are winding/complex, create additional nodes to make it mnore accurate  (nodes are not limited to being corners)
-
 
         for(var corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
@@ -402,7 +438,7 @@ class FileManipPage extends React.Component {
                 var subCluster = condensedEdges.subClusters[cluster];
                 var initialCurveName = `curve${corn}_${layerIdx}_${cluster}`
                 if(Object.keys(this.allCurveData).includes(initialCurveName)) {
-                    
+                    if(subCluster[0]==null) console.log('subCluster[0]', subCluster[0])
                     var [lengths, edges, destination] = this.tracingWindow(resultData, subCluster[0], movWinRadius, initialCurveName,eigenValEstimate)
                     //console.log('destination',destination, 'this.allCurveData',this.allCurveData)
                     this.allCurveData[destination].pts = this.allCurveData[destination].pts.concat(edges);
@@ -501,8 +537,6 @@ class FileManipPage extends React.Component {
             }, false);
             
             path.setAttribute("d",d);
-           
-            
             
             path.setAttribute("stroke",groupColors[parseInt(curveObj.equationId.substr(5).split("_")[0])])        //groupColors[parseInt(curveObj.currentEquationName.substr(5).split("_")[0])]
             path.setAttribute("fill","none");
@@ -544,6 +578,7 @@ class FileManipPage extends React.Component {
         let imageHeight= this.currentScanObj.imageHeight;
         let imageLength=imageWidth*imageHeight;
         var dataPts = [currentPt]
+        
         var currentEigenVectors = currentPt.eigenVectors;
        
         //searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
@@ -592,13 +627,14 @@ class FileManipPage extends React.Component {
 
                   
                     //********** create new node here **********
-                    var [nextLengths, nextEdges, finalDestination] = this.tracingWindow(resultData, lastValidObj, currentLength, destination,eigenValEstimate)
-                    dataPts = dataPts.concat(nextEdges);
-                    segmentLengths = segmentLengths.concat(nextLengths)
-                    destination = finalDestination;
-                  
-                       
-                    
+                    //if curve starts where the other ends, merge them
+                    //otherwise, create node split the other curve in 2 to create intersection
+                
+                    // var [nextLengths, nextEdges, finalDestination] = this.tracingWindow(resultData, lastValidObj, currentLength, destination,eigenValEstimate)
+                    // dataPts = dataPts.concat(nextEdges);
+                    // segmentLengths = segmentLengths.concat(nextLengths)
+                    // destination = finalDestination;
+
                     break;
                    
                 }

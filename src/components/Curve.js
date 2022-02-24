@@ -1,7 +1,7 @@
 import { Matrix, solve } from 'ml-matrix';
 import {distanceSquared} from './utility.js'           //distance, numberInRange, 
 export class Curve {
-    constructor(pts,equationId,order=2) {
+    constructor(pts,equationId,order=2,anchor=null) {
         this.fitCurveToPts = this.fitCurveToPts.bind(this);
         this.getXRange = this.getXRange.bind(this);
 
@@ -21,11 +21,12 @@ export class Curve {
         this.currentDerivative = this.currentDerivative.bind(this);
         this.P1 = null;
         this.P2 = null;
-        this.curveData = this.fitCurveToPts(pts,order);
+        // this.curveData = this.N>3? this.fitCurveToPts(pts,order,anchor): this.generateLagrangePolyString(pts);
+        this.curveData = this.fitCurveToPts(pts,order,anchor)
         this.currentEquationStr = this.curveData.equationStr;       //you would call geval/eval on this variable in another module
         this.currentEquationName = this.curveData.equationName;
         this.equationOrder = this.curveData.equationOrder;
-        
+        this.generateLagrangePolyString = this.generateLagrangePolyString.bind(this);
 
         this.findIntersection = this.findIntersection.bind(this);
     }
@@ -63,9 +64,14 @@ export class Curve {
 
         return intersection;
     }
-    fitCurveToPts(clusterPts, order=2) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
+    fitCurveToPts(clusterPts, order=2, anchor=null) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
         //https://www.youtube.com/watch?v=-UJr1XjyfME&ab_channel=Civillearningonline
+
+
+        //******************* decide when to use cubic or quadratic *******************
+
         
+        console.log("Method of Least squares generated")
         var n = clusterPts.length;
 
         var xVals = [];
@@ -76,8 +82,8 @@ export class Curve {
         var xxxVals = [];
         var xxxxVals = [];
         for(let i=0; i < n; ++i) {
-            let xy = clusterPts[i].x*clusterPts[i].y;
-            let xx = clusterPts[i].x*clusterPts[i].x;
+            let xy = (clusterPts[i].x)*(clusterPts[i].y);
+            let xx = (clusterPts[i].x)*(clusterPts[i].x);
             xVals.push(clusterPts[i].x);
             yVals.push(clusterPts[i].y);
             xyVals.push(xy);
@@ -119,7 +125,7 @@ export class Curve {
         var a = coeffs.get(0,0);
         var b = coeffs.get(1,0);
         var c = coeffs.get(2,0);
-        var terms = [`(${a})`, `(${b}*x)`,`(${c}*x*x)`] //quadratic
+        var terms = [`(${a})`, `(${b}*(x))`,`(${c}*(x)*(x))`] //quadratic
 
         this.currentCoeffs = []
         this.currentCoeffs.push(a);
@@ -132,7 +138,7 @@ export class Curve {
             terms.push(`(${coeffs.get(3,0)}*x*x*x)`)
             this.currentCoeffs.push(coeffs.get(3,0));
         }
-        var tempFunc = (x) =>{return x*x*this.currentCoeffs[2] + x*this.currentCoeffs[1] + this.currentCoeffs[0]}
+        var tempFunc = (x) =>{return (x-anchor?anchor.x:0)*(x-anchor?anchor.x:0)*this.currentCoeffs[2] + (x-anchor?anchor.x:0)*this.currentCoeffs[1] + (anchor?anchor.y:0 - this.currentCoeffs[0])}
         var equation = `var curvePoly${this.equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
         
        
@@ -181,6 +187,28 @@ export class Curve {
             xMin = this.xVals[x] < xMin? this.xVals[x] : xMin;
         }
         return [xMin, xMax]
+    }
+
+
+    generateLagrangePolyString(pts) {
+        console.log("lagrange generated")
+        var terms = [];
+        for(let p=0; p < pts.length; ++p) {
+            var numerator=`${this.yVals[p]}`
+            var denominator = 1;
+            for(let pk=0; pk < pts.length; ++pk) {
+                if(p==pk) continue;
+                numerator += `*(x - ${this.xVals[pk]})`
+                denominator *= (this.xVals[p]-this.xVals[pk]);
+            }
+            terms.push("("+numerator+`/${denominator}`+")")
+        }
+        var equation = `var curvePoly${this.equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
+
+
+        var curveObj = {xRange:this.xRange,equationOrder:2, equationStr:equation, equationName:`curvePoly${this.equationId.toString()}`}
+        return curveObj;
+
     }
     
 }

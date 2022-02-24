@@ -51,7 +51,7 @@ export class ImageScan {
         return new Promise((resolve,reject)=> {
             this.originalData = this.originalImageData.data;
             var data = this.imageData.data;     //should normally be this.originalImageData.data;
-            gaussLength = 5       //was 7
+            gaussLength = 7       //was 7
             var componentLength = gaussLength;   //15 works good with space & rocket center, trying 7 for Red&Black checker board
             let sig0 = 1;
             var sigStack = []
@@ -98,7 +98,6 @@ export class ImageScan {
                         parallelComponent["resultData"]["RGB"][4*(imgX + imgY*this.imageWidth) + 1] = G;
                         parallelComponent["resultData"]["RGB"][4*(imgX + imgY*this.imageWidth) + 2] = B;
                         parallelComponent["resultData"]["mags"].push((R+G+B)/3);
-                        
                     }
                 }
             }
@@ -284,8 +283,8 @@ export class ImageScan {
                     dummyCanvas.width = img.naturalWidth;
                     dummyCanvas.height= img.naturalHeight;
                     var dummyContext = dummyCanvas.getContext('2d')
-
                     dummyContext.drawImage(img,0,0);
+                    
                     OBJ.originalImageData = dummyContext.getImageData(0,0,dummyCanvas.width,dummyCanvas.height);
                     OBJ.imageData = dummyContext.getImageData(0,0,dummyCanvas.width,dummyCanvas.height);
                     OBJ.data = OBJ.imageData.data;

@@ -10,7 +10,8 @@ export class Curve {
         this.N = this.pts.length;
         this.xVals = this.pts.map(a=>a.x);
         this.yVals = this.pts.map(a=>a.y);
-       
+        this.order = order
+        this.anchor  =anchor
         this.xRange = this.getXRange([0,this.pts.length]);
         this.xMin = this.xRange[0];
         this.xMax = this.xRange[1];
@@ -29,8 +30,18 @@ export class Curve {
         this.generateLagrangePolyString = this.generateLagrangePolyString.bind(this);
 
         this.findIntersection = this.findIntersection.bind(this);
-    }
 
+        this.split = this.split.bind(this);
+        this.getCurrentLength = this.getCurrentLength.bind(this);
+        this.getCurrentSlope = this.getCurrentSlope.bind(this);
+        this.initCurve = this.initCurve.bind(this);
+    }
+    async initCurve() {
+        this.curveData = this.fitCurveToPts(this.pts,this.order,this.anchor)
+        this.currentEquationStr = this.curveData.equationStr;       //you would call geval/eval on this variable in another module
+        this.currentEquationName = this.curveData.equationName;
+        this.equationOrder = this.curveData.equationOrder;
+    }
 
     findIntersection(otherCurve) {
         var intersection = null
@@ -63,6 +74,39 @@ export class Curve {
 
 
         return intersection;
+    }
+
+    getCurrentSlope() {
+        var slope = Math.round(this.P2.y-this.P1.y)/Math.round(this.P2.x-this.P1.x);
+        if(slope==Infinity) return 'vertical'
+        else if(slope==0) return 'horizontal'
+        else return slope;
+    }
+
+    getCurrentLength() {
+        //integral( mag(d/dx curve)) from 0 to 1
+        return Math.sqrt(((this.P2.x-this.P1.x)*(this.P2.x-this.P1.x)) + ((this.P2.y-this.P1.y)*(this.P2.y-this.P1.y)))
+    }
+    split(splitPt) {
+        var segmentPts1 = [];
+        var segmentPts2 = [];
+        if(this.getCurrentSlope() =='vertical') {
+            //curve is vertical, so look at y values
+            for(let p=0; p < this.pts.length; ++p) {
+                if(this.pts[p].y > splitPt.y) segmentPts2.push(this.pts[p])
+                else if(this.pts[p].y < splitPt.y) segmentPts1.push(this.pts[p])
+            }
+        
+        }
+        else {
+            for(let p=0; p < this.pts.length; ++p) {
+                if(this.pts[p].x > splitPt.x) segmentPts2.push(this.pts[p])
+                else if(this.pts[p].x < splitPt.x) segmentPts1.push(this.pts[p])
+
+            }
+        }
+        return [segmentPts1.concat(splitPt),segmentPts2.concat(splitPt)]
+        
     }
     fitCurveToPts(clusterPts, order=2, anchor=null) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
         //https://www.youtube.com/watch?v=-UJr1XjyfME&ab_channel=Civillearningonline

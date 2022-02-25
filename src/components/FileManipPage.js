@@ -11,7 +11,7 @@ import { documentElement } from 'min-document';
 import {ImageScan} from './imageManip.js'
 import {Curve} from './Curve.js'
 import {Cluster} from './Cluster.js';
-import {distanceSquared,removeAllChildNodes,mergeSubElements,getRandomInt,getStdDev,getTransformedPt, numberInRange,distance} from './utility.js'
+import {objExistsInArray, removeAllChildNodes,mergeSubElements,getRandomInt,getStdDev,getTransformedPt, numberInRange,distance} from './utility.js'
 import {scanRadiusForCorner} from './imageManipUtility.js'
 var geval = eval;
 import { Matrix, solve } from 'ml-matrix';
@@ -91,165 +91,171 @@ class FileManipPage extends React.Component {
     }
 
     async testCurveSplit() {
-        var intersections = []
-        for(let c1=0; c1 < this.testCurves.length; ++c1) {
-            for(let c2=0; c2 < this.testCurves.length; ++c2) {
-                if(c1==c2) continue;
-                var curveObj1 = this.testCurves[c1].curveObj;
-                var curveObj2 = this.testCurves[c2].curveObj;
-
-                geval(curveObj1.currentEquationStr);
-                geval(curveObj2.currentEquationStr);
-                var curveFunc1 = geval(curveObj1.currentEquationName);
-                var curveFunc2 = geval(curveObj2.currentEquationName);
-
-                for(let x=curveObj1.xMin; x <= curveObj1.xMax; ++x) {
-                    var result1 = Math.round(curveFunc1(x));
-                    var result2 = Math.round(curveFunc2(x));
-             
-                    if(numberInRange(result1,result2,1)) {
-                        var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-                        circle.setAttribute("id",`intersection${intersections.length}`)
-                        circle.setAttribute("cx",x);
-                        circle.setAttribute("cy",result1);
-                        circle.setAttribute("r",5);
-                        circle.setAttribute("stroke",`red`);
-                        circle.setAttribute("fill","red");
-                        document.getElementById("ptGroup").append(circle);
-                        intersections.push({segments:[c1, c2], x:x,y:result1})
-                        
+        return new Promise((resolve,reject) => {
+            var intersections = []
+            for(let c1=0; c1 < this.testCurves.length; ++c1) {
+                var alreadyExists = false;
+                for(let c2=0; c2 < this.testCurves.length; ++c2) {
+                    if(c1==c2) continue;
+                    
+                    for(let i=0; i < intersections.length; ++i) {
+                        if(intersections[i].segments[0]==c2 && intersections[i].segments[1]==c1) {
+                            alreadyExists=true;
+                            break;
+                        }
+                    }
+                    if(alreadyExists) continue;
+                    var curveObj1 = this.testCurves[c1].curveObj;
+                    var curveObj2 = this.testCurves[c2].curveObj;
+                    geval(curveObj1.currentEquationStr);
+                    geval(curveObj2.currentEquationStr);
+                    var curveFunc1 = geval(curveObj1.currentEquationName);
+                    var curveFunc2 = geval(curveObj2.currentEquationName);
+                    for(let x=curveObj1.xMin; x <= curveObj1.xMax; ++x) {
+                        var result1 = Math.round(curveFunc1(x));
+                        var result2 = Math.round(curveFunc2(x));
+                        if(numberInRange(result1,result2,1)) {
+                            var circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+                            circle.setAttribute("id",`intersection${intersections.length}`)
+                            circle.setAttribute("cx",x);
+                            circle.setAttribute("cy",result1);
+                            circle.setAttribute("r",5);
+                            circle.setAttribute("stroke",`red`);
+                            circle.setAttribute("fill","red");
+                            document.getElementById("ptGroup").append(circle);
+                            intersections.push({segments:[c1, c2], x:x, y:result1})
+                            
+                        }
                     }
                 }
-
             }
-        }
-        console.log('intersections',intersections)
-        for(var i=0; i < intersections.length; ++i) {
-            var I = intersections[i];
-            var curveObj1 = this.testCurves[I.segments[0]].curveObj
-            var curveObj2 = this.testCurves[I.segments[1]].curveObj
 
-            if(I.x > curveObj1.xMin && I.x <curveObj1.xMax) {                
-                var segments = curveObj1.split(I);
+            console.log('intersections',intersections)
+            for(var i=0; i < intersections.length; ++i) {
+                var I = intersections[i];
+                var curveObj1 = this.testCurves[I.segments[0]].curveObj
+                var curveObj2 = this.testCurves[I.segments[1]].curveObj
+                if(!['horizontal', 'vertical'].includes(curveObj1.getCurrentSlope())) {
+                    // if(I.x > curveObj1.xMin && I.x <curveObj1.xMax) {                
+                    var segments = curveObj1.split(I);
+                    console.log('segments',segments)
+                    var newCurve1 = segments[0];
+                    var newCurve2 = segments[1];
+                    var newCurveId1 = curveObj1.equationId+"_1"
+                    // var newCurve1 = new Curve(segments[0],newCurveId1)
+                    var initPromise1 = newCurve1.initCurve();
+                    initPromise1.then(result=> {
+                        let xMin1=newCurve1.xRange[0];
+                        let xMax1=newCurve1.xRange[1];   
+                        geval(newCurve1.currentEquationStr)
+                        var curveFunc1 = geval(newCurve1.currentEquationName);
 
-                var newCurveId1 = curveObj1.equationId+"_1"
-                var newCurve1 = new Curve(segments[0],newCurveId1, segments[0][0])
-                await newCurve1.initCurve();
-                console.log('newCurve1',newCurve1)
-                let xMin1=newCurve1.xRange[0];
-                let xMax1=newCurve1.xRange[1];
-                console.log('newCurve1.currentEquationStr',newCurve1.currentEquationStr)
-                geval(newCurve1.currentEquationStr)
-                var curveFunc1 = geval(newCurve1.currentEquationName);
+                        var P1 = {x:xMin1, y:curveFunc1(xMin1)}
+                        var P2 = {x:xMax1, y:curveFunc1(xMax1)}
+                        var curveDerivativeMin = newCurve1.currentDerivative(xMin1);
+                        var QC = {x:(xMin1+xMax1)/2,  y:P1.y+curveDerivativeMin*(xMax1-xMin1)/2}
+                    
+                        var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
+                        var path1 = document.createElementNS("http://www.w3.org/2000/svg","path");
+                        path1.setAttribute("id",newCurveId1)
+                        path1.setAttribute("d",d);
+                        path1.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
+                        path1.setAttribute("fill","none");
+                        document.getElementById("curveGroup").append(path1);
+                        this.testCurves.push({curveObj:newCurve1, curveId:newCurveId1})
+                    })
+                    
+                   
+                    var newCurveId2 = curveObj1.equationId+"_2"
+                    // var newCurve2 = new Curve(segments[1],newCurveId2)
+                    var initPromise2 = newCurve2.initCurve();
+                    initPromise2.then(result=> {
+                        let xMin2=newCurve2.xRange[0];
+                        let xMax2=newCurve2.xRange[1];
+                        geval(newCurve2.currentEquationStr)
+                        var curveFunc2 = geval(newCurve2.currentEquationName);
 
-                var P1 = {x:xMin1, y:curveFunc1(xMin1)}
-                var P2 = {x:xMax1, y:curveFunc1(xMax1)}
-                var curveDerivativeMin = newCurve1.currentDerivative(xMin1);
-                var QC = {x:(xMin1+xMax1)/2,  y:P1.y+curveDerivativeMin*(xMax1-xMin1)/2}
-             
-                var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
-                
-                var path1 = document.createElementNS("http://www.w3.org/2000/svg","path");
-                path1.setAttribute("id",newCurveId1)
-                path1.setAttribute("d",d);
-                path1.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
-                path1.setAttribute("fill","none");
-                document.getElementById("curveGroup").append(path1);
-                this.testCurves.push({curveObj:newCurve1, curveId:newCurveId1})
+                        var P1 = {x:xMin2, y:curveFunc2(xMin2)}
+                        var P2 = {x:xMax2, y:curveFunc2(xMax2)}
+                        var curveDerivativeMin = newCurve2.currentDerivative(xMin2);
+                        var QC = {x:(xMin2+xMax2)/2,  y:P1.y+curveDerivativeMin*(xMax2-xMin2)/2}
+                    
+                        var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
+                        var path2 = document.createElementNS("http://www.w3.org/2000/svg","path");
+                        path2.setAttribute("id",newCurveId2)
+                        path2.setAttribute("d",d);
+                        path2.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
+                        path2.setAttribute("fill","none");
+                    
+                        document.getElementById("curveGroup").append(path2);
+                        this.testCurves.push({curveObj:newCurve2, curveId:newCurveId2})
+                    })
+                    document.getElementById(curveObj1.equationId).remove()
+                    
+                }
+                // if(I.x > curveObj2.xMin && I.x < curveObj2.xMax) {
+                if(!['horizontal', 'vertical'].includes(curveObj2.getCurrentSlope())) {
+                    var segments = curveObj2.split(I);
+                    console.log('segments',segments)
+                    var newCurve1 = segments[0];
+                    var newCurve2 = segments[1];
+                    var newCurveId1 = curveObj2.equationId+"_1"
+                    // var newCurve1 = new Curve(segments[0],newCurveId1)
+                    var initPromise1 = newCurve1.initCurve();
+                    initPromise1.then(result=> {
+                        let xMin1=newCurve1.xRange[0];
+                        let xMax1=newCurve1.xRange[1];
+                        geval(newCurve1.currentEquationStr)
+                        var curveFunc1 = geval(newCurve1.currentEquationName);
 
-                var newCurveId2 = curveObj1.equationId+"_2"
-                var newCurve2 = new Curve(segments[1],newCurveId2 , segments[1][0])
-                await newCurve2.initCurve();
-                console.log('newCurve2',newCurve2)
+                        var P1 = {x:xMin1, y:curveFunc1(xMin1)}
+                        var P2 = {x:xMax1, y:curveFunc1(xMax1)}
+                        var curveDerivativeMin = newCurve1.currentDerivative(xMin1);
+                        var QC = {x:(xMin1+xMax1)/2,  y:P1.y+curveDerivativeMin*(xMax1-xMin1)/2}
+                    
+                        var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
+                        
+                        var path1 = document.createElementNS("http://www.w3.org/2000/svg","path");
+                        path1.setAttribute("id",newCurveId1)
+                        path1.setAttribute("d",d);
+                        path1.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
+                        path1.setAttribute("fill","none");
+                    
+                        document.getElementById("curveGroup").append(path1);
+                        this.testCurves.push({curveObj:newCurve1, curveId:newCurveId1})
+                        
+                    })
 
-                let xMin2=newCurve2.xRange[0];
-                let xMax2=newCurve2.xRange[1];
-                console.log('newCurve2.currentEquationStr',newCurve2.currentEquationStr)
-                geval(newCurve2.currentEquationStr)
-                var curveFunc2 = geval(newCurve2.currentEquationName);
-
-                P1 = {x:xMin2, y:curveFunc2(xMin2)}
-                P2 = {x:xMax2, y:curveFunc2(xMax2)}
-                curveDerivativeMin = newCurve2.currentDerivative(xMin2);
-                QC = {x:(xMin2+xMax2)/2,  y:P1.y+curveDerivativeMin*(xMax2-xMin2)/2}
-             
-                var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
-                
-                var path2 = document.createElementNS("http://www.w3.org/2000/svg","path");
-                path2.setAttribute("id",newCurveId2)
-                path2.setAttribute("d",d);
-                path2.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
-                path2.setAttribute("fill","none");
-              
-                document.getElementById("curveGroup").append(path2);
-                this.testCurves.push({curveObj:newCurve2, curveId:newCurveId2})
+                    var newCurveId2 = curveObj2.equationId+"_2"
+                    // var newCurve2 = new Curve(segments[1],newCurveId2)
+                    var initPromise2 = newCurve2.initCurve();
+                    initPromise2.then(result=> {
+                        let xMin2=newCurve2.xRange[0];
+                        let xMax2=newCurve2.xRange[1];
+                        geval(newCurve2.currentEquationStr)
+                        var curveFunc2 = geval(newCurve2.currentEquationName);
+                        
+                        var P1 = {x:xMin2, y:curveFunc2(xMin2)}
+                        var P2 = {x:xMax2, y:curveFunc2(xMax2)}
+                        var curveDerivativeMin = newCurve2.currentDerivative(xMin2);
+                        var QC = {x:(xMin2+xMax2)/2,  y:P1.y+curveDerivativeMin*(xMax2-xMin2)/2}
+                    
+                        var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
+                        
+                        var path2 = document.createElementNS("http://www.w3.org/2000/svg","path");
+                        path2.setAttribute("id",newCurveId2)
+                        path2.setAttribute("d",d);
+                        path2.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
+                        path2.setAttribute("fill","none");
+                    
+                        document.getElementById("curveGroup").append(path2);
+                        this.testCurves.push({curveObj:newCurve2, curveId:newCurveId2})
+                    })
+                    // document.getElementById(curveObj2.equationId).remove()
+                }
             }
-            if(I.x > curveObj2.xMin && I.x <curveObj2.xMax) {
-               
-                var segments = curveObj2.split(I);
-                console.log('segments', segments)
-                
-                // document.getElementById("curveGroup").removeChild()
-                
-                document.getElementById(curveObj2.equationId).remove()
-
-                var newCurveId1 = curveObj2.equationId+"_1"
-                var newCurve1 = new Curve(segments[0],newCurveId1, segments[0][0])
-                await newCurve1.initCurve();
-                let xMin1=newCurve1.xRange[0];
-                let xMax1=newCurve1.xRange[1];
-                geval(newCurve1.currentEquationStr)
-
-
-                var curveFunc1 = geval(newCurve1.currentEquationName);
-
-                var P1 = {x:xMin1, y:curveFunc1(xMin1)}
-                var P2 = {x:xMax1, y:curveFunc1(xMax1)}
-                var curveDerivativeMin = newCurve1.currentDerivative(xMin1);
-                var QC = {x:(xMin1+xMax1)/2,  y:P1.y+curveDerivativeMin*(xMax1-xMin1)/2}
-             
-                var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
-                
-                var path1 = document.createElementNS("http://www.w3.org/2000/svg","path");
-                path1.setAttribute("id",newCurveId1)
-                path1.setAttribute("d",d);
-                path1.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
-                path1.setAttribute("fill","none");
-              
-                document.getElementById("curveGroup").append(path1);
-                this.testCurves.push({curveObj:newCurve1, curveId:newCurveId1})
-
-
-
-
-                var newCurveId2 = curveObj2.equationId+"_2"
-                var newCurve2 = new Curve(segments[1],newCurveId2 , segments[1][0])
-                await newCurve2.initCurve();
-
-                let xMin2=newCurve2.xRange[0];
-                let xMax2=newCurve2.xRange[1];
-                geval(newCurve2.currentEquationStr)
-                var curveFunc2 = geval(newCurve2.currentEquationName);
-
-                P1 = {x:xMin2, y:curveFunc2(xMin2)}
-                P2 = {x:xMax2, y:curveFunc2(xMax2)}
-                curveDerivativeMin = newCurve2.currentDerivative(xMin2);
-                QC = {x:(xMin2+xMax2)/2,  y:P1.y+curveDerivativeMin*(xMax2-xMin2)/2}
-             
-                var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
-                
-                var path2 = document.createElementNS("http://www.w3.org/2000/svg","path");
-                path2.setAttribute("id",newCurveId2)
-                path2.setAttribute("d",d);
-                path2.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
-                path2.setAttribute("fill","none");
-              
-                document.getElementById("curveGroup").append(path2);
-                this.testCurves.push({curveObj:newCurve2, curveId:newCurveId2})
-            }
-            
-        }
-
+            resolve();
+        })
     }
     
     componentDidMount() {
@@ -262,33 +268,41 @@ class FileManipPage extends React.Component {
             if(e.code =="Space") {
                 var newCurveId = "testCurve"+this.testCurves.length;
                 var curve = new Curve(this.testPts,newCurveId,2, this.testPts[0])
-                let xMin1=curve.xRange[0];
-                let xMax1=curve.xRange[1];
-                
-                geval(curve.currentEquationStr)
-                var thisCurveFunc = geval(curve.currentEquationName);
+                var initPromise = curve.initCurve();
+                initPromise.then(result=> {
+                    let xMin1=curve.xRange[0];
+                    let xMax1=curve.xRange[1];
+                    
+                    geval(curve.currentEquationStr)
+                    var thisCurveFunc = geval(curve.currentEquationName);
 
-                var P1 = {x:xMin1, y:thisCurveFunc(xMin1)}
-                var P2 = {x:xMax1, y:thisCurveFunc(xMax1)}
-                var curveDerivativeMin = curve.currentDerivative(xMin1);
-    
-                var QC = {x:(xMin1+xMax1)/2,  y:P1.y+curveDerivativeMin*(xMax1-xMin1)/2}
-             
-                var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
-                // var pathId = `curve${layerIdx}_${curve}`
+                    var P1 = {x:xMin1, y:thisCurveFunc(xMin1)}
+                    var P2 = {x:xMax1, y:thisCurveFunc(xMax1)}
+                    var curveDerivativeMin = curve.currentDerivative(xMin1);
+        
+                    var QC = {x:(xMin1+xMax1)/2,  y:P1.y+curveDerivativeMin*(xMax1-xMin1)/2}
                 
-                var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-                
-                path.setAttribute("id",newCurveId)
-                path.setAttribute("d",d);
-                path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
-                path.setAttribute("fill","none");
-                // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
-                document.getElementById("curveGroup").append(path);
+                    var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
+                    // var pathId = `curve${layerIdx}_${curve}`
+                    
+                    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
+                    
+                    path.setAttribute("id",newCurveId)
+                    path.setAttribute("d",d);
+                    path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
+                    path.setAttribute("fill","none");
+                    // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
+                    document.getElementById("curveGroup").append(path);
 
-                this.testCurves.push({curveObj:curve, curveId:newCurveId})
-                this.testPts = []
-                this.testCurveSplit();
+                    this.testCurves.push({curveObj:curve, curveId:newCurveId})
+                    this.testPts = []
+                    var testSplitPromise = this.testCurveSplit();
+                    testSplitPromise.then(result=> {
+                        console.log("donedone")
+                    })
+                })
+                
+         
             }
         })
 

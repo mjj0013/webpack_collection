@@ -11,6 +11,9 @@ export class Curve {
         // this.xVals = this.pts.map(a=>a.x);
         // this.yVals = this.pts.map(a=>a.y);
         
+
+        this.curveChildren = [];
+
         this.xVals=[];
         this.yVals=[];
        
@@ -18,34 +21,6 @@ export class Curve {
         for(let pt=0; pt < this.pts.length; ++pt) {
             this.xVals.push(this.pts[pt].x);
             this.yVals.push(this.pts[pt].y);
-            
-            // if(xLimit || yLimit) {
-            //     var xIsValid=true;
-            //     var yIsValid=true;
-            //     if(xLimit) {
-            //         if(xLimit.op == '>' && this.pts[pt].x <= xLimit.value)  xIsValid=false;
-            //         else if(xLimit.op == '>=' && this.pts[pt].x < xLimit.value) xIsValid=false;
-            //         else if(xLimit.op == '<' && this.pts[pt].x >= xLimit.value) xIsValid=false;
-            //         else if(xLimit.op == '<=' && this.pts[pt].x > xLimit.value) xIsValid=false;
-                    
-            //     }
-            //     if(yLimit) {
-            //         if(yLimit.op == '>' && this.pts[pt].y <= yLimit.value) yIsValid=false;
-            //         else if(yLimit.op == '>=' && this.pts[pt].y < yLimit.value) yIsValid=false;
-            //         else if(yLimit.op == '<' && this.pts[pt].y >= yLimit.value) yIsValid=false;
-            //         else if(yLimit.op == '<=' && this.pts[pt].y > yLimit.value) yIsValid=false;
-            //     }
-            //     if(xLimit && yLimit) {
-            //         this.xVals.push(this.pts[pt].x);
-            //         this.yVals.push(this.pts[pt].y);
-                    
-            //     }  
-            //     else removeIdx.push(pt);
-            // }
-            // else {
-            //     this.xVals.push(this.pts[pt].x);
-            //     this.yVals.push(this.pts[pt].y);
-            // } 
         }
         // this.pts = this.pts.filter((item,idx)=>!removeIdx.includes(idx))
         this.xLimit = xLimit;
@@ -76,12 +51,14 @@ export class Curve {
         this.getCurrentLength = this.getCurrentLength.bind(this);
         this.getCurrentSlope = this.getCurrentSlope.bind(this);
         this.initCurve = this.initCurve.bind(this);
+
+        this.evaluate = this.evaluate.bind(this);
     }
     async initCurve() {
         return new Promise((resolve, reject)=> {
             var curveFuncPromise = this.fitCurveToPts(this.pts,this.order,this.anchor);
             curveFuncPromise.then(result=> {
-                console.log("result",result)
+                // console.log("result",result)
                 this.curveData = result;
                 this.currentEquationStr = this.curveData.equationStr;       //you would call geval/eval on this variable in another module
                 this.currentEquationName = this.curveData.equationName;
@@ -92,7 +69,13 @@ export class Curve {
         })
         
     }
-
+    evaluate(x) {           // this should replace the eval(<str>) method, which is problematic
+        var result = this.currentCoeffs[0];
+        for(let coeff=1; coeff < this.currentCoeffs.length; ++coeff) {
+            result += this.currentCoeffs[coeff]*Math.pow(x,coeff);
+        }
+        return result;
+    }
     findIntersection(otherCurve) {
         var intersection = null
         eval(this.currentEquationStr)
@@ -132,29 +115,12 @@ export class Curve {
         return Math.sqrt(((this.P2.x-this.P1.x)*(this.P2.x-this.P1.x)) + ((this.P2.y-this.P1.y)*(this.P2.y-this.P1.y)))
     }
     split(splitPt) {
-        // var segmentPts1 = [];
-        // var segmentPts2 = [];
-        // if(this.getCurrentSlope() =='vertical') {
-        //     //curve is vertical, so look at y values
-        //     for(let p=0; p < this.pts.length; ++p) {
-        //         if(this.pts[p].y > splitPt.y) segmentPts2.push(this.pts[p])
-        //         else if(this.pts[p].y < splitPt.y) segmentPts1.push(this.pts[p])
-        //     }
-        
-        // }
-        // else {
-        //     for(let p=0; p < this.pts.length; ++p) {
-        //         if(this.pts[p].x > splitPt.x) segmentPts2.push(this.pts[p])
-        //         else if(this.pts[p].x < splitPt.x) segmentPts1.push(this.pts[p])
-
-        //     }
-        // }
-        // return [segmentPts1.concat(splitPt),segmentPts2.concat(splitPt)]
         
         var yLimit = {op:null, val:splitPt.y}
         if(this.getCurrentSlope() == "vertical") {
             var curve1 = new Curve(this.pts, this.equationId+"_1", 2, null,null,  {op:'<', value:splitPt.y})
             var curve2 = new Curve(this.pts, this.equationId+"_2", 2, null,null,  {op:'>', value:splitPt.y} )
+            this.curveChildren
             return [curve1, curve2]
         }
         else {

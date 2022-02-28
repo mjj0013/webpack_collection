@@ -70,8 +70,7 @@ class FileManipPage extends React.Component {
         this.testPts = [];
         this.testCurves = []
         this.testCurveSplit = this.testCurveSplit.bind(this);
-
-
+        this.numSplits = 0;
     }
     resultSVGModeSelect = (e) =>{
         if(e.target.id=="dragButton") {
@@ -97,7 +96,6 @@ class FileManipPage extends React.Component {
                 var alreadyExists = false;
                 for(let c2=0; c2 < this.testCurves.length; ++c2) {
                     if(c1==c2) continue;
-                    
                     for(let i=0; i < intersections.length; ++i) {
                         if(intersections[i].segments[0]==c2 && intersections[i].segments[1]==c1) {
                             alreadyExists=true;
@@ -137,42 +135,44 @@ class FileManipPage extends React.Component {
                 var I = intersections[i];
                 var curveObj1 = I.segments[0]
                 var curveObj2 = I.segments[1]
-                if(!['horizontal', 'vertical'].includes(curveObj1.getCurrentSlope())) {
-                               
+                if(!['horizontal', 'vertical'].includes(curveObj1.getCurrentSlope())) {         
                     var segments = curveObj1.split(I);
                     console.log('segments',segments)
                     var newCurve1 = segments[0];
                    
-
-                    var newCurveId1 = curveObj1.equationId+"_1"
-                    // newCurve1.initCurve();
+                    var newCurveId1 = curveObj1.equationId+`_1_${this.numSplits}`
                     let xMin1=newCurve1.xRange[0];
                     let xMax1=newCurve1.xRange[1];   
-                    // geval(newCurve1.currentEquationStr)
                     var curveFunc1 = newCurve1.evaluate
                     console.log("newCurve1", newCurve1)
                     var P1 = {x:xMin1, y:curveFunc1(xMin1)}
                     var P2 = {x:xMax1, y:curveFunc1(xMax1)}
                     var curveDerivativeMin = newCurve1.currentDerivative(xMin1);
                     var QC = {x:(xMin1+xMax1)/2,  y:P1.y+curveDerivativeMin*(xMax1-xMin1)/2}
-                
                     var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
+
                     var path1 = document.createElementNS("http://www.w3.org/2000/svg","path");
                     path1.setAttribute("id",newCurveId1)
                     path1.setAttribute("d",d);
                     path1.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                     path1.setAttribute("fill","none");
-                    path1.addEventListener("mouseover", (e)=>{
-                        console.log(e.target.id)
-                    }, false);
+                    path1.addEventListener("mouseover", (e)=>{    console.log(e.target.id)}, false);
                     document.getElementById("curveGroup").append(path1);
-                    this.testCurves.splice(I.currentIndices[0],1);
+                   
+                    if(I.currentIndices[0] > I.currentIndices[1]) {
+                        this.testCurves.splice(I.currentIndices[0],1);
+                        this.testCurves.splice(I.currentIndices[1],1);
+                    }
+                    else {
+                        this.testCurves.splice(I.currentIndices[1],1);
+                        this.testCurves.splice(I.currentIndices[0],1);
+                    }
+                    
                     this.testCurves.push({curveObj:newCurve1, curveId:newCurveId1})
           
-                    var newCurveId2 = curveObj1.equationId+"_2"
+                    var newCurveId2 = curveObj1.equationId+`_2_${this.numSplits}`
                     var newCurve2 = segments[1];
-                    // newCurve2.initCurve();
-             
+ 
                     let xMin2=newCurve2.xRange[0];
                     let xMax2=newCurve2.xRange[1];
                     
@@ -188,27 +188,24 @@ class FileManipPage extends React.Component {
                     path2.setAttribute("d",d);
                     path2.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                     path2.setAttribute("fill","none");
-                    path2.addEventListener("mouseover", (e)=>{
-                        console.log(e.target.id)
-                    }, false);
+                    path2.addEventListener("mouseover", (e)=>{console.log(e.target.id) }, false);
                     document.getElementById("curveGroup").append(path2);
                     this.testCurves.push({curveObj:newCurve2, curveId:newCurveId2})
                     console.log("removing "+curveObj1.equationId)
                     document.getElementById(curveObj1.equationId).remove()
+                    ++this.numSplits;
                     
                 }
-                // if(I.x > curveObj2.xMin && I.x < curveObj2.xMax) {
                 if(!['horizontal', 'vertical'].includes(curveObj2.getCurrentSlope())) {
                     var segments = curveObj2.split(I);
                     console.log('segments',segments)
                     var newCurve1 = segments[0];
                     var newCurve2 = segments[1];
-                    var newCurveId1 = curveObj2.equationId+"_1"
+                    var newCurveId1 = curveObj2.equationId+`_1_${this.numSplits}`
                  
                     let xMin1=newCurve1.xRange[0];
                     let xMax1=newCurve1.xRange[1];
-                    // geval(newCurve1.currentEquationStr)
-                    // var curveFunc1 = geval(newCurve1.currentEquationName);
+
                     var curveFunc1 = newCurve1.evaluate;
                     console.log("newCurve1", newCurve1)
                     var P1 = {x:xMin1, y:curveFunc1(xMin1)}
@@ -223,17 +220,13 @@ class FileManipPage extends React.Component {
                     path1.setAttribute("d",d);
                     path1.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                     path1.setAttribute("fill","none");
-                    path1.addEventListener("mouseover", (e)=>{
-                        console.log(e.target.id)
-                    }, false);
+                    path1.addEventListener("mouseover", (e)=>{console.log(e.target.id)}, false);
                     document.getElementById("curveGroup").append(path1);
                    
                     this.testCurves.splice(I.currentIndices[1],1);
                     this.testCurves.push({curveObj:newCurve1, curveId:newCurveId1})
-                  
-                  
 
-                    var newCurveId2 = curveObj2.equationId+"_2"
+                    var newCurveId2 = curveObj2.equationId+`_2_${this.numSplits}`
                     let xMin2=newCurve2.xRange[0];
                     let xMax2=newCurve2.xRange[1];
                 
@@ -250,17 +243,17 @@ class FileManipPage extends React.Component {
                     path2.setAttribute("d",d);
                     path2.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                     path2.setAttribute("fill","none");
-                    path2.addEventListener("mouseover", (e)=>{
-                        console.log(e.target.id)
-                    }, false);
+                    path2.addEventListener("mouseover", (e)=>{    console.log(e.target.id)  }, false);
                 
                     document.getElementById("curveGroup").append(path2);
                     this.testCurves.push({curveObj:newCurve2, curveId:newCurveId2})
                     console.log("removing "+curveObj2.equationId)
                     document.getElementById(curveObj2.equationId).remove()
+                    ++this.numSplits;
                     
                 }
             }
+            console.log(" this.testCurves", this.testCurves)
 
             resolve();
         })
@@ -274,8 +267,8 @@ class FileManipPage extends React.Component {
 
         window.addEventListener("keydown", (e) => {
             if(e.code =="Space") {
-                var newCurveId = "testCurve"+this.testCurves.length;
-                var curve = new Curve(this.testPts,newCurveId,2, this.testPts[0])
+                var newCurveId = "testCurve"+this.testCurves.length+`_${this.numSplits}`;
+                var curve = new Curve(this.testPts,newCurveId, 2, this.testPts[0])
              
                 let xMin1=curve.xRange[0];
                 let xMax1=curve.xRange[1];
@@ -289,8 +282,7 @@ class FileManipPage extends React.Component {
                 var QC = {x:(xMin1+xMax1)/2,  y:P1.y+curveDerivativeMin*(xMax1-xMin1)/2}
             
                 var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
-                // var pathId = `curve${layerIdx}_${curve}`
-                
+          
                 var path = document.createElementNS("http://www.w3.org/2000/svg","path");
                 
                 path.setAttribute("id",newCurveId)
@@ -523,56 +515,47 @@ class FileManipPage extends React.Component {
 
         for(var corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
-
             // searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
             //  https://mathinsight.org/directional_derivative_gradient_introduction
             //  https://milania.de/blog/Introduction_to_the_Hessian_feature_detector_for_finding_blobs_in_an_image
             var foundEdges = [];   
-            for(var angle=0; angle <360; angle+=1) {
-                var thetaFromCorner = angle/57.2958
-                for(let amp=1; amp < 10; ++amp) {
-                    
-                    var wX = Math.round(amp*Math.cos(thetaFromCorner))
-                    var wY = Math.round(amp*Math.sin(thetaFromCorner))
-                    
-                    var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
-                    if((currentCorner.x+wX) <0 && (currentCorner.x+wX) >= this.currentScanObj.imageWidth) {
-                        continue;
-                    }
-                    if((currentCorner.y+wY) <0 && (currentCorner.y+wY) >= this.currentScanObj.imageHeight) {
-                        continue;
-                    }
-                    if(Math.abs(resultData["gaussCurvature"][relativeIdx]) >= eigenValEstimate && resultData["laplacian"][relativeIdx] > 0) {
-                        var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
-                        // var relativeTheta = Math.atan(relativeEigenVectors[1][0]/relativeEigenVectors[0][0])
-                        var relativeEigenTheta = resultData["eigenVectorTheta"][relativeIdx]
-                        // +/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
-                        var eigenVals = resultData["eigenVals"][relativeIdx].realEigenvalues;
-                        thetaFromCorner = thetaFromCorner<0? 2*Math.PI-thetaFromCorner : thetaFromCorner;
-                        var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, eigenTheta:relativeEigenTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
-                        // var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , eigenVals:eigenVals, lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, eigenTheta:relativeEigenTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
-                        foundEdges.push(relativePt) 
-                        break;
-                    }
-                }
-                
-            }        
-            // for(var wY=-movWinRadius; wY <= movWinRadius; ++wY) {        //try -15 to 15
-            //     for(var wX=-movWinRadius; wX <= movWinRadius; ++wX) {
-            //         if(wY==0 && wX==0) continue;
+            // for(var angle=0; angle <360; angle+=1) {
+            //     var thetaFromCorner = angle/57.2958
+            //     for(let amp=1; amp < 10; ++amp) {     
+            //         var wX = Math.round(amp*Math.cos(thetaFromCorner))
+            //         var wY = Math.round(amp*Math.sin(thetaFromCorner))
             //         var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
+            //         if((currentCorner.x+wX) <0 && (currentCorner.x+wX) >= this.currentScanObj.imageWidth) continue;
+            //         if((currentCorner.y+wY) <0 && (currentCorner.y+wY) >= this.currentScanObj.imageHeight) continue;
             //         if(Math.abs(resultData["gaussCurvature"][relativeIdx]) >= eigenValEstimate && resultData["laplacian"][relativeIdx] > 0) {
-            //         // if(Math.round(resultData["harrisResponse"][relativeIdx]) != 0 && resultData["laplacian"][relativeIdx] > 0) {     // < 0 means its classified as an edge by Harris Response
             //             var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
             //             var relativeEigenTheta = resultData["eigenVectorTheta"][relativeIdx]
             //             // +/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
-            //             var thetaFromCorner = Math.atan(wY/wX)
+            //             var eigenVals = resultData["eigenVals"][relativeIdx].realEigenvalues;
             //             thetaFromCorner = thetaFromCorner<0? 2*Math.PI-thetaFromCorner : thetaFromCorner;
             //             var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, eigenTheta:relativeEigenTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
             //             foundEdges.push(relativePt) 
+            //             break;
             //         }
             //     }
-            // }
+                
+            // }        
+            for(var wY=-movWinRadius; wY <= movWinRadius; ++wY) {        //try -15 to 15
+                for(var wX=-movWinRadius; wX <= movWinRadius; ++wX) {
+                    if(wY==0 && wX==0) continue;
+                    var relativeIdx = (currentCorner.x+wX) + (currentCorner.y+wY)*this.currentScanObj.imageWidth
+                    if(Math.abs(resultData["gaussCurvature"][relativeIdx]) >= eigenValEstimate && resultData["laplacian"][relativeIdx] > 0) {
+                    
+                        var relativeEigenVectors = resultData["eigenVectors"][relativeIdx];
+                        var relativeEigenTheta = resultData["eigenVectorTheta"][relativeIdx]
+                        // +/-0.0654 3.75 degrees +/-0.13089 7.5 degrees ( so 15 degrees), OR +/-0.261799 15 degrees ( so 30 degrees). .3926991 rad is 22.5 deg (because 32x32 window would divide 360 degrees into 22.5 deg sections)
+                        var thetaFromCorner = Math.atan(wY/wX)
+                        thetaFromCorner = thetaFromCorner<0? 2*Math.PI-thetaFromCorner : thetaFromCorner;
+                        var relativePt = { thetaFromCorner:thetaFromCorner, x:currentCorner.x+wX, y:currentCorner.y+wY , lengthFromCorner:Math.sqrt(wX*wX+wY*wY), eigenVectors:relativeEigenVectors, eigenTheta:relativeEigenTheta, magGradient:resultData["magGradient"][relativeIdx],  thetaGradient:resultData["thetaGradient"][relativeIdx]}
+                        foundEdges.push(relativePt) 
+                    }
+                }
+            }
             
             var condensedEdges = new Cluster(foundEdges, [{name:'thetaFromCorner',  epsilonMultiplier:1, minPts:2, epsilon:.261799}])  //0.261799
           
@@ -589,20 +572,7 @@ class FileManipPage extends React.Component {
                 if(Object.keys(this.allCurveData).includes(initialCurveName)) {
                     if(subCluster[0]==null) console.log('subCluster[0]', subCluster[0])
                     var [lengths, edges, destination] = this.tracingWindow(resultData, subCluster[0], movWinRadius, initialCurveName,eigenValEstimate)
-                    //console.log('destination',destination, 'this.allCurveData',this.allCurveData)
                     this.allCurveData[destination].pts = this.allCurveData[destination].pts.concat(edges);
-
-                    // var clusterObj = new Cluster(edges, [{name:'density', epsilonMultiplier:1, minPts:2, epsilon:null, attribute:null}])
-                    // if(clusterObj.subClusters.length > 1) {
-                    //     // delete this.allCurveData[initialCurveName];
-                    //     this.allCornerData[`corner${corn}`].edges.splice(initialCurveName)
-                    //     for(let c=0; c < clusterObj.subClusters.length; ++c) {
-                    //         var subCluster = clusterObj.subClusters[c]
-                    //         this.allCurveData[initialCurveName+`_${c}`] = {"curveObj":null, "pts":[], "origin":`corner${corn}`};
-                    //         this.allCurveData[initialCurveName+`_${c}`].pts = subCluster;
-                    //         this.allCornerData[`corner${corn}`].edges.push(initialCurveName);
-                    //     }
-                    // }
                     
                 }
             }
@@ -616,14 +586,11 @@ class FileManipPage extends React.Component {
         for(var nameIdx=0;  nameIdx < curveNames.length; ++nameIdx) {
             var curveEntry = this.allCurveData[curveNames[nameIdx]]
             var curveObj = new Curve(curveEntry.pts, curveNames[nameIdx], 2);
-
             curveEntry["curveObj"] = curveObj;
 
             let xMin=curveObj.xRange[0];
             let xMax=curveObj.xRange[1];
-            
-            // geval(curveObj.currentEquationStr)
-            // var thisCurveFunc = geval(curveObj.currentEquationName);
+
             var thisCurveFunc = curveObj.evaluate
 
             var P1 = {x:xMin, y:thisCurveFunc(xMin)};
@@ -653,15 +620,13 @@ class FileManipPage extends React.Component {
         var groupColors = [];
 
         for(let c=0; c < Object.keys(this.allCornerData).length; ++c) {
-            
             groupColors.push(`hsl(${getRandomInt(0,359)}, ${getRandomInt(1,99)}%, ${getRandomInt(30,70)}%)`)
         }
         
         for(var nameIdx=0; nameIdx < curveNames.length; ++nameIdx) {
             var pathId = curveNames[nameIdx]
             var curveObj = this.allCurveData[pathId].curveObj;
-            // geval(curveObj.currentEquationStr)
-            // var thisCurveFunc = geval(curveObj.currentEquationName)
+            if(curveObj.pts.length ==0) continue;
             var thisCurveFunc = curveObj.evaluate
             let xMin = curveObj.xRange[0];
             let xMax = curveObj.xRange[1];
@@ -689,7 +654,7 @@ class FileManipPage extends React.Component {
             
             path.setAttribute("d",d);
             
-            path.setAttribute("stroke",groupColors[parseInt(curveObj.equationId.substr(5).split("_")[0])])        //groupColors[parseInt(curveObj.currentEquationName.substr(5).split("_")[0])]
+            path.setAttribute("stroke",groupColors[parseInt(curveObj.equationId.substr(5).split("_")[0])])
             path.setAttribute("fill","none");
             // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
             document.getElementById("curveGroup").append(path);
@@ -724,12 +689,9 @@ class FileManipPage extends React.Component {
         //currentPt is object {x:..., y:...}
 
         var destination = thisCurveName;
-
         let imageWidth = this.currentScanObj.imageWidth;
         let imageHeight= this.currentScanObj.imageHeight;
-        let imageLength=imageWidth*imageHeight;
         var dataPts = [currentPt]
-        
         var currentEigenVectors = currentPt.eigenVectors;
        
         //searches for edges in 5x5 window around every corner, to try to account for multiple edges coming from one corner
@@ -743,10 +705,8 @@ class FileManipPage extends React.Component {
         var thetaDelta = 0.9;        //the farther it extends, the less flexible the theta comparison should be
         var thetaFlexibility = 0.349;
         
-
         var lastIdx = currentPt.x + (currentPt.y)*imageWidth;
         while(canExtend) {
-
             // for(var i=1; i < 25; ++i) { 
             
             var nextX = Math.round(i*Math.cos(currentTheta))
@@ -775,8 +735,6 @@ class FileManipPage extends React.Component {
                     //merge the pts of this scan with the pts of the existing curve 
                     destination = nextPixelStatus;
                     canExtend=false;
-
-                  
                     //********** create new node here **********
                     //if curve starts where the other ends, merge them
                     //otherwise, create node split the other curve in 2 to create intersection
@@ -785,7 +743,6 @@ class FileManipPage extends React.Component {
                     // dataPts = dataPts.concat(nextEdges);
                     // segmentLengths = segmentLengths.concat(nextLengths)
                     // destination = finalDestination;
-
                     break;
                    
                 }

@@ -8,10 +8,7 @@ export class Curve {
         this.equationId = equationId;
         this.pts = pts;
         this.N = this.pts.length;
-        // this.xVals = this.pts.map(a=>a.x);
-        // this.yVals = this.pts.map(a=>a.y);
         
-
         this.curveChildren = [];
 
         this.xVals=[];
@@ -29,10 +26,9 @@ export class Curve {
         this.xMin = this.xRange[0];
         this.xMax = this.xRange[1];
         this.order = order
-        this.anchor  =anchor
+        this.anchor = anchor
         
         this.currentCoeffs = [];
-        
         
         this.currentMidpointX = this.currentMidpointX.bind(this);
         this.currentDerivative = this.currentDerivative.bind(this);
@@ -46,7 +42,7 @@ export class Curve {
         this.equationOrder = this.curveData.equationOrder;
         
 
-        this.findIntersection = this.findIntersection.bind(this);
+      
         this.split = this.split.bind(this);
         this.getCurrentLength = this.getCurrentLength.bind(this);
         this.getCurrentSlope = this.getCurrentSlope.bind(this);
@@ -76,32 +72,7 @@ export class Curve {
         }
         return result;
     }
-    findIntersection(otherCurve) {
-        var intersection = null
-        eval(this.currentEquationStr)
-        eval(otherCurve.currentEquationStr)
-        var thisFunc = eval(this.currentEquationName)
-        var otherFunc = eval(otherCurve.currentEquationName)
-        var numIntersections = 0;
-
-        for(let x=this.xMin; x <= this.xMax; x+=1) {
-            if(Math.round(thisFunc(x))==Math.round(otherFunc(x))) {
-                intersection = {x:x, y:thisFunc(x)};
-                ++numIntersections
-            }
-        }
-        if(intersection==null) {
-            for(let x=otherCurve.xMin; x <= otherCurve.xMax; x+=1) {
-                if(Math.round(thisFunc(x))==Math.round(otherFunc(x))) {
-                    intersection = {x:x, y:thisFunc(x)};
-                    ++numIntersections
-                }
-            }
-        }
-        
-        intersection["overlapRatio"] = numIntersections/(this.xMax-this.xMin);
-        return intersection;
-    }
+   
 
     getCurrentSlope() {
         var slope = Math.round(this.P2.y-this.P1.y)/Math.round(this.P2.x-this.P1.x);
@@ -115,12 +86,11 @@ export class Curve {
         return Math.sqrt(((this.P2.x-this.P1.x)*(this.P2.x-this.P1.x)) + ((this.P2.y-this.P1.y)*(this.P2.y-this.P1.y)))
     }
     split(splitPt) {
-        
         var yLimit = {op:null, val:splitPt.y}
         if(this.getCurrentSlope() == "vertical") {
             var curve1 = new Curve(this.pts, this.equationId+"_1", 2, null,null,  {op:'<', value:splitPt.y})
             var curve2 = new Curve(this.pts, this.equationId+"_2", 2, null,null,  {op:'>', value:splitPt.y} )
-            this.curveChildren
+ 
             return [curve1, curve2]
         }
         else {
@@ -210,11 +180,10 @@ export class Curve {
             var tempFunc = (x) =>{return (x)*(x)*this.currentCoeffs[2] + (x)*this.currentCoeffs[1] + (this.currentCoeffs[0])}
             var equation = `var curvePoly${this.equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
             
-        
             this.P1 = {x:this.xMin, y:tempFunc(this.xMin)}
             this.P2 = {x:this.xMax, y:tempFunc(this.xMax)}
         
-            var curveObj = {xRange:this.xRange,equationOrder:order, equationStr:equation, equationName:`curvePoly${this.equationId.toString()}`}
+            var curveObj = {xRange:this.xRange,equationOrder:order}
             console.log("curveObj",curveObj)
             resolve(curveObj);
         })

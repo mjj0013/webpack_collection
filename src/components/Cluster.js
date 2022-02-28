@@ -10,8 +10,12 @@ export class Cluster {
         this.rangeQueryABCAN1D = this.rangeQueryABCAN1D.bind(this);
         this.pts = pts;
         this.N = this.pts.length;
-        this.xVals = this.pts.map(a=>a.x);
-        this.yVals = this.pts.map(a=>a.y);
+        this.xVals = [];
+        this.yVals = [];
+        for(let pt=0; pt < this.pts.length; ++pt) {
+            this.xVals.push(this.pts[pt].x);
+            this.yVals.push(this.pts[pt].y);
+        }
         this.clusteringOrder = clusteringOrder;
         this.verbose = verbose;
         this.subClusters = this.findSubClusters(clusteringOrder)

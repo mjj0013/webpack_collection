@@ -6,7 +6,6 @@ import { Switch, BrowserRouter, Route } from 'react-router-dom';
 
 import FileManipPage from './FileManipPage'; 
 
-import GraphicsPage from './GraphicsPage';
 
 //import Loading from './Loading';
 import Home from './Home';
@@ -23,7 +22,6 @@ function App() {
 			<div>
 				<Switch>
 					<Route path="/fileload" component={FileManipPage} />
-					<Route path="/animation" component={GraphicsPage} />
 					<Route  path="/" component={Home} />
 				</Switch>
 			</div>

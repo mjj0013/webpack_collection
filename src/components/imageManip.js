@@ -63,13 +63,13 @@ export class ImageScan {
             var sigStack = [sig0*Math.pow(baseSig,0)]
             // for(var s=sigExpMax;s>0;s-=sigDelta)    sigStack.push(sig0*Math.pow(baseSig,s));
             var layerStack = [];
-            console.log('sigStack',sigStack)
+            
             //make stack of layers, which each have different sigma values
             for(var s=0; s < sigStack.length; ++s) {
                 var temp = this.gaussianBlurComponent(componentLength, sigStack[s]);
                 var component = {kernel:temp.kernel, sig:sigStack[s], kernelRadius:temp.kernelRadius};
-                layerStack.push({"component":component, "resultData": { "imageInfo":{"height":this.imageHeight, "width":this.imageWidth},"RGB":data.map((x)=>x), "imageData":null, "mags":[], "yGradient1":[], "xGradient1":[],
-                 "magGradient":[], "thetaGradient":[], "harrisResponse":[], "slopeRateX1":[], "slopeRateY1":[], "cornerLocations":[], "laplacian":[], "eigenVals":[], "eigenVectors":[], "curvePaths":[], "maxMagGradient":0,"eigenVectorTheta":[],
+                layerStack.push({"component":component, "resultData": { "imageInfo":{"height":this.imageHeight, "width":this.imageWidth},"RGB":[...data], "imageData":null, "mags":[], "yGradient1":[], "xGradient1":[],
+                 "magGradient":[], "thetaGradient":[], "harrisResponse":[],  "cornerLocations":[], "laplacian":[], "eigenVals":[], "eigenVectors":[], "curvePaths":[], "maxMagGradient":0,"eigenVectorTheta":[],
                 "pixelVisited":[], "gaussCurvature":[]        //each pixel will have list of 8 for the links bewteen 8 neighbors
                 }});
             }
@@ -140,12 +140,11 @@ export class ImageScan {
 
                         let magGrad = Math.sqrt((sobelY1*sobelY1) + (sobelX1*sobelX1))
                         let theta = sobelY1==0||sobelX1==0? 0:Math.atan((sobelY1)/(sobelX1));
-                        let slopeRate1 = {x:magGrad*Math.cos(theta), y:magGrad*Math.sin(theta)}
+                      
                         if(magGrad > parallelComponent["resultData"]["maxMagGradient"]) parallelComponent["resultData"]["maxMagGradient"] = magGrad;
                         parallelComponent["resultData"]["magGradient"].push(magGrad);
                         parallelComponent["resultData"]["thetaGradient"].push(theta); 
-                        parallelComponent["resultData"]["slopeRateX1"].push(slopeRate1.x)       //measure of horizontal-ness
-                        parallelComponent["resultData"]["slopeRateY1"].push(slopeRate1.y)       //measure of vertical-ness
+                    
                     }
                 }
                 
@@ -176,7 +175,6 @@ export class ImageScan {
                                     xyRow.push(xComp*yComp)
                                     yRow.push(yComp*yComp)
                                 }
-                                // if(!isLocalPeak) break;
                                 Ixx.push(xRow);
                                 Ixy.push(xyRow);
                                 Iyy.push(yRow);
@@ -218,9 +216,7 @@ export class ImageScan {
                             if(real[0] > eigenValEstimate && real[1] > eigenValEstimate)  {
                                 var pixelIdx = ((imgX) + (imgY)*this.imageWidth);
                                 var thetaGradient = parallelComponent["resultData"]["thetaGradient"][pixelIdx]
-                                var slopeRateX1 = parallelComponent["resultData"]["slopeRateX1"][pixelIdx]
-                                var slopeRateY1 = parallelComponent["resultData"]["slopeRateY1"][pixelIdx]
-                                parallelComponent["resultData"]["cornerLocations"].push({eigenVectors:eigVectors,eigenVals:eigs, x:imgX, y:imgY,thetaGradient:thetaGradient, slope:slopeRateY1/slopeRateX1, pixelIdx:pixelIdx, magGradient: parallelComponent["resultData"]["magGradient"][pixelIdx]});
+                                parallelComponent["resultData"]["cornerLocations"].push({eigenVectors:eigVectors,eigenVals:eigs, x:imgX, y:imgY,thetaGradient:thetaGradient, pixelIdx:pixelIdx, magGradient: parallelComponent["resultData"]["magGradient"][pixelIdx]});
                             }
                         }
                     }
@@ -387,19 +383,7 @@ export class ImageScan {
                         }
                     }
                 }
-                // if(layer==0) {
-                //     context.putImageData(this.imageData, 0,0);
-                //     var cornerClusters = this.imageLayers[this.imageLayers.length-1]["resultData"]["cornerClusters"].subClusters;
-                //     for(var cluster=0; cluster < cornerClusters.length; ++cluster) {
-                //         var color = `rgb(${getRandomInt(0,255)},${getRandomInt(0,255)},${getRandomInt(0,255)} )`
-                //         for(var pt=0; pt < cornerClusters[cluster].length; ++pt) {
-                //             context.beginPath();
-                //             context.arc(cornerClusters[cluster][pt].x, cornerClusters[cluster][pt].y, 1, 0, 2 * Math.PI)
-                //             context.fillStyle = color
-                //             context.fill();
-                //         }
-                //     }
-                // }
+
                 this.imageLayers[layer]["resultData"]["imageData"] = dataCopy;
                 console.log(`****** Layer ${layer} of ${this.imageLayers.length} completed ******`);
             }
@@ -413,6 +397,7 @@ export class ImageScan {
         let kernelRadius=Math.floor(kernelLength/2);
         sig = Math.max((kernelRadius / 2), sig)      //set minimum standard deviation as a baseline; link above says to scale sigma value in proportion to radius
         let kernel = new Array(kernelLength).fill(0).map(() => new Array(kernelLength).fill(0));
+
         let lowerExp = sig*sig*2;
         var sum = 0;
         for(var x=-kernelRadius; x <= kernelRadius; ++x) {

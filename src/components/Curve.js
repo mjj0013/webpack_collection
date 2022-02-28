@@ -86,32 +86,30 @@ export class Curve {
         return Math.sqrt(((this.P2.x-this.P1.x)*(this.P2.x-this.P1.x)) + ((this.P2.y-this.P1.y)*(this.P2.y-this.P1.y)))
     }
     split(splitPt) {
-        var yLimit = {op:null, val:splitPt.y}
+
         if(this.getCurrentSlope() == "vertical") {
-            var curve1 = new Curve(this.pts, this.equationId+"_1", 2, null,null,  {op:'<', value:splitPt.y})
-            var curve2 = new Curve(this.pts, this.equationId+"_2", 2, null,null,  {op:'>', value:splitPt.y} )
- 
+            // fix the limits here to improve the curve segmenting problem
+
+            // there should be way to specify new minimums and maximums when splitting
+            var curve1 = new Curve(this.pts, this.equationId+"_1", 2, null,null,  [null,splitPt.y])         //splitPt.y is a maximum
+            var curve2 = new Curve(this.pts, this.equationId+"_2", 2, null,null,  [splitPt.y,null] )        //splitPt.y is a minimum
             return [curve1, curve2]
         }
         else {
-           
-            var curve1 = new Curve(this.pts, this.equationId+"_1", 2, null,  {op:'<', value:splitPt.x}, null )
-            var curve2 = new Curve(this.pts, this.equationId+"_2", 2, null,  {op:'>', value:splitPt.x}, null )
+            var curve1 = new Curve(this.pts, this.equationId+"_1", 2, null,  [null,splitPt.x], null )        //splitPt.x is a maximum
+            var curve2 = new Curve(this.pts, this.equationId+"_2", 2, null,  [splitPt.x, null], null )       //splitPt.x is a minimum
             return [curve1, curve2]
         }
-        
 
         
     }
     async fitCurveToPts(clusterPts, order=2, anchor=null) {       //use Method of Least Square to find a curve that fits points, not using Lagrange polynomial
         //https://www.youtube.com/watch?v=-UJr1XjyfME&ab_channel=Civillearningonline
 
-
         //******************* decide when to use cubic or quadratic *******************
         return new Promise((resolve, reject)=>{
             console.log("Method of Least squares generated")
             var n = clusterPts.length;
-
             var xVals = [];
             var yVals = [];
             var xyVals = [];
@@ -130,7 +128,6 @@ export class Curve {
                 xxxVals.push(xx*clusterPts[i].x);
                 xxxxVals.push(xx*xx);
             }
-
             var xSum = 0, ySum = 0, xySum = 0, xxySum = 0, xxSum = 0, xxxSum = 0, xxxxSum = 0;
             for(let i=0; i < n; ++i) {
                 xSum += xVals[i];
@@ -178,7 +175,7 @@ export class Curve {
             }
             // var tempFunc = (x) =>{return (x-anchor?anchor.x:0)*(x-anchor?anchor.x:0)*this.currentCoeffs[2] + (x-anchor?anchor.x:0)*this.currentCoeffs[1] + (anchor?anchor.y:0 - this.currentCoeffs[0])}
             var tempFunc = (x) =>{return (x)*(x)*this.currentCoeffs[2] + (x)*this.currentCoeffs[1] + (this.currentCoeffs[0])}
-            var equation = `var curvePoly${this.equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
+            // var equation = `var curvePoly${this.equationId.toString()} = (x) => {return `+terms.join("+")+`}`;
             
             this.P1 = {x:this.xMin, y:tempFunc(this.xMin)}
             this.P2 = {x:this.xMax, y:tempFunc(this.xMax)}
@@ -229,8 +226,8 @@ export class Curve {
             xMin = this.xVals[x] < xMin? this.xVals[x] : xMin;
         }
         if(this.xLimit) {
-            if(this.xLimit.op ==">") xMin = this.xLimit.value
-            if(this.xLimit.op =="<") xMax = this.xLimit.value
+            if(this.xLimit[0]) xMin = this.xLimit[0]
+            if(this.xLimit[1]) xMax = this.xLimit[1]
         }
         return [xMin, xMax]
     }

@@ -99,7 +99,7 @@ class FileManipPage extends React.Component {
                     var alreadyExists = false;
                     var key1 = this.testCurves[curveKeys[c1]];
                     var key2 = this.testCurves[curveKeys[c2]];
-                    if(key1.equationId == key2.equationId) continue;
+                    if(c1 == c2) continue;
 
                     for(let i=0; i < intersections.length; ++i) {
                         if(intersections[i].segments[0]==curveKeys[c1] && intersections[i].segments[1]==curveKeys[c2]) {
@@ -171,10 +171,10 @@ class FileManipPage extends React.Component {
                     let xMin1=newCurve1.xRange[0];
                     let xMax1=newCurve1.xRange[1];
                     var curveFunc1 = newCurve1.evaluate
-                    var P1 = {x:xMin1, y:curveFunc1(xMin1)}
+                    var P1 = {x:xMin1, y:curveFunc1(xMin1)}                 
                     var P2 = {x:xMax1, y:curveFunc1(xMax1)}
-                    var curveDerivativeMin = newCurve1.currentDerivative(xMin1);
-                    var QC = {x:(xMin1+xMax1)/2,  y:P1.y+curveDerivativeMin*(xMax1-xMin1)/2}
+                    var curveDerivativeMin = newCurve1.currentDerivative(xMin1);                    
+                    var QC = {x:(xMin1+xMax1)/2,  y:P1.y+curveDerivativeMin*(xMax1-xMin1)/2}        //quadratic bezier control points
                     var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
 
                     var path1 = document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -224,7 +224,6 @@ class FileManipPage extends React.Component {
                     var P2 = {x:xMax1, y:curveFunc1(xMax1)}
                     var curveDerivativeMin = newCurve1.currentDerivative(xMin1);
                     var QC = {x:(xMin1+xMax1)/2,  y:P1.y+curveDerivativeMin*(xMax1-xMin1)/2}
-                
                     var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
                     
                     var path1 = document.createElementNS("http://www.w3.org/2000/svg","path");

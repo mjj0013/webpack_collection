@@ -97,12 +97,14 @@ class FileManipPage extends React.Component {
             for(let c1=0; c1 < curveKeys.length; ++c1) {
                 for(let c2=0; c2 < curveKeys.length; ++c2) {
                     var alreadyExists = false;
+                    var xIsPossible = false;
+                    var yIsPossible = false;
                     var key1 = this.testCurves[curveKeys[c1]];
                     var key2 = this.testCurves[curveKeys[c2]];
                     if(c1 == c2) continue;
 
                     for(let i=0; i < intersections.length; ++i) {
-                        if(intersections[i].segments[0]==curveKeys[c1] && intersections[i].segments[1]==curveKeys[c2]) {
+                        if(intersections[i].segments[0]==curveKeys[c2] && intersections[i].segments[1]==curveKeys[c1]) {
                             alreadyExists=true;
                             console.log("already exists")
                             break;
@@ -112,7 +114,23 @@ class FileManipPage extends React.Component {
                     var curveObj1 = key1.curveObj;
                     var curveObj2 = key2.curveObj;
                     console.log("curveObj1", curveObj1, "curveObj2", curveObj2)
+
+                    if(curveObj2.P1.x < curveObj1.P2.x && curveObj1.P2.x < curveObj2.P2.x) {xIsPossible=true;}
+                    if(curveObj2.P1.x < curveObj1.P1.x && curveObj1.P1.x < curveObj2.P2.x) {xIsPossible=true;}
+                    if(curveObj1.P1.x < curveObj2.P2.x && curveObj2.P2.x < curveObj1.P2.x) {xIsPossible=true;}
+                    if(curveObj1.P1.x < curveObj2.P1.x && curveObj2.P1.x < curveObj1.P2.x) {xIsPossible=true;}
+
+
+                    if(curveObj2.P1.y < curveObj1.P2.y && curveObj1.P2.y < curveObj2.P2.y) {yIsPossible=true;}
+                    if(curveObj2.P1.y < curveObj1.P1.y && curveObj1.P1.y < curveObj2.P2.y) {yIsPossible=true;}
+                    if(curveObj1.P1.y < curveObj2.P2.y && curveObj2.P2.y < curveObj1.P2.y) {yIsPossible=true;}
+                    if(curveObj1.P1.y < curveObj2.P1.y && curveObj2.P1.y < curveObj1.P2.y) {yIsPossible=true;}
+            
+                    if(!xIsPossible || !yIsPossible)  {
+                        continue;
+                    }
                     for(let x=curveObj1.xMin; x <= curveObj1.xMax; ++x) {
+                    
                         var result1 = Math.round(curveObj1.evaluate(x));
                         if(curveObj1.yLimit) {
                             if(curveObj1.yLimit.op == ">") {
@@ -146,6 +164,13 @@ class FileManipPage extends React.Component {
                             circle.setAttribute("id",`intersection${intersections.length}`)
                             circle.setAttribute("cx",x);
                             circle.setAttribute("cy",result1);
+
+
+                            circle.addEventListener("mouseover", (e)=>{ 
+                                console.log(intersections[parseInt(e.target.id.slice(12))].segments)    
+                            }, false);
+
+
                             circle.setAttribute("r",5);
                             circle.setAttribute("stroke",`red`);
                             circle.setAttribute("fill","red");
@@ -155,7 +180,6 @@ class FileManipPage extends React.Component {
                     }
                 }
             }
-
             console.log('intersections',intersections)
           
             for(var i=0; i < intersections.length; ++i) {
@@ -182,7 +206,11 @@ class FileManipPage extends React.Component {
                     path1.setAttribute("d",d);
                     path1.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                     path1.setAttribute("fill","none");
-                    path1.addEventListener("mouseover", (e)=>{    console.log(e.target.id)}, false);
+                    path1.addEventListener("mouseover", (e)=>{    
+                        console.log(e.target.id)
+                        console.log(this.testCurves[e.target.id].P1, this.testCurves[e.target.id].P2)
+                        
+                    }, false);
                     document.getElementById("curveGroup").append(path1);
                     this.testCurves[newCurveId1] = {curveObj:newCurve1, curveId:newCurveId1}
 
@@ -193,8 +221,13 @@ class FileManipPage extends React.Component {
                     var curveFunc2 = newCurve2.evaluate;
                     var P1 = {x:xMin2, y:curveFunc2(xMin2)}
                     var P2 = {x:xMax2, y:curveFunc2(xMax2)}
+
                     var curveDerivativeMin = newCurve2.currentDerivative(xMin2);
+
                     var QC = {x:(xMin2+xMax2)/2,  y:P1.y+curveDerivativeMin*(xMax2-xMin2)/2}
+
+                    // for cubic bezier, try https://stackoverflow.com/questions/22556381/approximating-data-with-a-multi-segment-cubic-bezier-curve-and-a-distance-as-wel/22582447#22582447
+                    // var CC1 = {x:(P1.x-P2.x)/6, y:P1.y-()}
                     var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
 
                     var path2 = document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -202,7 +235,10 @@ class FileManipPage extends React.Component {
                     path2.setAttribute("d",d);
                     path2.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                     path2.setAttribute("fill","none");
-                    path2.addEventListener("mouseover", (e)=>{ console.log(e.target.id) }, false);
+                    path2.addEventListener("mouseover", (e)=>{ 
+                        console.log(e.target.id)
+                        console.log(this.testCurves[e.target.id].P1, this.testCurves[e.target.id].P2)
+                     }, false);
                     document.getElementById("curveGroup").append(path2);
                     this.testCurves[newCurveId2] = {curveObj:newCurve2, curveId:newCurveId2}
 
@@ -231,7 +267,10 @@ class FileManipPage extends React.Component {
                     path1.setAttribute("d",d);
                     path1.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                     path1.setAttribute("fill","none");
-                    path1.addEventListener("mouseover", (e)=>{console.log(e.target.id)}, false);
+                    path1.addEventListener("mouseover", (e)=>{
+                        console.log(e.target.id)
+                        console.log(this.testCurves[e.target.id].curveObj.P1, this.testCurves[e.target.id].curveObj.P2)
+                    }, false);
                     document.getElementById("curveGroup").append(path1);
                     this.testCurves[newCurveId1] = {curveObj:newCurve1, curveId:newCurveId1}
 
@@ -252,7 +291,10 @@ class FileManipPage extends React.Component {
                     path2.setAttribute("d",d);
                     path2.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                     path2.setAttribute("fill","none");
-                    path2.addEventListener("mouseover", (e)=>{console.log(e.target.id)}, false);
+                    path2.addEventListener("mouseover", (e)=>{
+                        console.log(e.target.id)
+                        console.log(this.testCurves[e.target.id].curveObj.P1, this.testCurves[e.target.id].curveObj.P2)
+                    }, false);
                     document.getElementById("curveGroup").append(path2);
                     this.testCurves[newCurveId2] = {curveObj:newCurve2, curveId:newCurveId2}
 
@@ -297,7 +339,12 @@ class FileManipPage extends React.Component {
                 path.setAttribute("d",d);
                 path.setAttribute("stroke",`rgb(${getRandomInt(0,255)}, ${getRandomInt(0,255)}, ${getRandomInt(0,255)})`);
                 path.setAttribute("fill","none");
-                path.addEventListener("mouseover", (e)=>{console.log(e.target.id)}, false);
+                path.addEventListener("mouseover", (e)=>{    
+                    console.log(e.target.id)
+                    // console.log(this.testCurves[e.target.id].curveObj.xRange)
+                    console.log(this.testCurves[e.target.id].curveObj.P1, this.testCurves[e.target.id].curveObj.P2)
+                }, false);
+                // path.addEventListener("mouseover", (e)=>{console.log(e.target.id)}, false);
                 // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
                 document.getElementById("curveGroup").append(path);
 

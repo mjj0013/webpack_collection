@@ -824,6 +824,7 @@ class FileManipPage extends React.Component {
       
         var imageReadPromise = this.currentScanObj.imageReader();
         var startingEigenValEst = 5000;
+        // var startingEigenValEst = 5000;
         imageReadPromise.then(result1 => {
             var detectBlobPromise =  this.currentScanObj.detectBlobs();      //detects blobs on each layer
             // var detectBlobPromise =  this.currentScanObj.detectBlobs({eigenValEstimate:startingEigenValEst});      //detects blobs on each layer

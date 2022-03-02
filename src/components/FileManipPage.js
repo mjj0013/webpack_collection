@@ -70,7 +70,7 @@ class FileManipPage extends React.Component {
         this.testPts = [];
         this.testCurves = {}
         this.testCurveSplit = this.testCurveSplit.bind(this);
-        this.numSplits = 0;
+        
     }
     resultSVGModeSelect = (e) =>{
         if(e.target.id=="dragButton") {
@@ -113,13 +113,11 @@ class FileManipPage extends React.Component {
                     if(alreadyExists) continue;
                     var curveObj1 = key1.curveObj;
                     var curveObj2 = key2.curveObj;
-                    console.log("curveObj1", curveObj1, "curveObj2", curveObj2)
 
                     if(curveObj2.P1.x < curveObj1.P2.x && curveObj1.P2.x < curveObj2.P2.x) {xIsPossible=true;}
                     if(curveObj2.P1.x < curveObj1.P1.x && curveObj1.P1.x < curveObj2.P2.x) {xIsPossible=true;}
                     if(curveObj1.P1.x < curveObj2.P2.x && curveObj2.P2.x < curveObj1.P2.x) {xIsPossible=true;}
                     if(curveObj1.P1.x < curveObj2.P1.x && curveObj2.P1.x < curveObj1.P2.x) {xIsPossible=true;}
-
 
                     if(curveObj2.P1.y < curveObj1.P2.y && curveObj1.P2.y < curveObj2.P2.y) {yIsPossible=true;}
                     if(curveObj2.P1.y < curveObj1.P1.y && curveObj1.P1.y < curveObj2.P2.y) {yIsPossible=true;}
@@ -130,26 +128,16 @@ class FileManipPage extends React.Component {
                         continue;
                     }
                     for(let x=curveObj1.xMin; x <= curveObj1.xMax; ++x) {
-                    
+
                         var result1 = Math.round(curveObj1.evaluate(x));
                         if(curveObj1.yLimit) {
-                            if(curveObj1.yLimit.op == ">") {
-                                if(result1 <= curveObj1.yLimit.value){ break;}
-                            }
-                            else if(curveObj1.yLimit.op == "<") { 
-                                if(result1 >= curveObj1.yLimit.value) {break;}
-                            }
+                            if(result1 < curveObj1.yLimit[0]) break;
+                            if(result1 > curveObj1.yLimit[1]) break;
                         }
-                           
-                        
                         var result2 = Math.round(curveObj2.evaluate(x));
                         if(curveObj2.yLimit) {
-                            if(curveObj2.yLimit.op == ">") {
-                                if(result2 <= curveObj2.yLimit.value) {break;}
-                            }
-                            else if(curveObj2.yLimit.op == "<") { 
-                                if(result2 >= curveObj2.yLimit.value) {break;}
-                            }
+                            if(result2 < curveObj2.yLimit[0]) break;
+                            if(result2 > curveObj2.yLimit[1]) break;
                         }
 
                         if(numberInRange(result1,result2,1)) {
@@ -165,11 +153,9 @@ class FileManipPage extends React.Component {
                             circle.setAttribute("cx",x);
                             circle.setAttribute("cy",result1);
 
-
                             circle.addEventListener("mouseover", (e)=>{ 
                                 console.log(intersections[parseInt(e.target.id.slice(12))].segments)    
                             }, false);
-
 
                             circle.setAttribute("r",5);
                             circle.setAttribute("stroke",`red`);
@@ -181,7 +167,8 @@ class FileManipPage extends React.Component {
                 }
             }
             console.log('intersections',intersections)
-          
+          // for cubic bezier, try https://stackoverflow.com/questions/22556381/approximating-data-with-a-multi-segment-cubic-bezier-curve-and-a-distance-as-wel/22582447#22582447
+            // var CC1 = {x:(P1.x-P2.x)/6, y:P1.y-()}
             for(var i=0; i < intersections.length; ++i) {
                 var I = intersections[i];
                 if(this.testCurves[I.segments[0]]==null || this.testCurves[I.segments[1]]==null) continue;
@@ -209,7 +196,6 @@ class FileManipPage extends React.Component {
                     path1.addEventListener("mouseover", (e)=>{    
                         console.log(e.target.id)
                         console.log(this.testCurves[e.target.id].P1, this.testCurves[e.target.id].P2)
-                        
                     }, false);
                     document.getElementById("curveGroup").append(path1);
                     this.testCurves[newCurveId1] = {curveObj:newCurve1, curveId:newCurveId1}
@@ -221,13 +207,8 @@ class FileManipPage extends React.Component {
                     var curveFunc2 = newCurve2.evaluate;
                     var P1 = {x:xMin2, y:curveFunc2(xMin2)}
                     var P2 = {x:xMax2, y:curveFunc2(xMax2)}
-
                     var curveDerivativeMin = newCurve2.currentDerivative(xMin2);
-
                     var QC = {x:(xMin2+xMax2)/2,  y:P1.y+curveDerivativeMin*(xMax2-xMin2)/2}
-
-                    // for cubic bezier, try https://stackoverflow.com/questions/22556381/approximating-data-with-a-multi-segment-cubic-bezier-curve-and-a-distance-as-wel/22582447#22582447
-                    // var CC1 = {x:(P1.x-P2.x)/6, y:P1.y-()}
                     var d = `M${P1.x},${P1.y} Q${QC.x},${QC.y},${P2.x},${P2.y} `
 
                     var path2 = document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -303,7 +284,7 @@ class FileManipPage extends React.Component {
                     document.getElementById(curveObj2.equationId).remove()
                 }
             }
-            console.log(" this.testCurves", this.testCurves)
+            console.log("this.testCurves", this.testCurves)
 
             resolve();
         })
@@ -319,12 +300,10 @@ class FileManipPage extends React.Component {
             if(e.code =="Space") {
                 var newCurveId = "testCurve"+`${Object.keys(this.testCurves).length}`;
                 var curve = new Curve(this.testPts,newCurveId, 2, this.testPts[0])
-             
                 let xMin1=curve.xRange[0];
                 let xMax1=curve.xRange[1];
                 
                 var thisCurveFunc = curve.evaluate
-
                 var P1 = {x:xMin1, y:thisCurveFunc(xMin1)}
                 var P2 = {x:xMax1, y:thisCurveFunc(xMax1)}
                 var curveDerivativeMin = curve.currentDerivative(xMin1);
@@ -355,8 +334,6 @@ class FileManipPage extends React.Component {
                     console.log("donedone")
                 })
 
-                
-         
             }
         })
 
@@ -382,7 +359,6 @@ class FileManipPage extends React.Component {
     }
     closeDragElement() {
         this.currentlyDragging = null;
-        // document.getElementById("resultSVG").style.cursor = 'grab';
         document.onmouseup = null;
         document.onmousemove = null;
         this.selectBoxOrigin = {x:0, y:0}
@@ -402,7 +378,6 @@ class FileManipPage extends React.Component {
         if(!(e.target.id.substr(0,2)=='pt' || e.target.id=="resultSVGBackground")) return e;
         e = e || window.event;
         this.lastZoom = {x:e.offsetX, y:e.offsetY}
-        
         if(this.dragStart) {
             var pt = getTransformedPt(this.lastZoom.x, this.lastZoom.y, this.transformMatrix);
             
@@ -489,19 +464,6 @@ class FileManipPage extends React.Component {
             // path.insertAdjacentHTML('beforeend',`<animate xlink:href="#curve${curve}_${clm}" id="pathAnimatecurve${curve}_${clm}" attributeName="d" attributeType="XML" dur="8s" begin="0s" repeatCount="indefinite" values="${d}; ${d2};"></animate>`)
             curveGroup.append(path);
         }
-        // var cornerClusters = this.currentScanObj.imageLayers[selectedIdx]["resultData"]["cornerClusters"].subClusters;
-        // for(var cluster=0; cluster < cornerClusters.length; ++cluster) {
-        //     var color='red';
-        //     for(var pt=0; pt < cornerClusters[cluster].length; ++pt) {
-        //         var ptObj = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        //         ptObj.setAttribute("id",`corner${selectedIdx}_${cluster}_${pt}`)
-        //         ptObj.setAttribute("cx",cornerClusters[cluster][pt].x);
-        //         ptObj.setAttribute("cy",cornerClusters[cluster][pt].y);
-        //         ptObj.setAttribute("r",2);
-        //         ptObj.setAttribute("fill",color);
-        //         document.getElementById("ptGroup").append(ptObj);
-        //     } 
-        // }
     }
 
     showValuesOnHover(e) {
@@ -555,9 +517,8 @@ class FileManipPage extends React.Component {
         // Traces edges starting from each detected corner. A 5x5 window is mapped around each corner to account for multiple edges coming from corner. Duplicates edges are detected 
         // Calls 'tracingWindow' recursively when an edge continues in a specific direction.
         // TODO: add Hough Transform for ellipse detection (iterating through different radius lengths to see which radius has most 'votes'/ fits data points)
-        
+    
         var cornerLocations = resultData["cornerLocations"];
-        var graphObject = []    // will be list of objects representing each corner. each corner's object has list of edges/curves
         for(var corn=0; corn < cornerLocations.length; ++corn) {
             var currentCorner = cornerLocations[corn]
             this.allCornerData[`corner${corn}`] = {"edges":[], "neighbors":[], "node":currentCorner, "edgeEndPts":[]}
@@ -591,7 +552,6 @@ class FileManipPage extends React.Component {
             //             break;
             //         }
             //     }
-                
             // }        
             for(var wY=-movWinRadius; wY <= movWinRadius; ++wY) {        //try -15 to 15
                 for(var wX=-movWinRadius; wX <= movWinRadius; ++wX) {
@@ -656,13 +616,6 @@ class FileManipPage extends React.Component {
 
         }
 
-        // for(let corn=0; corn < this.allCornerData.length; ++corn) {
-        //     var cornerEdges = this.allCornerData[`corner${corn}`].edges
-        //     for(let edge=0; edge < cornerEdges.length; ++edge) {
-        //         var curveObj = this.allCurveData[cornerEdges[edge]].curveObj;
-        //     }
-        // }
-
         /*************************************************************************************************/
         //to determine which curves to merge: 
         //see if their slopeMidPt is the same;   then, test if one curve's function can output the other function's output
@@ -671,7 +624,6 @@ class FileManipPage extends React.Component {
         //cluster together curves based on the density of their Bezier-control points ( meaning they have relatively same curvature)
         // var controlPtCluster = new Cluster(curveRelations, [ {name:'density', epsilonMultiplier:1, minPts:2, epsilon:25} ] );
         var groupColors = [];
-
         for(let c=0; c < Object.keys(this.allCornerData).length; ++c) {
             groupColors.push(`hsl(${getRandomInt(0,359)}, ${getRandomInt(1,99)}%, ${getRandomInt(30,70)}%)`)
         }
@@ -760,8 +712,6 @@ class FileManipPage extends React.Component {
         
         var lastIdx = currentPt.x + (currentPt.y)*imageWidth;
         while(canExtend) {
-            // for(var i=1; i < 25; ++i) { 
-            
             var nextX = Math.round(i*Math.cos(currentTheta))
             var nextY = Math.round(i*Math.sin(currentTheta))
             var nextIdx = Math.round((currentPt.x+nextX) + ((nextY+currentPt.y)*imageWidth))

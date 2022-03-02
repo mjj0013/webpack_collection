@@ -15,15 +15,12 @@ export class Curve {
         this.equationId = equationId;
         this.pts = pts;
         this.N = this.pts.length;
-
         this.xVals=[];
         this.yVals=[];
-
         for(let pt=0; pt < this.pts.length; ++pt) {
             this.xVals.push(this.pts[pt].x);
             this.yVals.push(this.pts[pt].y);
         }
-        // this.pts = this.pts.filter((item,idx)=>!removeIdx.includes(idx))
         this.xLimit = xLimit;
         this.yLimit = yLimit;
         this.xRange = this.getXRange([0,this.pts.length]);
@@ -39,6 +36,8 @@ export class Curve {
         this.currentEquationStr = this.curveData.equationStr;       //you would call geval/eval on this variable in another module
         this.currentEquationName = this.curveData.equationName;
         this.equationOrder = this.curveData.equationOrder;
+
+        this.timesSplit = 0;
 
     }
 
@@ -118,10 +117,9 @@ export class Curve {
                 upperLimitY2 = this.P2.y
             }
 
-            
-
             var curve1 = new Curve(this.pts, this.equationId+"_1", 2, null,  [lowerLimitX1, upperLimitX1], [lowerLimitY1, upperLimitY1] )        //splitPt.x is a maximum
             var curve2 = new Curve(this.pts, this.equationId+"_2", 2, null,  [lowerLimitX2, upperLimitX2], [lowerLimitY2, upperLimitY2] )       //splitPt.x is a minimum
+           
             return [curve1, curve2];
         }
     }

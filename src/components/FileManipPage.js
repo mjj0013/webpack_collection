@@ -813,9 +813,10 @@ class FileManipPage extends React.Component {
     
     async loadImage(e) {
         var filterInfo = [
-            // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},       {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
+            // {type:"gammaTransfer", applyTo:"RGB", exponent:2, amplitude:10, offset:5},       
             // {type:"gaussBlur", kernelLength:7, sig:4000},    {type:"blackWhiteTransfer"},
-            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.5,.9,1.0]},   {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
+            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,.5,.9,1.0]},  
+            // {type:"discreteTransfer",applyTo:"RGB",tableValues:[0,0,1.0,1.0]},
         ]
         var canvas = document.getElementById("testCanvas");
         var context = canvas.getContext('2d');
@@ -826,8 +827,8 @@ class FileManipPage extends React.Component {
         var startingEigenValEst = 5000;
         // var startingEigenValEst = 5000;
         imageReadPromise.then(result1 => {
-            var detectBlobPromise =  this.currentScanObj.detectBlobs();      //detects blobs on each layer
-            // var detectBlobPromise =  this.currentScanObj.detectBlobs({eigenValEstimate:startingEigenValEst});      //detects blobs on each layer
+            // var detectBlobPromise =  this.currentScanObj.detectBlobs();      //detects blobs on each layer
+            var detectBlobPromise =  this.currentScanObj.detectBlobs({eigenValEstimate:startingEigenValEst});      //detects blobs on each layer
             detectBlobPromise.then(result2 => {  
                 var saveLayerImagePromise = this.currentScanObj.saveLayerImageData(context); 
                 saveLayerImagePromise.then(result3=>{

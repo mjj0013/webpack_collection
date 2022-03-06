@@ -51,7 +51,7 @@ export class ImageScan {
         return new Promise((resolve,reject)=> {
             this.originalData = this.originalImageData.data;
             var data = this.imageData.data;     //should normally be this.originalImageData.data;
-            gaussLength = 7       //was 7
+            // gaussLength = 5       //was 7
             var componentLength = gaussLength;   //15 works good with space & rocket center, trying 7 for Red&Black checker board
             let sig0 = 1;
             var sigStack = []
@@ -60,7 +60,7 @@ export class ImageScan {
                 sigExpMax = sigExpMax+(numLayers - (sigExpMax%numLayers));
                 sigDelta = sigExpMax/numLayers;
             }
-            var sigStack = [sig0*Math.pow(baseSig,0)]
+            var sigStack = [sig0*Math.pow(baseSig,3)]
             // for(var s=sigExpMax;s>0;s-=sigDelta)    sigStack.push(sig0*Math.pow(baseSig,s));
             var layerStack = [];
             
